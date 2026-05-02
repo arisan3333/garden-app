@@ -1,0 +1,2934 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#4ade80">
+<title>🌱 ベランダ菜園</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+:root {
+  --primary: #4ade80;
+  --primary-dark: #22c55e;
+  --bg: #fef9e7;
+  --card: #ffffff;
+  --text: #1f2937;
+  --text-light: #6b7280;
+  --border: #e5e7eb;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  --tomato: #ef4444;
+  --eggplant: #8b5cf6;
+  --pepper: #10b981;
+  --passion: #ec4899;
+  --ginger: #f59e0b;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-bottom: 80px;
+}
+.container { max-width: 600px; margin: 0 auto; padding: 16px; }
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  color: white;
+  padding: 20px 16px;
+  border-radius: 0 0 24px 24px;
+  margin: -16px -16px 16px;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+}
+.header h1 { font-size: 22px; margin-bottom: 4px; }
+.header .greeting { font-size: 13px; opacity: 0.9; }
+
+/* Cards */
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-light);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Task counter */
+.task-counter {
+  text-align: center;
+  padding: 24px 16px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-radius: 16px;
+}
+.task-counter .number {
+  font-size: 56px;
+  font-weight: 800;
+  color: var(--primary-dark);
+  line-height: 1;
+}
+.task-counter .label { font-size: 13px; color: var(--text-light); margin-top: 4px; }
+.task-counter .breakdown {
+  font-size: 13px;
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+.task-counter .breakdown span { color: var(--text-light); }
+.task-counter .breakdown b { color: var(--text); }
+
+/* Buttons */
+.btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 12px;
+  font-family: inherit;
+}
+.btn:active { transform: scale(0.98); }
+.btn-secondary {
+  background: white;
+  color: var(--primary-dark);
+  border: 2px solid var(--primary);
+}
+.btn-danger { background: var(--danger); }
+.btn-small {
+  padding: 8px 12px;
+  font-size: 13px;
+  width: auto;
+  margin-top: 0;
+}
+.btn-icon {
+  width: 40px; height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+/* Weather */
+.weather {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.weather .info { display: flex; align-items: center; gap: 12px; }
+.weather .icon { font-size: 32px; }
+.weather .temp { font-size: 18px; font-weight: 600; }
+.weather .alert {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* Plant cards */
+.plant-list { display: flex; flex-direction: column; gap: 10px; }
+.plant-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.plant-card:active { transform: scale(0.98); }
+.plant-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+.plant-card .info { flex: 1; min-width: 0; }
+.plant-card .name { font-weight: 600; font-size: 15px; }
+.plant-card .meta { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+.plant-card .arrow { color: var(--text-light); font-size: 20px; }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  background: white;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
+  cursor: pointer;
+}
+.tab.active { background: var(--primary); color: white; }
+
+/* Form */
+.form-group { margin-bottom: 14px; }
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-light);
+}
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  background: white;
+}
+.form-group textarea { min-height: 80px; resize: vertical; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.2s;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-content {
+  background: white;
+  width: 100%;
+  max-width: 600px;
+  border-radius: 24px 24px 0 0;
+  padding: 20px;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-light);
+  cursor: pointer;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+}
+
+/* Tasks */
+.task-list { display: flex; flex-direction: column; gap: 8px; }
+.task-item {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.task-item.must { border-left: 4px solid var(--danger); }
+.task-item.recommended { border-left: 4px solid var(--info); }
+.task-item.carryover { background: #fef3c7; border-left: 4px solid var(--warning); }
+.task-item.done { opacity: 0.5; text-decoration: line-through; }
+.task-content { flex: 1; }
+.task-title { font-weight: 600; font-size: 14px; }
+.task-desc { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+.task-actions { display: flex; gap: 4px; }
+.task-actions button {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.task-actions .check { background: var(--primary); color: white; border-color: var(--primary); }
+.section-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-light);
+  text-transform: uppercase;
+  margin: 16px 0 8px;
+  padding: 0 4px;
+}
+
+/* Pruning Guide SVG */
+.pruning-guide {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+}
+.pruning-svg {
+  max-width: 100%;
+  height: auto;
+  margin: 12px auto;
+}
+.cluster-info {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 8px;
+  margin: 4px 0;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.cluster-info:active { background: #f3f4f6; }
+
+/* Empty state */
+.empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-light);
+}
+.empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+/* Bottom nav */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 0;
+  z-index: 50;
+}
+.nav-item {
+  flex: 1;
+  text-align: center;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--text-light);
+  font-size: 11px;
+}
+.nav-item.active { color: var(--primary-dark); }
+.nav-item .icon { font-size: 20px; display: block; margin-bottom: 2px; }
+
+/* Water guide */
+.water-guide {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 8px 0;
+}
+.water-guide .label { font-size: 12px; color: #1e40af; font-weight: 600; }
+.water-guide .value { font-size: 14px; margin-top: 4px; }
+.water-guide .recommendation {
+  background: white;
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+/* History timeline */
+.timeline-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.timeline-item:last-child { border: none; }
+.timeline-icon {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.timeline-content { flex: 1; }
+.timeline-date { font-size: 11px; color: var(--text-light); }
+.timeline-title { font-size: 14px; font-weight: 500; }
+.timeline-note { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+/* Quick actions */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.quick-action {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 11px;
+}
+.quick-action:active { background: #f3f4f6; }
+.quick-action .icon { font-size: 24px; display: block; margin-bottom: 4px; }
+
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  border: none;
+  font-size: 28px;
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+  cursor: pointer;
+  z-index: 40;
+}
+.fab:active { transform: scale(0.95); }
+
+/* Cluster table */
+.cluster-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cluster-item {
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+}
+.cluster-item .header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.cluster-item .num { font-weight: 700; font-size: 14px; }
+.cluster-item .status { font-size: 11px; padding: 2px 8px; border-radius: 6px; }
+.status-blooming { background: #fef3c7; color: #92400e; }
+.status-fruiting { background: #d1fae5; color: #065f46; }
+.status-harvesting { background: #dbeafe; color: #1e40af; }
+.status-finished { background: #e5e7eb; color: #374151; }
+.tone-badges { display: flex; gap: 4px; align-items: center; font-size: 12px; }
+.tone-dot { 
+  width: 12px; height: 12px; 
+  border-radius: 50%; 
+  background: var(--primary);
+  display: inline-block;
+}
+.tone-dot.empty { background: #e5e7eb; }
+
+/* Responsive emoji rendering on Android */
+.emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <!-- Content rendered by JS -->
+</div>
+
+<button class="fab" id="fab" onclick="showQuickRecord()" style="display:none;">+</button>
+
+<nav class="bottom-nav">
+  <div class="nav-item active" data-screen="home" onclick="navigate('home')">
+    <span class="icon">🏠</span>ホーム
+  </div>
+  <div class="nav-item" data-screen="plants" onclick="navigate('plants')">
+    <span class="icon">🌱</span>株一覧
+  </div>
+  <div class="nav-item" data-screen="tasks" onclick="navigate('tasks')">
+    <span class="icon">✅</span>タスク
+  </div>
+  <div class="nav-item" data-screen="settings" onclick="navigate('settings')">
+    <span class="icon">⚙️</span>設定
+  </div>
+</nav>
+
+<script>
+// =================================================
+// データ管理（IndexedDB）
+// =================================================
+const DB_NAME = 'gardenApp';
+const DB_VERSION = 1;
+let db;
+
+const SPECIES = {
+  tomato: { name: 'トマト', icon: '🍅', color: '#ef4444' },
+  eggplant: { name: 'ナス', icon: '🍆', color: '#8b5cf6' },
+  pepper: { name: 'ピーマン', icon: '🫑', color: '#10b981' },
+  passion: { name: 'パッションフルーツ', icon: '🌺', color: '#ec4899' },
+  ginger: { name: '生姜', icon: '🫚', color: '#f59e0b' },
+  okra: { name: 'オクラ', icon: '🌶️', color: '#84cc16' },
+  mitsuba: { name: '三つ葉', icon: '🌿', color: '#22c55e' },
+  negi: { name: '小ねぎ', icon: '🌱', color: '#16a34a' }
+};
+
+const TRAINING_METHODS = {
+  tomato: [
+    { value: 'single_stem', label: '1本仕立て' },
+    { value: 'two_stem', label: '2本仕立て' }
+  ],
+  eggplant: [
+    { value: 'two_stem', label: '2本仕立て（基本）' },
+    { value: 'two_stem_one_fruit', label: '2本仕立て + 側枝一果（長期多収）' },
+    { value: 'three_stem', label: '3本仕立て' },
+    { value: 'andon', label: 'あんどん仕立て' }
+  ],
+  pepper: [
+    { value: 'two_stem', label: '2本仕立て（基本）' },
+    { value: 'two_stem_advanced', label: '2本仕立て + 上級者整枝（親子孫）' },
+    { value: 'three_stem', label: '3又仕立て' },
+    { value: 'andon', label: 'あんどん仕立て' }
+  ],
+  passion: [
+    { value: 'net', label: 'ネット仕立て' },
+    { value: 'andon', label: 'あんどん仕立て' }
+  ],
+  ginger: [{ value: 'none', label: '通常' }],
+  okra: [{ value: 'none', label: '通常' }],
+  mitsuba: [{ value: 'none', label: '通常' }],
+  negi: [{ value: 'none', label: '通常' }]
+};
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => { db = request.result; resolve(db); };
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('plants')) {
+        db.createObjectStore('plants', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('tasks')) {
+        const store = db.createObjectStore('tasks', { keyPath: 'id' });
+        store.createIndex('date', 'date');
+        store.createIndex('plantId', 'plantId');
+      }
+      if (!db.objectStoreNames.contains('clusters')) {
+        const store = db.createObjectStore('clusters', { keyPath: 'id' });
+        store.createIndex('plantId', 'plantId');
+      }
+      if (!db.objectStoreNames.contains('reminders')) {
+        const store = db.createObjectStore('reminders', { keyPath: 'id' });
+        store.createIndex('scheduledDate', 'scheduledDate');
+      }
+      if (!db.objectStoreNames.contains('settings')) {
+        db.createObjectStore('settings', { keyPath: 'key' });
+      }
+    };
+  });
+}
+
+function dbGet(store, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbGetAll(store) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbPut(store, value) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(value);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbDelete(store, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// =================================================
+// ユーティリティ
+// =================================================
+function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+function today() { return new Date().toISOString().split('T')[0]; }
+function dateStr(d) { return new Date(d).toLocaleDateString('ja-JP', {month: 'numeric', day: 'numeric'}); }
+function dayDiff(date) {
+  const d1 = new Date(today());
+  const d2 = new Date(date);
+  return Math.floor((d1 - d2) / (1000 * 60 * 60 * 24));
+}
+function getPhase(plant) {
+  const days = dayDiff(plant.plantingDate);
+  if (days < 14) return { name: '活着期', color: '#fef3c7' };
+  if (days < 35) return { name: '生育期', color: '#d1fae5' };
+  if (days < 60) return { name: '開花・結実期', color: '#fce7f3' };
+  if (days < 120) return { name: '収穫期', color: '#dbeafe' };
+  return { name: '終盤', color: '#e5e7eb' };
+}
+
+// =================================================
+// 天気API（Open-Meteo）
+// =================================================
+async function fetchWeather() {
+  try {
+    // 東京の座標
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=35.6762&longitude=139.6503&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=Asia%2FTokyo&forecast_days=2';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Weather fetch failed');
+    const data = await res.json();
+    return {
+      tempMax: data.daily.temperature_2m_max[0],
+      tempMin: data.daily.temperature_2m_min[0],
+      precip: data.daily.precipitation_probability_max[0],
+      windMax: data.daily.wind_speed_10m_max[0],
+      tomorrowPrecip: data.daily.precipitation_probability_max[1] || 0,
+      tomorrowWind: data.daily.wind_speed_10m_max[1] || 0,
+      code: data.daily.weather_code[0],
+      success: true
+    };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function weatherIcon(code) {
+  if (code <= 1) return '☀️';
+  if (code <= 3) return '⛅';
+  if (code <= 48) return '☁️';
+  if (code <= 67) return '🌧️';
+  if (code <= 77) return '❄️';
+  if (code <= 82) return '🌧️';
+  return '⛈️';
+}
+
+function weatherAlerts(weather) {
+  const alerts = [];
+  if (!weather.success) return alerts;
+  // 大雨
+  if (weather.precip >= 70) alerts.push({ type: 'rain', msg: '🌧️ 今日は雨予報、トマトに雨除けカバーを推奨' });
+  if (weather.tomorrowPrecip >= 80) alerts.push({ type: 'rain', msg: '⚠️ 明日は大雨予報、雨除け準備を' });
+  // 強風
+  if (weather.windMax >= 30) alerts.push({ type: 'wind', msg: '💨 強風予報、支柱と鉢の固定確認を' });
+  if (weather.tomorrowWind >= 40) alerts.push({ type: 'wind', msg: '💨 明日は強風予報、台風対策を検討' });
+  return alerts;
+}
+
+// =================================================
+// 自動レコメンドタスク生成（今日のタスク用）
+// =================================================
+function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
+  const tasks = [];
+  const days = dayDiff(plant.plantingDate);
+  const displayName = plant.name || SPECIES[plant.species].name;
+  const lastWatering = lastTasks.find(t => t.type === 'watering');
+  const daysSinceWater = lastWatering ? dayDiff(lastWatering.date) : 999;
+
+  // 水やり推奨（フェーズと天気で判断）
+  let waterInterval = 2;
+  if (days < 14) waterInterval = 3;
+  if (days >= 35 && days < 90) waterInterval = 1;
+  if (plant.species === 'eggplant' || plant.species === 'okra') waterInterval = 1;
+  if (plant.species === 'tomato' && days >= 35) waterInterval = 2;
+  if (plant.species === 'ginger' && days < 30) waterInterval = 5; // 生姜は最初超控えめ
+  if (plant.species === 'ginger' && days >= 60) waterInterval = 1;
+  
+  const noWaterToday = weather.success && weather.precip >= 60;
+  
+  if (daysSinceWater >= waterInterval && !noWaterToday) {
+    tasks.push({
+      type: 'recommended',
+      action: 'watering',
+      title: `💧 ${displayName}: 水やり`,
+      desc: lastWatering ? `前回から${daysSinceWater}日経過` : '初回',
+      plantId: plant.id
+    });
+  }
+
+  // 液肥（毎週、植え付け2週間後から）
+  if (days >= 14) {
+    const lastLiquid = lastTasks.find(t => t.type === 'fertilize_liquid');
+    const daysSinceLiquid = lastLiquid ? dayDiff(lastLiquid.date) : 999;
+    if (daysSinceLiquid >= 7) {
+      tasks.push({
+        type: 'recommended',
+        action: 'fertilize_liquid',
+        title: `🧪 ${displayName}: 液肥`,
+        desc: lastLiquid ? `前回から${daysSinceLiquid}日経過` : '初回',
+        plantId: plant.id
+      });
+    }
+  }
+
+  // トマト関連
+  if (plant.species === 'tomato' && days >= 14) {
+    // 脇芽かき
+    const lastSideShoot = lastTasks.find(t => t.type === 'side_shoot_removal');
+    const daysSinceShoot = lastSideShoot ? dayDiff(lastSideShoot.date) : 999;
+    if (daysSinceShoot >= 3) {
+      tasks.push({
+        type: 'recommended',
+        action: 'side_shoot_removal',
+        title: `✂️ ${displayName}: 脇芽チェック`,
+        desc: lastSideShoot ? `${daysSinceShoot}日経過` : '初回',
+        plantId: plant.id
+      });
+    }
+    
+    // トマトトーン（開花中の花房があり、最後の散布から3日以上経過）
+    const bloomingClusters = clusters.filter(c => 
+      c.plantId === plant.id && 
+      c.status === 'blooming' &&
+      (c.tomatoToneHistory?.length || 0) < 2
+    );
+    bloomingClusters.forEach(c => {
+      const lastTone = (c.tomatoToneHistory || []).slice(-1)[0];
+      const daysSinceTone = lastTone ? dayDiff(lastTone.date) : 999;
+      if (!lastTone || daysSinceTone >= 3) {
+        const round = (c.tomatoToneHistory?.length || 0) + 1;
+        tasks.push({
+          type: 'must',
+          action: 'tomato_tone',
+          title: `🍅 ${displayName}: トマトトーン`,
+          desc: `${c.stem === 'B' ? '[B] ' : ''}第${c.segmentNumber}花房 ${round}回目`,
+          plantId: plant.id,
+          clusterId: c.id
+        });
+      }
+    });
+    
+    // 増し土（2週・5週・8週目）
+    const topsoils = lastTasks.filter(t => t.type === 'topsoil');
+    if (days >= 14 && topsoils.length === 0) {
+      tasks.push({
+        type: 'recommended',
+        action: 'topsoil',
+        title: `🪴 ${displayName}: 1回目の増し土`,
+        desc: '茎の下5cmを土で覆う',
+        plantId: plant.id
+      });
+    } else if (days >= 35 && topsoils.length === 1) {
+      tasks.push({
+        type: 'recommended',
+        action: 'topsoil',
+        title: `🪴 ${displayName}: 2回目の増し土`,
+        desc: '根域拡大',
+        plantId: plant.id
+      });
+    } else if (days >= 56 && topsoils.length === 2) {
+      tasks.push({
+        type: 'recommended',
+        action: 'topsoil',
+        title: `🪴 ${displayName}: 3回目の増し土`,
+        desc: '株を安定させる',
+        plantId: plant.id
+      });
+    }
+  }
+
+  // ナス・ピーマンの一番花処理（14-25日目）
+  if ((plant.species === 'eggplant' || plant.species === 'pepper') && days >= 14 && days <= 28) {
+    const firstFlowerHandled = lastTasks.find(t => t.type === 'pinching' || t.type === 'side_shoot_removal');
+    if (!firstFlowerHandled) {
+      const action = plant.species === 'pepper' ? '一番花を摘み取る' : '一番花を残し、下の脇芽を整理';
+      tasks.push({
+        type: 'must',
+        action: 'side_shoot_removal',
+        title: `🌸 ${displayName}: 一番花の処理`,
+        desc: action,
+        plantId: plant.id
+      });
+    }
+  }
+
+  // ナスの更新剪定（70-90日目）
+  if (plant.species === 'eggplant' && days >= 70 && days <= 95) {
+    const renewalDone = lastTasks.find(t => t.type === 'renewal_pruning');
+    if (!renewalDone) {
+      tasks.push({
+        type: 'must',
+        action: 'renewal_pruning',
+        title: `🌿 ${displayName}: 更新剪定`,
+        desc: '各枝1/3〜1/2に切り戻し（秋ナスのため）',
+        plantId: plant.id
+      });
+    }
+  }
+
+  // パッション主枝摘心
+  if (plant.species === 'passion' && days >= 18) {
+    const mainPinched = lastTasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
+    if (!mainPinched && days <= 35) {
+      tasks.push({
+        type: 'must',
+        action: 'pinching',
+        title: `🌺 ${displayName}: 主枝摘心`,
+        desc: '本葉8-10枚で先端カット',
+        plantId: plant.id
+      });
+    }
+    // 子づる摘心（主枝摘心から2〜3週間後）
+    if (mainPinched) {
+      const daysSinceMainPinch = dayDiff(mainPinched.date);
+      const childPinched = lastTasks.filter(t => t.type === 'pinching' && t.details?.target === 'child').length;
+      if (daysSinceMainPinch >= 14 && childPinched < 3) {
+        tasks.push({
+          type: 'recommended',
+          action: 'pinching',
+          title: `🌺 ${displayName}: 子づる摘心`,
+          desc: `${childPinched}/3本完了`,
+          plantId: plant.id
+        });
+      }
+    }
+    
+    // パッション人工授粉（開花後の毎朝）
+    if (days >= 50) {
+      const lastPollination = lastTasks.find(t => t.type === 'pollination');
+      const daysSincePollination = lastPollination ? dayDiff(lastPollination.date) : 999;
+      if (daysSincePollination >= 1) {
+        tasks.push({
+          type: 'recommended',
+          action: 'pollination',
+          title: `🐝 ${displayName}: 人工授粉チェック`,
+          desc: '朝10時頃、開花してたら別の花の花粉を',
+          plantId: plant.id
+        });
+      }
+    }
+    
+    // リンカリ追肥（着蕾期から）
+    if (days >= 30) {
+      const lastGranular = lastTasks.find(t => t.type === 'fertilize_granular');
+      const daysSinceGranular = lastGranular ? dayDiff(lastGranular.date) : 999;
+      const interval = days >= 50 ? 14 : 30; // 開花期は2週間、それ以前は月1回
+      if (daysSinceGranular >= interval) {
+        tasks.push({
+          type: 'recommended',
+          action: 'fertilize_granular',
+          title: `💊 ${displayName}: リンカリ肥料`,
+          desc: lastGranular ? `前回から${daysSinceGranular}日` : '初回',
+          plantId: plant.id
+        });
+      }
+    }
+  }
+
+  // 生姜の段階別フェーズ通知
+  if (plant.species === 'ginger') {
+    if (days === 30) {
+      tasks.push({
+        type: 'recommended',
+        action: 'observation',
+        title: `🫚 ${displayName}: 発芽チェック`,
+        desc: '芽が出てたら水やり頻度UP',
+        plantId: plant.id
+      });
+    }
+    if (days === 60) {
+      tasks.push({
+        type: 'recommended',
+        action: 'observation',
+        title: `🫚 ${displayName}: 真夏モード移行`,
+        desc: '毎日たっぷり水やりに切替',
+        plantId: plant.id
+      });
+    }
+    if (days === 150) {
+      tasks.push({
+        type: 'recommended',
+        action: 'observation',
+        title: `🫚 ${displayName}: 水やり減らし開始`,
+        desc: '収穫準備期、3-4日に1回に',
+        plantId: plant.id
+      });
+    }
+    
+    // 増し土（葉が4-5枚展開後、3週間ごと）
+    if (days >= 45) {
+      const topsoils = lastTasks.filter(t => t.type === 'topsoil');
+      const lastTopsoil = topsoils[0];
+      const daysSinceTopsoil = lastTopsoil ? dayDiff(lastTopsoil.date) : 999;
+      if (topsoils.length < 3 && daysSinceTopsoil >= 21) {
+        tasks.push({
+          type: 'recommended',
+          action: 'topsoil',
+          title: `🫚 ${displayName}: 増し土 (${topsoils.length + 1}回目)`,
+          desc: '新しい根茎が地表に出ないように',
+          plantId: plant.id
+        });
+      }
+    }
+  }
+
+  // パッション越冬準備（11月）
+  if (plant.species === 'passion') {
+    const month = new Date().getMonth() + 1;
+    if (month === 11) {
+      const wintered = lastTasks.find(t => t.type === 'mulching' && t.notes?.includes('越冬'));
+      if (!wintered) {
+        tasks.push({
+          type: 'must',
+          action: 'observation',
+          title: `🌺 ${displayName}: 越冬準備`,
+          desc: '5℃以下になる前に室内取り込み',
+          plantId: plant.id
+        });
+      }
+    }
+  }
+
+  return tasks;
+}
+
+// =================================================
+// 今後の予定リスト生成（株詳細用）
+// =================================================
+function generateUpcomingTasks(plant, lastTasks) {
+  const tasks = [];
+  const days = dayDiff(plant.plantingDate);
+  const sp = plant.species;
+  
+  // 共通
+  if (days < 14) {
+    tasks.push({ daysOffset: 14 - days, label: '🧪 液肥開始（毎週）', urgent: false });
+  }
+  
+  if (sp === 'tomato') {
+    if (days < 14) tasks.push({ daysOffset: 14 - days, label: '🪴 1回目の増し土', urgent: false });
+    if (days < 35) tasks.push({ daysOffset: 35 - days, label: '🪴 2回目の増し土', urgent: false });
+    if (days < 56) tasks.push({ daysOffset: 56 - days, label: '🪴 3回目の増し土', urgent: false });
+    if (days < 14) tasks.push({ daysOffset: 14 - days, label: '✂️ 脇芽かき開始', urgent: false });
+    tasks.push({ daysOffset: '随時', label: '🌸 花房ごとにトマトトーン（開花後）', urgent: false });
+    if (days < 60) tasks.push({ daysOffset: 60 - days, label: '🧺 1段目収穫期', urgent: false });
+  }
+  
+  if (sp === 'eggplant') {
+    if (days < 21) tasks.push({ daysOffset: 21 - days, label: '🌸 一番花の処理（残す）', urgent: false });
+    if (days < 28) tasks.push({ daysOffset: 28 - days, label: '🍆 一番果を5-6cmで早採り', urgent: false });
+    if (days < 80) tasks.push({ daysOffset: 80 - days, label: '🌿 更新剪定（秋ナスのため）', urgent: false });
+    if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🧺 収穫開始', urgent: false });
+  }
+  
+  if (sp === 'pepper') {
+    if (days < 21) tasks.push({ daysOffset: 21 - days, label: '🌸 一番花を摘み取る', urgent: false });
+    if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🧺 収穫開始', urgent: false });
+  }
+  
+  if (sp === 'passion') {
+    if (days < 25) tasks.push({ daysOffset: 25 - days, label: '✂️ 主枝摘心（本葉8-10枚で）', urgent: false });
+    if (days < 40) tasks.push({ daysOffset: 40 - days, label: '✂️ 子づる摘心', urgent: false });
+    if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🐝 開花・人工授粉開始', urgent: false });
+    if (days < 30) tasks.push({ daysOffset: 30 - days, label: '💊 リンカリ肥料開始', urgent: false });
+    if (days < 90) tasks.push({ daysOffset: 90 - days, label: '🧺 収穫開始', urgent: false });
+    
+    const month = new Date().getMonth() + 1;
+    if (month < 11) {
+      const dToNov = Math.floor((new Date(new Date().getFullYear(), 10, 1) - new Date()) / (1000*60*60*24));
+      tasks.push({ daysOffset: dToNov, label: '🏠 越冬準備（室内取込）', urgent: false });
+    }
+  }
+  
+  if (sp === 'ginger') {
+    if (days < 30) tasks.push({ daysOffset: 30 - days, label: '🌱 発芽チェック・水やり頻度UP', urgent: false });
+    if (days < 45) tasks.push({ daysOffset: 45 - days, label: '🪴 1回目の増し土', urgent: false });
+    if (days < 60) tasks.push({ daysOffset: 60 - days, label: '☀️ 真夏モード（毎日たっぷり）', urgent: false });
+    if (days < 90) tasks.push({ daysOffset: 90 - days, label: '🥬 葉生姜収穫可能', urgent: false });
+    if (days < 150) tasks.push({ daysOffset: 150 - days, label: '💧 水やり減らし開始', urgent: false });
+    if (days < 180) tasks.push({ daysOffset: 180 - days, label: '🧺 根生姜収穫', urgent: false });
+  }
+  
+  if (sp === 'okra') {
+    if (days < 60) tasks.push({ daysOffset: 60 - days, label: '🧺 収穫開始（7-10cmで早採り）', urgent: false });
+  }
+  
+  return tasks.filter(t => typeof t.daysOffset !== 'number' || t.daysOffset >= 0).sort((a, b) => {
+    if (typeof a.daysOffset !== 'number') return 1;
+    if (typeof b.daysOffset !== 'number') return -1;
+    return a.daysOffset - b.daysOffset;
+  });
+}
+
+// =================================================
+// 画面レンダリング
+// =================================================
+let currentScreen = 'home';
+let currentPlantId = null;
+let currentTab = 'overview';
+let cachedWeather = null;
+let cachedTasksState = {}; // taskKey -> {status: 'done'|'skip'|'carryover', date}
+
+async function renderHome() {
+  const plants = await dbGetAll('plants');
+  const allTasks = await dbGetAll('tasks');
+  const taskState = await dbGet('settings', 'taskState') || { key: 'taskState', value: {} };
+  cachedTasksState = taskState.value || {};
+  
+  if (!cachedWeather) cachedWeather = await fetchWeather();
+  
+  // 今日のタスクを集計
+  const allClustersData = await dbGetAll('clusters');
+  let allRecommended = [];
+  for (const plant of plants.filter(p => p.status === 'active')) {
+    const plantTasks = allTasks.filter(t => t.plantId === plant.id);
+    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData);
+    allRecommended = allRecommended.concat(recommended);
+  }
+  
+  // 完了済み・スキップ済みを除外
+  const todayKey = today();
+  const pendingTasks = allRecommended.filter(t => {
+    const key = `${todayKey}:${t.plantId}:${t.action}`;
+    return !cachedTasksState[key] || cachedTasksState[key].status === 'carryover';
+  });
+  
+  // 持ち越しタスクを取得
+  const carryoverTasks = [];
+  Object.entries(cachedTasksState).forEach(([key, state]) => {
+    if (state.status === 'carryover' && state.targetDate === todayKey) {
+      carryoverTasks.push({ ...state.task, isCarryover: true });
+    }
+  });
+  
+  const mustCount = pendingTasks.filter(t => t.type === 'must').length;
+  const recCount = pendingTasks.filter(t => t.type === 'recommended').length;
+  const totalCount = mustCount + recCount + carryoverTasks.length;
+  
+  const alerts = weatherAlerts(cachedWeather);
+  
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 11) return 'おはようございます';
+    if (h < 17) return 'こんにちは';
+    return 'こんばんは';
+  })();
+  
+  const html = `
+    <div class="header">
+      <h1>🌱 ベランダ菜園</h1>
+      <div class="greeting">${greeting} ・ ${new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}</div>
+    </div>
+    
+    <div class="task-counter">
+      <div class="number">${totalCount}</div>
+      <div class="label">件のタスク</div>
+      ${totalCount > 0 ? `
+        <div class="breakdown">
+          ${mustCount > 0 ? `<span>必須 <b>${mustCount}</b></span>` : ''}
+          ${recCount > 0 ? `<span>推奨 <b>${recCount}</b></span>` : ''}
+          ${carryoverTasks.length > 0 ? `<span>持ち越し <b>${carryoverTasks.length}</b></span>` : ''}
+        </div>
+      ` : '<div class="breakdown" style="color:#22c55e;">完了 🎉</div>'}
+      ${totalCount > 0 ? '<button class="btn btn-small" style="margin-top:12px;" onclick="navigate(\'tasks\')">タスクを見る ▶</button>' : ''}
+    </div>
+    
+    <div class="card">
+      <div class="card-title">🌤 今日の天気（東京）</div>
+      ${cachedWeather.success ? `
+        <div class="weather">
+          <div class="info">
+            <div class="icon">${weatherIcon(cachedWeather.code)}</div>
+            <div>
+              <div class="temp">${Math.round(cachedWeather.tempMin)}°〜${Math.round(cachedWeather.tempMax)}°C</div>
+              <div style="font-size:12px;color:var(--text-light);">降水確率 ${cachedWeather.precip}% / 風速 ${Math.round(cachedWeather.windMax)}km/h</div>
+            </div>
+          </div>
+          <button class="btn btn-small btn-secondary" onclick="refreshWeather()">↻</button>
+        </div>
+        ${alerts.length > 0 ? alerts.map(a => `<div class="alert">${a.msg}</div>`).join('') : ''}
+      ` : `
+        <div style="color:var(--text-light);font-size:13px;">天気を取得できませんでした</div>
+        <button class="btn btn-small btn-secondary" onclick="refreshWeather()">再試行</button>
+      `}
+    </div>
+    
+    <div class="card">
+      <div class="card-title">🌱 育てている株 (${plants.filter(p => p.status === 'active').length})</div>
+      ${plants.filter(p => p.status === 'active').length === 0 ? `
+        <div class="empty">
+          <div class="icon">🌱</div>
+          <div>まだ株が登録されていません</div>
+          <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
+        </div>
+      ` : `
+        <div class="plant-list">
+          ${plants.filter(p => p.status === 'active').map(p => {
+            const sp = SPECIES[p.species];
+            const phase = getPhase(p);
+            return `
+              <div class="plant-card" onclick="openPlant('${p.id}')">
+                <div class="plant-icon" style="background:${sp.color}22">${sp.icon}</div>
+                <div class="info">
+                  <div class="name">${p.name || sp.name}</div>
+                  <div class="meta">Day ${dayDiff(p.plantingDate)} ・ ${phase.name}</div>
+                </div>
+                <div class="arrow">›</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
+      `}
+    </div>
+  `;
+  document.getElementById('app').innerHTML = html;
+}
+
+async function renderPlants() {
+  const plants = await dbGetAll('plants');
+  const html = `
+    <div class="header">
+      <h1>🌱 株一覧</h1>
+      <div class="greeting">${plants.filter(p => p.status === 'active').length}株 育成中</div>
+    </div>
+    ${plants.length === 0 ? `
+      <div class="card empty">
+        <div class="icon">🌱</div>
+        <div>まだ株が登録されていません</div>
+        <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
+      </div>
+    ` : `
+      <div class="plant-list">
+        ${plants.map(p => {
+          const sp = SPECIES[p.species];
+          const phase = getPhase(p);
+          return `
+            <div class="plant-card" onclick="openPlant('${p.id}')" ${p.status !== 'active' ? 'style="opacity:0.5"' : ''}>
+              <div class="plant-icon" style="background:${sp.color}22">${sp.icon}</div>
+              <div class="info">
+                <div class="name">${p.name || sp.name}</div>
+                <div class="meta">Day ${dayDiff(p.plantingDate)} ・ ${phase.name}${p.status !== 'active' ? ' ・ 終了' : ''}</div>
+              </div>
+              <div class="arrow">›</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
+    `}
+  `;
+  document.getElementById('app').innerHTML = html;
+}
+
+async function renderPlantDetail(plantId) {
+  const plant = await dbGet('plants', plantId);
+  if (!plant) { navigate('plants'); return; }
+  
+  currentPlantId = plantId;
+  const sp = SPECIES[plant.species];
+  const phase = getPhase(plant);
+  const days = dayDiff(plant.plantingDate);
+  const tasks = (await dbGetAll('tasks')).filter(t => t.plantId === plantId).sort((a,b) => new Date(b.date) - new Date(a.date));
+  const clusters = (await dbGetAll('clusters')).filter(c => c.plantId === plantId).sort((a,b) => a.segmentNumber - b.segmentNumber);
+  
+  let tabContent = '';
+  if (currentTab === 'overview') {
+    tabContent = renderOverviewTab(plant, tasks);
+  } else if (currentTab === 'pruning') {
+    tabContent = renderPruningTab(plant, clusters, tasks);
+  } else if (currentTab === 'history') {
+    tabContent = renderHistoryTab(tasks);
+  }
+  
+  const html = `
+    <div class="header" style="background:linear-gradient(135deg, ${sp.color}, ${sp.color}cc);">
+      <button class="btn-icon" style="position:absolute;top:16px;left:8px;background:rgba(255,255,255,0.2);border:none;color:white;" onclick="navigate('plants')">‹</button>
+      <h1 style="text-align:center;">${sp.icon} ${plant.name || sp.name}</h1>
+      <div class="greeting" style="text-align:center;">Day ${days} ・ ${phase.name}</div>
+    </div>
+    
+    <div class="tabs">
+      <div class="tab ${currentTab === 'overview' ? 'active' : ''}" onclick="switchTab('overview')">概要</div>
+      <div class="tab ${currentTab === 'pruning' ? 'active' : ''}" onclick="switchTab('pruning')">剪定ガイド</div>
+      <div class="tab ${currentTab === 'history' ? 'active' : ''}" onclick="switchTab('history')">履歴</div>
+    </div>
+    
+    ${tabContent}
+  `;
+  document.getElementById('app').innerHTML = html;
+}
+
+function renderOverviewTab(plant, tasks) {
+  const sp = SPECIES[plant.species];
+  const days = dayDiff(plant.plantingDate);
+  const trainingLabel = (TRAINING_METHODS[plant.species] || []).find(t => t.value === plant.trainingMethod)?.label || '';
+  const lastWatering = tasks.find(t => t.type === 'watering');
+  const daysSinceWater = lastWatering ? dayDiff(lastWatering.date) : null;
+  
+  // 水やりガイド
+  const waterGuide = getWaterGuide(plant);
+  
+  return `
+    <div class="card">
+      <div class="card-title">📋 基本情報</div>
+      <div style="font-size:13px;line-height:1.8;">
+        <div><b>種類：</b>${sp.name}</div>
+        ${plant.name ? `<div><b>品種・名前：</b>${plant.name}</div>` : ''}
+        <div><b>植え付け日：</b>${dateStr(plant.plantingDate)}</div>
+        <div><b>仕立て方：</b>${trainingLabel}</div>
+        ${plant.notes ? `<div><b>メモ：</b>${plant.notes}</div>` : ''}
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">💧 水やりガイド</div>
+      <div class="water-guide">
+        <div class="label">今のフェーズ：${getPhase(plant).name}</div>
+        <div class="value">${waterGuide.frequency}</div>
+        <div class="recommendation">
+          <b>量：</b>${waterGuide.amount}<br>
+          <b>注意：</b>${waterGuide.tip}
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--text-light);margin-top:8px;">
+        ${lastWatering ? `前回：${dateStr(lastWatering.date)}（${daysSinceWater}日前）` : '記録なし'}
+      </div>
+      <button class="btn btn-small" style="width:100%;margin-top:8px;" onclick="recordWater()">💧 水やりを記録</button>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">⚡ クイック作業記録</div>
+      <div class="quick-actions">
+        ${getQuickActions(plant).map(a => `
+          <div class="quick-action" onclick="recordAction('${a.action}', ${JSON.stringify(a).replace(/"/g, '&quot;')})">
+            <span class="icon">${a.icon}</span>${a.label}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">📅 今後の予定</div>
+      ${(() => {
+        const upcoming = generateUpcomingTasks(plant, tasks);
+        if (upcoming.length === 0) {
+          return '<div style="font-size:13px;color:var(--text-light);">特になし</div>';
+        }
+        return `<div style="display:flex;flex-direction:column;gap:6px;">
+          ${upcoming.slice(0, 8).map(t => {
+            const offsetLabel = typeof t.daysOffset === 'number' 
+              ? (t.daysOffset === 0 ? '今日' : `${t.daysOffset}日後`)
+              : t.daysOffset;
+            return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 8px;background:#f9fafb;border-radius:6px;">
+              <span>${t.label}</span>
+              <span style="color:var(--text-light);font-size:11px;white-space:nowrap;margin-left:8px;">${offsetLabel}</span>
+            </div>`;
+          }).join('')}
+        </div>`;
+      })()}
+    </div>
+    
+    <div class="card">
+      <div class="card-title">📝 メモ・編集</div>
+      <button class="btn btn-secondary btn-small" style="width:100%;" onclick="editPlant('${plant.id}')">✏️ 株情報を編集</button>
+      <button class="btn btn-secondary btn-small" style="width:100%;margin-top:8px;color:var(--danger);border-color:var(--danger);" onclick="deletePlant('${plant.id}')">🗑️ 株を削除</button>
+    </div>
+  `;
+}
+
+function getWaterGuide(plant) {
+  const days = dayDiff(plant.plantingDate);
+  const phase = getPhase(plant).name;
+  const sp = plant.species;
+  
+  // 株種類×フェーズ別ガイド
+  if (sp === 'tomato') {
+    if (days < 14) return { frequency: '2〜3日に1回', amount: '土の表面が乾いたらたっぷり', tip: '雨の日は控えめ。葉がしおれるまで待つくらいでOK' };
+    if (days < 35) return { frequency: '1〜2日に1回', amount: '底から少し流れる程度', tip: '葉がしなしなならすぐ水やり' };
+    if (days < 90) return { frequency: '2日に1回（控えめ）', amount: '表面が乾いてから', tip: 'トマトは乾かしめで甘くなる！梅雨は雨除け推奨' };
+    return { frequency: '2〜3日に1回', amount: '控えめに', tip: '実が割れないように' };
+  }
+  if (sp === 'eggplant') {
+    if (days < 14) return { frequency: '2〜3日に1回', amount: '表面が乾いたらたっぷり', tip: '活着期は控えめに' };
+    return { frequency: '毎日（夏は朝晩）', amount: 'たっぷり、底から流れるまで', tip: 'ナスは水大好き！水切れさせない。葉が下を向いたら水不足' };
+  }
+  if (sp === 'pepper') {
+    if (days < 14) return { frequency: '2〜3日に1回', amount: '表面が乾いたらたっぷり', tip: '活着期は控えめ' };
+    return { frequency: '1〜2日に1回', amount: '底から流れる程度', tip: '葉が垂れ気味になったら水のサイン' };
+  }
+  if (sp === 'passion') {
+    if (days < 14) return { frequency: '2〜3日に1回', amount: '表面が乾いたらたっぷり', tip: '梅雨は控えめ。水多すぎると根腐れ' };
+    if (days < 60) return { frequency: '1〜2日に1回', amount: 'たっぷり', tip: 'つるが伸び始める時期、水不足注意' };
+    return { frequency: 'ほぼ毎日', amount: 'たっぷり', tip: '開花・結実期は水切れ厳禁、実が落ちる' };
+  }
+  if (sp === 'ginger') {
+    if (days < 30) return { frequency: '週1〜2回（超控えめ）', amount: '土の表面が乾いて数日経ってから', tip: '⚠️発芽前のあげすぎは種生姜が腐る原因！' };
+    if (days < 60) return { frequency: '2〜3日に1回', amount: '底から少し流れる程度', tip: '発芽したら徐々に増やす' };
+    if (days < 150) return { frequency: '毎日たっぷり', amount: '底からしっかり流れるまで', tip: '梅雨明け以降は乾燥が一番の敵！夏は朝晩2回も可' };
+    return { frequency: '3〜4日に1回（減らす）', amount: '控えめに', tip: '収穫前は減らして根茎を充実させる' };
+  }
+  if (sp === 'okra') {
+    if (days < 14) return { frequency: '2〜3日に1回', amount: '表面が乾いたらたっぷり', tip: '活着期は控えめ' };
+    return { frequency: '毎日（夏は朝晩）', amount: 'たっぷり', tip: '乾くと実が硬く小さくなる' };
+  }
+  return { frequency: '土の表面が乾いたらたっぷり', amount: '底から少し流れる程度', tip: '葉の状態を見て調整' };
+}
+
+function getQuickActions(plant) {
+  const common = [
+    { action: 'watering', icon: '💧', label: '水やり' },
+    { action: 'fertilize_liquid', icon: '🧪', label: '液肥' },
+    { action: 'observation', icon: '👀', label: '観察' }
+  ];
+  const specific = {
+    tomato: [
+      { action: 'side_shoot_removal', icon: '✂️', label: '脇芽かき' },
+      { action: 'tomato_tone', icon: '🍅', label: 'トマトトーン' },
+      { action: 'topsoil', icon: '🪴', label: '増し土' },
+      { action: 'pinching', icon: '✂️', label: '摘心' },
+      { action: 'defoliation', icon: '🍃', label: '葉かき' },
+      { action: 'harvest', icon: '🧺', label: '収穫' }
+    ],
+    eggplant: [
+      { action: 'side_shoot_removal', icon: '✂️', label: '脇芽かき' },
+      { action: 'pinching', icon: '✂️', label: '摘心' },
+      { action: 'renewal_pruning', icon: '🌿', label: '更新剪定' },
+      { action: 'harvest', icon: '🧺', label: '収穫' }
+    ],
+    pepper: [
+      { action: 'side_shoot_removal', icon: '✂️', label: '脇芽かき' },
+      { action: 'pinching', icon: '✂️', label: '摘心' },
+      { action: 'harvest', icon: '🧺', label: '収穫' }
+    ],
+    passion: [
+      { action: 'pinching', icon: '✂️', label: '摘心' },
+      { action: 'training', icon: '🌿', label: '誘引' },
+      { action: 'fertilize_granular', icon: '💊', label: 'リンカリ' },
+      { action: 'harvest', icon: '🧺', label: '収穫' }
+    ],
+    ginger: [
+      { action: 'topsoil', icon: '🪴', label: '増し土' },
+      { action: 'mulching', icon: '🍂', label: 'マルチング' },
+      { action: 'harvest', icon: '🧺', label: '収穫' }
+    ],
+    okra: [
+      { action: 'defoliation', icon: '🍃', label: '下葉かき' },
+      { action: 'harvest', icon: '🧺', label: '収穫' }
+    ]
+  };
+  return [...common, ...(specific[plant.species] || [])];
+}
+
+function renderPruningTab(plant, clusters, tasks) {
+  const sp = plant.species;
+  if (sp === 'tomato') return renderTomatoPruning(plant, clusters);
+  if (sp === 'eggplant' || sp === 'pepper') return renderEggplantPepperPruning(plant, tasks);
+  if (sp === 'passion') return renderPassionPruning(plant, tasks);
+  return `<div class="card"><div class="empty"><div class="icon">🌱</div>${SPECIES[sp].name}は剪定不要です</div></div>`;
+}
+
+function renderTomatoPruning(plant, clusters) {
+  const isTwoStem = plant.trainingMethod === 'two_stem';
+  const stems = isTwoStem ? ['A', 'B'] : ['A'];
+  const targetSegments = 5; // 第5花房まで管理
+  
+  // SVG生成
+  const stemX = (idx) => isTwoStem ? (idx === 0 ? 80 : 220) : 150;
+  const baseY = 580;
+  const segHeight = 95;
+  
+  let svgInner = '';
+  // 土
+  svgInner += `<rect x="20" y="${baseY}" width="260" height="30" fill="#92400e" rx="4"/>`;
+  svgInner += `<text x="150" y="${baseY + 20}" text-anchor="middle" font-size="14" fill="white">土</text>`;
+  
+  stems.forEach((stem, sIdx) => {
+    const x = stemX(sIdx);
+    // 主枝
+    svgInner += `<line x1="${x}" y1="${baseY}" x2="${x}" y2="${baseY - segHeight * targetSegments - 20}" stroke="#16a34a" stroke-width="6" stroke-linecap="round"/>`;
+    
+    // 花房
+    for (let i = 1; i <= targetSegments; i++) {
+      const y = baseY - segHeight * i;
+      const cluster = clusters.find(c => c.segmentNumber === i && (c.stem || 'A') === stem);
+      const isActive = !!cluster;
+      const toneCount = cluster ? (cluster.tomatoToneHistory?.length || 0) : 0;
+      const status = cluster?.status || 'pending';
+      
+      // 葉（左右）
+      svgInner += `<path d="M ${x-2} ${y+30} Q ${x-25} ${y+25}, ${x-30} ${y+15}" stroke="#16a34a" stroke-width="2" fill="#22c55e" opacity="0.7"/>`;
+      svgInner += `<path d="M ${x+2} ${y+30} Q ${x+25} ${y+25}, ${x+30} ${y+15}" stroke="#16a34a" stroke-width="2" fill="#22c55e" opacity="0.7"/>`;
+      
+      // 花房ノード
+      const nodeColor = isActive ? '#ef4444' : '#fca5a5';
+      const opacity = isActive ? 1 : 0.4;
+      svgInner += `<circle cx="${x}" cy="${y}" r="14" fill="${nodeColor}" opacity="${opacity}" stroke="white" stroke-width="2" style="cursor:pointer;" onclick="event.stopPropagation();showClusterDetail('${plant.id}', ${i}, '${stem}')"/>`;
+      svgInner += `<text x="${x}" y="${y+5}" text-anchor="middle" font-size="11" fill="white" font-weight="bold" pointer-events="none">${i}</text>`;
+      
+      // トマトトーン✓マーク
+      if (toneCount > 0) {
+        svgInner += `<text x="${x + 22}" y="${y - 5}" font-size="14" fill="#22c55e" font-weight="bold">${'✓'.repeat(toneCount)}</text>`;
+      }
+      
+      // ステータス
+      if (status === 'fruiting') {
+        svgInner += `<text x="${x + 22}" y="${y + 12}" font-size="11" fill="#065f46">🍅</text>`;
+      } else if (status === 'harvesting') {
+        svgInner += `<text x="${x + 22}" y="${y + 12}" font-size="11" fill="#1e40af">🧺</text>`;
+      }
+    }
+    
+    // 摘心位置（第5花房の上）
+    const pinchY = baseY - segHeight * targetSegments - 20;
+    svgInner += `<line x1="${x-15}" y1="${pinchY}" x2="${x+15}" y2="${pinchY}" stroke="#dc2626" stroke-width="3" stroke-dasharray="3,3"/>`;
+    svgInner += `<text x="${x}" y="${pinchY - 8}" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心</text>`;
+    
+    // ステム名（2本仕立て時）
+    if (isTwoStem) {
+      svgInner += `<text x="${x}" y="${baseY + 50}" text-anchor="middle" font-size="13" fill="#374151" font-weight="bold">${stem === 'A' ? '主枝' : '脇芽'}</text>`;
+    }
+  });
+  
+  // 2本仕立ての分岐線
+  if (isTwoStem) {
+    svgInner += `<line x1="80" y1="${baseY}" x2="220" y2="${baseY}" stroke="#16a34a" stroke-width="6"/>`;
+  }
+  
+  const svg = `
+    <svg viewBox="0 0 300 660" class="pruning-svg" xmlns="http://www.w3.org/2000/svg">
+      ${svgInner}
+    </svg>
+  `;
+  
+  // 花房一覧
+  const allClusters = [];
+  stems.forEach(stem => {
+    for (let i = 1; i <= targetSegments; i++) {
+      const c = clusters.find(cl => cl.segmentNumber === i && (cl.stem || 'A') === stem);
+      allClusters.push({ stem, num: i, cluster: c });
+    }
+  });
+  
+  return `
+    <div class="card">
+      <div class="card-title">🌳 剪定ガイド（${isTwoStem ? '2本仕立て' : '1本仕立て'}）</div>
+      <div style="text-align:center;font-size:12px;color:var(--text-light);margin-bottom:8px;">
+        花房をタップしてトマトトーン記録
+      </div>
+      <div class="pruning-guide">
+        ${svg}
+      </div>
+      <div style="font-size:12px;color:var(--text-light);margin-top:12px;line-height:1.8;">
+        <b>📌 凡例</b><br>
+        ●（赤）= 開花中の花房 / ●（薄）= 未開花<br>
+        ✓ = トマトトーン散布回数<br>
+        🍅 = 結実中 / 🧺 = 収穫中<br>
+        ✂️ 摘心 = 第5花房の上で先端カット
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">🌸 花房一覧</div>
+      <div class="cluster-list">
+        ${allClusters.map(({ stem, num, cluster }) => {
+          if (!cluster) {
+            return `
+              <div class="cluster-item" style="opacity:0.5;cursor:pointer;" onclick="addCluster('${plant.id}', ${num}, '${stem}')">
+                <div class="header-row">
+                  <span class="num">${isTwoStem ? `[${stem}] ` : ''}第${num}花房</span>
+                  <span style="font-size:12px;color:var(--text-light);">+ 追加</span>
+                </div>
+              </div>
+            `;
+          }
+          const toneCount = cluster.tomatoToneHistory?.length || 0;
+          const statusLabels = { blooming: '開花中', fruiting: '結実中', harvesting: '収穫中', finished: '終了' };
+          const statusClass = `status-${cluster.status}`;
+          return `
+            <div class="cluster-item" onclick="showClusterDetail('${plant.id}', ${num}, '${stem}')">
+              <div class="header-row">
+                <span class="num">${isTwoStem ? `[${stem}] ` : ''}第${num}花房</span>
+                <span class="status ${statusClass}">${statusLabels[cluster.status] || ''}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-light);">
+                <span>開花日: ${cluster.bloomDate ? dateStr(cluster.bloomDate) : '-'}</span>
+                <div class="tone-badges">
+                  トマトトーン: 
+                  <span class="tone-dot ${toneCount >= 1 ? '' : 'empty'}"></span>
+                  <span class="tone-dot ${toneCount >= 2 ? '' : 'empty'}"></span>
+                  <span>${toneCount}/2</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderEggplantPepperPruning(plant, tasks) {
+  const isOneFruit = plant.trainingMethod === 'two_stem_one_fruit';
+  const isAdvancedPepper = plant.trainingMethod === 'two_stem_advanced';
+  const isTwoStem = plant.trainingMethod === 'two_stem' || isOneFruit || isAdvancedPepper;
+  const sp = plant.species;
+  const days = dayDiff(plant.plantingDate);
+  
+  let svgInner = '';
+  // 土
+  svgInner += `<rect x="20" y="380" width="260" height="30" fill="#92400e" rx="4"/>`;
+  svgInner += `<text x="150" y="400" text-anchor="middle" font-size="14" fill="white">土</text>`;
+  
+  // 主枝
+  svgInner += `<line x1="150" y1="380" x2="150" y2="280" stroke="#16a34a" stroke-width="6"/>`;
+  
+  // 一番花の節（分岐点）
+  svgInner += `<circle cx="150" cy="280" r="6" fill="#fbbf24"/>`;
+  svgInner += `<text x="170" y="285" font-size="11" fill="#374151">一番花の節</text>`;
+  
+  if (isTwoStem) {
+    // 2本仕立て：主枝＋脇芽
+    svgInner += `<line x1="150" y1="280" x2="100" y2="180" stroke="#16a34a" stroke-width="5"/>`;
+    svgInner += `<line x1="150" y1="280" x2="200" y2="180" stroke="#16a34a" stroke-width="5"/>`;
+    svgInner += `<text x="100" y="170" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心</text>`;
+    svgInner += `<text x="100" y="158" text-anchor="middle" font-size="9" fill="#6b7280">8〜10花後</text>`;
+    svgInner += `<text x="200" y="170" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心</text>`;
+    svgInner += `<text x="200" y="158" text-anchor="middle" font-size="9" fill="#6b7280">8〜10花後</text>`;
+    [100, 200].forEach(x => {
+      svgInner += `<circle cx="${x-15}" cy="220" r="8" fill="${sp === 'eggplant' ? '#a78bfa' : '#10b981'}"/>`;
+      svgInner += `<circle cx="${x+15}" cy="240" r="8" fill="${sp === 'eggplant' ? '#a78bfa' : '#10b981'}"/>`;
+    });
+    svgInner += `<text x="100" y="200" text-anchor="middle" font-size="11" fill="#374151" font-weight="bold">主枝</text>`;
+    svgInner += `<text x="200" y="200" text-anchor="middle" font-size="11" fill="#374151" font-weight="bold">脇芽①</text>`;
+    svgInner += `<line x1="150" y1="350" x2="120" y2="340" stroke="#9ca3af" stroke-width="3" stroke-dasharray="3,3"/>`;
+    svgInner += `<text x="115" y="335" text-anchor="end" font-size="10" fill="#dc2626">✂️かく</text>`;
+    svgInner += `<line x1="150" y1="320" x2="180" y2="310" stroke="#9ca3af" stroke-width="3" stroke-dasharray="3,3"/>`;
+    svgInner += `<text x="185" y="305" font-size="10" fill="#dc2626">✂️かく</text>`;
+  }
+  
+  const svg = `<svg viewBox="0 0 300 420" class="pruning-svg">${svgInner}</svg>`;
+  
+  const lastSideShoot = tasks.find(t => t.type === 'side_shoot_removal');
+  const lastRenewal = tasks.find(t => t.type === 'renewal_pruning');
+  const isRenewalSeason = sp === 'eggplant' && days >= 60 && days <= 120 && !lastRenewal;
+  const renewalDone = sp === 'eggplant' && lastRenewal;
+  
+  // 側枝一果の図解SVG（ナスのみ）— タキイの図解に基づく
+  let oneFruitSvg = '';
+  if (isOneFruit) {
+    oneFruitSvg = `
+      <svg viewBox="0 0 360 740" class="pruning-svg">
+        <!-- ===== Ⓐ図 ===== -->
+        <text x="180" y="20" text-anchor="middle" font-size="14" fill="#374151" font-weight="bold">Ⓐ 1次側枝の摘芯と収穫時の切り戻し</text>
+        
+        <!-- 主枝（縦の太い枝） -->
+        <line x1="80" y1="320" x2="140" y2="60" stroke="#7c3aed" stroke-width="11" stroke-linecap="round"/>
+        <text x="50" y="310" font-size="11" fill="#7c3aed" font-weight="bold">主枝</text>
+        
+        <!-- 1次側枝（主枝から右に伸びる） -->
+        <line x1="115" y1="170" x2="320" y2="170" stroke="#7c3aed" stroke-width="9" stroke-linecap="round"/>
+        <text x="270" y="195" font-size="10" fill="#7c3aed" font-weight="bold">1次側枝</text>
+        
+        <!-- 第1わき芽（残す＝2次側枝、上方向に伸びる） -->
+        <line x1="170" y1="170" x2="170" y2="100" stroke="#7c3aed" stroke-width="6" stroke-linecap="round"/>
+        <ellipse cx="155" cy="115" rx="13" ry="7" fill="#22c55e"/>
+        <ellipse cx="180" cy="105" rx="13" ry="7" fill="#22c55e"/>
+        <text x="100" y="80" font-size="11" fill="#374151" font-weight="bold">第1わき芽は残す</text>
+        <text x="120" y="93" font-size="10" fill="#6b7280">（2次側枝）</text>
+        <line x1="135" y1="83" x2="170" y2="105" stroke="#374151" stroke-width="0.8"/>
+        
+        <!-- 第2・3わき芽（取る、第1と花の間） -->
+        <line x1="220" y1="170" x2="220" y2="135" stroke="#9ca3af" stroke-width="3" stroke-dasharray="3,3"/>
+        <line x1="213" y1="128" x2="227" y2="142" stroke="#dc2626" stroke-width="2.5"/>
+        <line x1="227" y1="128" x2="213" y2="142" stroke="#dc2626" stroke-width="2.5"/>
+        <line x1="250" y1="170" x2="250" y2="135" stroke="#9ca3af" stroke-width="3" stroke-dasharray="3,3"/>
+        <line x1="243" y1="128" x2="257" y2="142" stroke="#dc2626" stroke-width="2.5"/>
+        <line x1="257" y1="128" x2="243" y2="142" stroke="#dc2626" stroke-width="2.5"/>
+        <text x="235" y="115" font-size="11" fill="#374151" font-weight="bold">第2・3わき芽はとる</text>
+        <line x1="235" y1="118" x2="220" y2="132" stroke="#374151" stroke-width="0.8"/>
+        <line x1="295" y1="118" x2="252" y2="132" stroke="#374151" stroke-width="0.8"/>
+        
+        <!-- つぼみ（花）— 1次側枝の先端、その上に葉1枚、その先で摘心 -->
+        <line x1="290" y1="170" x2="290" y2="120" stroke="#7c3aed" stroke-width="4"/>
+        <circle cx="290" cy="160" r="7" fill="#a78bfa"/>
+        <text x="298" y="163" font-size="9" fill="#374151">つぼみ</text>
+        <ellipse cx="285" cy="135" rx="11" ry="5" fill="#22c55e"/>
+        <text x="300" y="138" font-size="9" fill="#374151">葉1枚</text>
+        <line x1="282" y1="118" x2="298" y2="118" stroke="#dc2626" stroke-width="3.5"/>
+        <text x="300" y="115" font-size="12" fill="#dc2626" font-weight="bold">✂️</text>
+        <text x="220" y="105" font-size="11" fill="#dc2626" font-weight="bold">花の上1葉残して摘心</text>
+        <line x1="270" y1="108" x2="290" y2="118" stroke="#dc2626" stroke-width="0.8" stroke-dasharray="2,2"/>
+        
+        <!-- 主枝の果実（収穫対象） -->
+        <ellipse cx="135" cy="200" rx="11" ry="24" fill="#7c3aed" stroke="#581c87" stroke-width="1"/>
+        <text x="80" y="222" font-size="11" fill="#374151" font-weight="bold">主枝の果実</text>
+        <line x1="105" y1="218" x2="125" y2="208" stroke="#374151" stroke-width="0.8"/>
+        
+        <!-- 矢印 -->
+        <path d="M 180 360 L 180 405 L 168 393 M 180 405 L 192 393" stroke="#f97316" stroke-width="3.5" fill="none"/>
+        <text x="200" y="385" font-size="11" fill="#f97316" font-weight="bold">残した2次側枝が伸びたら</text>
+        
+        <!-- ===== Ⓑ図 ===== -->
+        <text x="180" y="430" text-anchor="middle" font-size="14" fill="#374151" font-weight="bold">Ⓑ 2次側枝で同じことを繰り返す</text>
+        
+        <!-- 主枝 -->
+        <line x1="60" y1="700" x2="120" y2="470" stroke="#7c3aed" stroke-width="11" stroke-linecap="round"/>
+        <text x="30" y="690" font-size="11" fill="#7c3aed" font-weight="bold">主枝</text>
+        
+        <!-- 1次側枝 -->
+        <line x1="100" y1="570" x2="320" y2="570" stroke="#7c3aed" stroke-width="8" stroke-linecap="round"/>
+        <text x="265" y="595" font-size="10" fill="#7c3aed" font-weight="bold">1次側枝</text>
+        
+        <!-- 1次側枝の果実 -->
+        <ellipse cx="290" cy="600" rx="10" ry="22" fill="#7c3aed"/>
+        
+        <!-- 2次側枝（残したわき芽が伸びた、上方向） -->
+        <line x1="160" y1="570" x2="160" y2="475" stroke="#7c3aed" stroke-width="7"/>
+        <text x="195" y="495" font-size="10" fill="#7c3aed" font-weight="bold">2次側枝</text>
+        <line x1="195" y1="490" x2="165" y2="495" stroke="#374151" stroke-width="0.8"/>
+        
+        <!-- 第1わき芽（3次側枝、左方向に伸びる） -->
+        <line x1="160" y1="520" x2="100" y2="520" stroke="#7c3aed" stroke-width="5"/>
+        <ellipse cx="85" cy="510" rx="13" ry="6" fill="#22c55e"/>
+        <ellipse cx="85" cy="530" rx="13" ry="6" fill="#22c55e"/>
+        <text x="35" y="495" font-size="10" fill="#374151" font-weight="bold">第1わき芽は残す</text>
+        <text x="45" y="508" font-size="9" fill="#6b7280">（3次側枝）</text>
+        
+        <!-- 第2・3わき芽（つぼみと第1わき芽の間に配置） -->
+        <line x1="160" y1="500" x2="160" y2="490" stroke="#9ca3af" stroke-width="3" stroke-dasharray="3,3"/>
+        <line x1="153" y1="483" x2="167" y2="497" stroke="#dc2626" stroke-width="2.5"/>
+        <line x1="167" y1="483" x2="153" y2="497" stroke="#dc2626" stroke-width="2.5"/>
+        <line x1="178" y1="495" x2="190" y2="495" stroke="#9ca3af" stroke-width="3" stroke-dasharray="3,3"/>
+        <line x1="195" y1="488" x2="209" y2="502" stroke="#dc2626" stroke-width="2.5"/>
+        <line x1="209" y1="488" x2="195" y2="502" stroke="#dc2626" stroke-width="2.5"/>
+        <text x="220" y="497" font-size="10" fill="#374151" font-weight="bold">第2・3わき芽はとる</text>
+        
+        <!-- つぼみ・葉・摘心位置 -->
+        <circle cx="160" cy="465" r="7" fill="#a78bfa"/>
+        <text x="170" y="468" font-size="9" fill="#374151">つぼみ</text>
+        <ellipse cx="155" cy="448" rx="11" ry="5" fill="#22c55e"/>
+        <text x="170" y="451" font-size="9" fill="#374151">葉1枚</text>
+        <line x1="152" y1="432" x2="168" y2="432" stroke="#dc2626" stroke-width="3.5"/>
+        <text x="170" y="429" font-size="12" fill="#dc2626" font-weight="bold">✂️</text>
+        <text x="40" y="450" font-size="10" fill="#dc2626" font-weight="bold">花の上に葉1枚残して摘心</text>
+        <line x1="120" y1="448" x2="150" y2="437" stroke="#dc2626" stroke-width="0.8" stroke-dasharray="2,2"/>
+        
+        <!-- ループ表示 -->
+        <text x="180" y="730" text-anchor="middle" font-size="12" fill="#16a34a" font-weight="bold">↻ これを繰り返す（着果負担が少なく長く収穫できる）</text>
+      </svg>
+    `;
+  }
+  
+  // 上級者ピーマン整枝の図解SVG
+  let advancedPepperSvg = '';
+  if (isAdvancedPepper) {
+    advancedPepperSvg = `
+      <svg viewBox="0 0 360 540" class="pruning-svg">
+        <rect x="20" y="500" width="320" height="30" fill="#92400e" rx="4"/>
+        <line x1="180" y1="500" x2="180" y2="320" stroke="#eab308" stroke-width="9" stroke-linecap="round"/>
+        <line x1="180" y1="320" x2="80" y2="200" stroke="#eab308" stroke-width="8" stroke-linecap="round"/>
+        <line x1="180" y1="320" x2="280" y2="200" stroke="#eab308" stroke-width="8" stroke-linecap="round"/>
+        <circle cx="180" cy="430" r="16" fill="#fde047" stroke="#a16207" stroke-width="2.5"/>
+        <text x="180" y="435" text-anchor="middle" font-size="13" fill="#713f12" font-weight="bold">親</text>
+        <line x1="120" y1="248" x2="50" y2="220" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="80" cy="232" r="11" fill="#bbf7d0" stroke="#16a34a" stroke-width="2"/>
+        <text x="80" y="236" text-anchor="middle" font-size="11" fill="#14532d" font-weight="bold">子</text>
+        <circle cx="55" cy="218" r="5" fill="#15803d"/>
+        <circle cx="45" cy="218" r="5" fill="#15803d"/>
+        <circle cx="35" cy="218" r="5" fill="#15803d"/>
+        <line x1="25" y1="210" x2="40" y2="210" stroke="#dc2626" stroke-width="4"/>
+        <text x="20" y="200" font-size="11" fill="#dc2626" font-weight="bold">✂️</text>
+        <text x="40" y="195" font-size="10" fill="#dc2626" font-weight="bold">3個花つけたら摘心</text>
+        <line x1="95" y1="240" x2="115" y2="280" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="108" cy="265" r="9" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
+        <text x="108" y="269" text-anchor="middle" font-size="10" fill="#1e3a8a" font-weight="bold">孫</text>
+        <circle cx="118" cy="288" r="5" fill="#15803d"/>
+        <line x1="92" y1="240" x2="98" y2="244" stroke="#dc2626" stroke-width="4"/>
+        <text x="120" y="320" font-size="10" fill="#dc2626" font-weight="bold">最後は子の根本で摘心</text>
+        <line x1="120" y1="315" x2="100" y2="245" stroke="#dc2626" stroke-width="0.7" stroke-dasharray="2,2"/>
+        <line x1="240" y1="248" x2="310" y2="220" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="280" cy="232" r="11" fill="#bbf7d0" stroke="#16a34a" stroke-width="2"/>
+        <text x="280" y="236" text-anchor="middle" font-size="11" fill="#14532d" font-weight="bold">子</text>
+        <circle cx="305" cy="218" r="5" fill="#15803d"/>
+        <circle cx="315" cy="218" r="5" fill="#15803d"/>
+        <circle cx="325" cy="218" r="5" fill="#15803d"/>
+        <line x1="320" y1="210" x2="335" y2="210" stroke="#dc2626" stroke-width="4"/>
+        <text x="338" y="208" font-size="11" fill="#dc2626" font-weight="bold">✂️</text>
+        <line x1="265" y1="240" x2="245" y2="280" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="252" cy="265" r="9" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
+        <text x="252" y="269" text-anchor="middle" font-size="10" fill="#1e3a8a" font-weight="bold">孫</text>
+        <circle cx="242" cy="288" r="5" fill="#15803d"/>
+        <line x1="262" y1="240" x2="268" y2="244" stroke="#dc2626" stroke-width="4"/>
+        <rect x="20" y="20" width="320" height="120" fill="#fef3c7" stroke="#f59e0b" rx="6"/>
+        <text x="180" y="42" text-anchor="middle" font-size="13" fill="#92400e" font-weight="bold">枝の関係</text>
+        <line x1="35" y1="62" x2="55" y2="62" stroke="#eab308" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="45" cy="62" r="10" fill="#fde047" stroke="#a16207" stroke-width="2"/>
+        <text x="45" y="66" text-anchor="middle" font-size="10" fill="#713f12" font-weight="bold">親</text>
+        <text x="65" y="66" font-size="11" fill="#374151">主枝Y字全体（黄色）</text>
+        <line x1="35" y1="88" x2="55" y2="88" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="45" cy="88" r="9" fill="#bbf7d0" stroke="#16a34a" stroke-width="2"/>
+        <text x="45" y="91" text-anchor="middle" font-size="9" fill="#14532d" font-weight="bold">子</text>
+        <text x="65" y="91" font-size="11" fill="#374151">親から出る脇芽（緑、3花つけたら摘心）</text>
+        <line x1="35" y1="115" x2="55" y2="115" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="45" cy="115" r="8" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
+        <text x="45" y="118" text-anchor="middle" font-size="9" fill="#1e3a8a" font-weight="bold">孫</text>
+        <text x="65" y="118" font-size="11" fill="#374151">子から出る脇芽（青、1果収穫→子の根本で摘心）</text>
+      </svg>
+    `;
+  }
+  
+  // 更新剪定の図解SVG（ナスのみ）
+  let renewalSvg = '';
+  if (sp === 'eggplant') {
+    renewalSvg = `
+      <svg viewBox="0 0 320 240" class="pruning-svg">
+        <rect x="20" y="200" width="280" height="30" fill="#92400e" rx="4"/>
+        <text x="80" y="20" text-anchor="middle" font-size="13" fill="#374151" font-weight="bold">剪定前</text>
+        <line x1="80" y1="200" x2="80" y2="80" stroke="#16a34a" stroke-width="5"/>
+        <line x1="80" y1="80" x2="50" y2="40" stroke="#16a34a" stroke-width="3"/>
+        <line x1="80" y1="80" x2="110" y2="40" stroke="#16a34a" stroke-width="3"/>
+        <line x1="80" y1="120" x2="40" y2="80" stroke="#16a34a" stroke-width="2"/>
+        <line x1="80" y1="120" x2="120" y2="80" stroke="#16a34a" stroke-width="2"/>
+        <line x1="80" y1="160" x2="50" y2="130" stroke="#16a34a" stroke-width="2"/>
+        <line x1="80" y1="160" x2="110" y2="130" stroke="#16a34a" stroke-width="2"/>
+        <ellipse cx="50" cy="35" rx="14" ry="6" fill="#22c55e" opacity="0.5"/>
+        <ellipse cx="110" cy="35" rx="14" ry="6" fill="#22c55e" opacity="0.5"/>
+        <ellipse cx="40" cy="75" rx="12" ry="5" fill="#22c55e" opacity="0.5"/>
+        <ellipse cx="120" cy="75" rx="12" ry="5" fill="#22c55e" opacity="0.5"/>
+        <ellipse cx="50" cy="125" rx="12" ry="5" fill="#22c55e" opacity="0.5"/>
+        <ellipse cx="110" cy="125" rx="12" ry="5" fill="#22c55e" opacity="0.5"/>
+        <line x1="35" y1="100" x2="125" y2="100" stroke="#dc2626" stroke-width="2" stroke-dasharray="4,3"/>
+        <text x="80" y="115" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="bold">✂️ ここで切る</text>
+        <text x="160" y="120" text-anchor="middle" font-size="20" fill="#6b7280">→</text>
+        <text x="240" y="20" text-anchor="middle" font-size="13" fill="#374151" font-weight="bold">剪定後</text>
+        <line x1="240" y1="200" x2="240" y2="120" stroke="#16a34a" stroke-width="5"/>
+        <line x1="240" y1="160" x2="220" y2="135" stroke="#16a34a" stroke-width="2"/>
+        <line x1="240" y1="160" x2="260" y2="135" stroke="#16a34a" stroke-width="2"/>
+        <circle cx="225" cy="125" r="3" fill="#86efac"/>
+        <circle cx="255" cy="125" r="3" fill="#86efac"/>
+        <text x="240" y="115" text-anchor="middle" font-size="9" fill="#16a34a">新芽</text>
+        <text x="240" y="225" text-anchor="middle" font-size="10" fill="#dc2626">⚒️ 株から30cm離れた所で根切り</text>
+      </svg>
+    `;
+  }
+  
+  const trainingLabel = (TRAINING_METHODS[sp] || []).find(t => t.value === plant.trainingMethod)?.label || '';
+  
+  return `
+    <div class="card">
+      <div class="card-title">🌳 基本の仕立て（${SPECIES[sp].name} ${trainingLabel}）</div>
+      <div class="pruning-guide">${svg}</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:12px;">
+        <b>【今やること】</b><br>
+        ${sp === 'pepper' ? '□ 一番花は摘み取る（株を充実させる）<br>' : '□ 一番花は残す（受粉させて結実）<br>'}
+        □ 一番花の下の脇芽1本を残す（2本仕立て）<br>
+        □ それより下の脇芽は全部かき取る<br>
+        ${sp === 'eggplant' ? '□ 一番果は5〜6cmで早採り<br>' : ''}
+        ${!isOneFruit && !isAdvancedPepper ? '□ 8〜10花房後にそれぞれ摘心<br>' : ''}
+      </div>
+    </div>
+    
+    ${isOneFruit ? `
+    <div class="card">
+      <div class="card-title">🔁 側枝一果（一枝一果法）</div>
+      <div style="background:#fef3c7;border-radius:10px;padding:10px;margin-bottom:12px;">
+        <div style="font-size:12px;line-height:1.7;">
+          <b>💡 メリット</b>：着果負担が少ないので株が疲れにくく、栽培後半まで草勢が安定して品質のよいナスが穫れます
+        </div>
+      </div>
+      <div class="pruning-guide" style="background:#f9fafb;padding:8px;border-radius:12px;">
+        ${oneFruitSvg}
+      </div>
+      <div style="font-size:13px;line-height:1.8;margin-top:12px;">
+        <b>📋 サイクル（タキイ整枝法）</b><br>
+        <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;">
+          <b>Ⓐ 1次側枝の摘心と切り戻し</b><br>
+          <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
+            ・1次側枝の<b>1花目の先端に葉を1枚残して摘心</b><br>
+            ・<b>第1わき芽（2次側枝）は残す</b><br>
+            ・<b>第2・3わき芽はとる</b><br>
+            ・収穫の際、<b>主枝に近い2次側枝を1芽残して切り戻し</b>
+          </div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;">
+          <b>Ⓑ 2次側枝で同じことを繰り返す</b><br>
+          <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
+            ・残した2次側枝が伸びたら同じように<b>摘芯・収穫・切り戻し</b><br>
+            ・<b>第1わき芽（3次側枝）は残し、第2・3わき芽はとる</b><br>
+            ・孫枝の葉が大きくなったら同じく整理
+          </div>
+        </div>
+        <div style="background:#dbeafe;border-radius:8px;padding:10px;margin-top:8px;">
+          <b style="font-size:13px;">💪 ポイント</b>
+          <div style="font-size:12px;line-height:1.7;margin-top:4px;">
+            ・<b>主枝は絶対に切らない</b>、脇芽（側枝）だけを切る<br>
+            ・摘心位置は<b>花の上1葉残し</b>（葉を1枚だけ残してその先をカット）<br>
+            ・収穫時の切り戻し位置は<b>主枝に近い2次側枝の上</b><br>
+            ・暑い地域なら、これでも更新剪定はやった方が秋ナス豊作
+          </div>
+        </div>
+      </div>
+    </div>
+    ` : ''}
+    
+    ${isAdvancedPepper ? `
+    <div class="card">
+      <div class="card-title">🎯 上級者整枝（親→子→孫の管理）</div>
+      <div style="background:#fef3c7;border-radius:10px;padding:10px;margin-bottom:12px;">
+        <div style="font-size:12px;line-height:1.7;">
+          <b>💡 やり方</b>：親（主枝）から出る子（脇芽）と、子から出る孫（脇芽）を計画的に摘心して、長く収穫を続けます
+        </div>
+      </div>
+      <div class="pruning-guide" style="background:#f9fafb;padding:8px;border-radius:12px;">
+        ${advancedPepperSvg}
+      </div>
+      <div style="font-size:13px;line-height:1.8;margin-top:12px;">
+        <b>📋 整枝の流れ</b><br>
+        <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;">
+          <b>1️⃣ 親（主枝2本）を作る</b><br>
+          <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
+            ・一番花の下の脇芽1本を残してY字に<br>
+            ・主枝は伸ばし続ける
+          </div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;">
+          <b>2️⃣ 子（親から出る脇芽）の管理</b><br>
+          <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
+            ・親から脇芽（子）が出てくる<br>
+            ・<b>子に3個花がついたら、先を摘心</b><br>
+            ・摘心することで養分を実に集中
+          </div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;">
+          <b>3️⃣ 孫（子から出る脇芽）の管理</b><br>
+          <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
+            ・子からまた脇芽（孫）が出てくる<br>
+            ・孫には<b>1つだけ実をつけさせる</b><br>
+            ・実が収穫できたら、最後は<b>子の根本で摘心</b>（孫枝ごと切り戻す）<br>
+            ・これでまたスペースができて新しい子が出てくる
+          </div>
+        </div>
+        <div style="background:#dbeafe;border-radius:8px;padding:10px;margin-top:8px;">
+          <b style="font-size:13px;">💪 ポイント</b>
+          <div style="font-size:12px;line-height:1.7;margin-top:4px;">
+            ・着果負担が少ないので<b>株が疲れにくい</b><br>
+            ・サイクルを回すことで<b>長期間安定して収穫</b>できる<br>
+            ・ふところ枝（株中央に伸びる枝）は早めに除去<br>
+            ・ピーマンは枝が折れやすいので、各主枝に支柱必須
+          </div>
+        </div>
+      </div>
+    </div>
+    ` : ''}
+    
+    <div class="card">
+      <div class="card-title">🌸 草勢診断（花を観察）</div>
+      <div style="font-size:13px;line-height:1.7;margin-bottom:12px;">
+        花を見れば株の栄養状態が分かります。${sp === 'eggplant' ? '柱頭（雌しべ）の長さ' : '花の大きさ・色'}でチェック！
+      </div>
+      <div class="pruning-guide" style="background:#f9fafb;padding:12px;border-radius:12px;">
+        <svg viewBox="0 0 320 280" class="pruning-svg">
+          <text x="55" y="20" text-anchor="middle" font-size="12" fill="#16a34a" font-weight="bold">✓ 健全</text>
+          <text x="55" y="35" text-anchor="middle" font-size="9" fill="#374151">${sp === 'eggplant' ? '長花柱花' : '大きく濃い花'}</text>
+          <ellipse cx="55" cy="80" rx="35" ry="20" fill="#a78bfa"/>
+          <line x1="55" y1="60" x2="55" y2="40" stroke="#fbbf24" stroke-width="3"/>
+          <text x="55" y="115" text-anchor="middle" font-size="9" fill="#16a34a">柱頭が花弁から出る</text>
+          <text x="55" y="160" text-anchor="middle" font-size="9" fill="#374151">葉は上向き</text>
+          <text x="55" y="173" text-anchor="middle" font-size="9" fill="#374151">茎は太い</text>
+          <line x1="55" y1="180" x2="55" y2="220" stroke="#16a34a" stroke-width="3"/>
+          <ellipse cx="40" cy="195" rx="10" ry="5" fill="#22c55e"/>
+          <ellipse cx="70" cy="200" rx="10" ry="5" fill="#22c55e"/>
+          <text x="160" y="20" text-anchor="middle" font-size="12" fill="#f59e0b" font-weight="bold">⚠ 栄養不足ぎみ</text>
+          <text x="160" y="35" text-anchor="middle" font-size="9" fill="#374151">${sp === 'eggplant' ? '中花柱花' : '中サイズの花'}</text>
+          <ellipse cx="160" cy="80" rx="28" ry="16" fill="#a78bfa"/>
+          <line x1="160" y1="65" x2="160" y2="55" stroke="#fbbf24" stroke-width="3"/>
+          <text x="160" y="115" text-anchor="middle" font-size="9" fill="#f59e0b">柱頭が花弁と同じ高さ</text>
+          <text x="160" y="160" text-anchor="middle" font-size="9" fill="#374151">咲いている花から</text>
+          <text x="160" y="173" text-anchor="middle" font-size="9" fill="#374151">上は花がついても貧弱</text>
+          <line x1="160" y1="180" x2="160" y2="220" stroke="#16a34a" stroke-width="2"/>
+          <ellipse cx="148" cy="200" rx="8" ry="4" fill="#22c55e"/>
+          <text x="265" y="20" text-anchor="middle" font-size="12" fill="#dc2626" font-weight="bold">✗ 栄養不足</text>
+          <text x="265" y="35" text-anchor="middle" font-size="9" fill="#374151">${sp === 'eggplant' ? '短花柱花' : '小さく薄い花'}</text>
+          <ellipse cx="265" cy="80" rx="22" ry="12" fill="#c4b5fd"/>
+          <text x="265" y="115" text-anchor="middle" font-size="9" fill="#dc2626">柱頭が花弁の中</text>
+          <text x="265" y="160" text-anchor="middle" font-size="9" fill="#374151">下葉は垂れ下がりやすい</text>
+          <line x1="265" y1="180" x2="265" y2="220" stroke="#16a34a" stroke-width="2"/>
+          <ellipse cx="278" cy="215" rx="9" ry="4" fill="#84cc16" transform="rotate(30 278 215)"/>
+          <rect x="20" y="240" width="280" height="20" fill="#92400e" rx="3"/>
+        </svg>
+      </div>
+      <div style="background:#fee2e2;border-radius:8px;padding:10px;margin-top:8px;">
+        <b style="font-size:13px;color:#dc2626;">⚠ ${sp === 'eggplant' ? '短花柱花（柱頭が短い花）' : '小さい花'} が増えたら</b>
+        <div style="font-size:12px;line-height:1.7;margin-top:4px;">
+          落花が増えて収量が減ります。<b>速効性の肥料（液肥）</b>で追肥しましょう。同時に水切れ・日照不足もチェック。
+        </div>
+      </div>
+    </div>
+    
+    ${sp === 'eggplant' ? `
+    <div class="card" style="${isRenewalSeason ? 'border:2px solid var(--warning);' : ''}">
+      <div class="card-title">
+        🌿 更新剪定（秋ナスのために）
+        ${isRenewalSeason ? '<span style="background:var(--warning);color:white;padding:2px 8px;border-radius:6px;font-size:11px;margin-left:6px;">今が時期！</span>' : ''}
+        ${renewalDone ? `<span style="background:var(--primary);color:white;padding:2px 8px;border-radius:6px;font-size:11px;margin-left:6px;">完了 ✓</span>` : ''}
+      </div>
+      <div class="pruning-guide" style="background:#f9fafb;padding:12px;border-radius:12px;">${renewalSvg}</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:12px;">
+        <b>📅 適期：7月下旬〜8月上旬</b><br>
+        植え付けから70〜90日目頃が目安。時期が遅れるほど秋の収穫が減ります。
+        ${isOneFruit ? '<br><b style="color:#16a34a;">※側枝一果で育てている場合は、加減して剪定（疲れた枝のみ）でOK</b>' : ''}
+      </div>
+      <div style="background:#fef3c7;border-radius:10px;padding:12px;margin-top:12px;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px;">💡 なぜ更新剪定が必要？</div>
+        <div style="font-size:12px;line-height:1.7;">
+          真夏は<b>「なり疲れ」</b>で株が弱り、花が咲かなくなったり、石のように固い実がついたりします。一度大胆に切り戻すことで、新しい強い枝を出させて、9月以降に<b>美味しい秋ナス</b>を収穫できます。
+        </div>
+      </div>
+      <div style="margin-top:14px;font-size:13px;line-height:1.9;">
+        <b>📋 手順（3ステップ）</b><br>
+        <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;">
+          <b>1️⃣ 枝を切り戻す</b><br>
+          <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
+            ・各主枝を<b>1/3〜1/2</b>の長さにカット<br>
+            ・主枝に近い<b>強い芽</b>が残るように切る<br>
+            ・実や花がついていても気にせず大胆に！<br>
+            ・病気や害虫の葉も同時に除去<br>
+            ・<b>遅い時期ほど浅く（緩く）</b>切るのがコツ
+          </div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;">
+          <b>2️⃣ 根切り</b><br>
+          <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
+            ・株から<b>30cm離れた場所</b>にスコップを垂直に深く差し込む<br>
+            ・株の周囲<b>2〜3か所</b>で根を切る<br>
+            ・新しい根を発生させて株をリフレッシュ<br>
+            ・プランターの場合：縁に沿って一周する感じでOK
+          </div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;">
+          <b>3️⃣ 追肥＋たっぷり水やり</b><br>
+          <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
+            ・根切りした隙間に<b>化成肥料</b>または<b>液肥（500倍）</b>を施す<br>
+            ・たっぷり水やり<br>
+            ・以降は2週間に1回の追肥を継続
+          </div>
+        </div>
+      </div>
+      <div style="background:#dbeafe;border-radius:10px;padding:12px;margin-top:12px;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px;">⏰ 剪定後の経過</div>
+        <div style="font-size:12px;line-height:1.7;">
+          ・剪定後<b>20〜30日</b>で新しい枝が伸びて開花<br>
+          ・<b>1か月後</b>から品質の良い秋ナスが収穫可能<br>
+          ・実がつかない期間も水やりは欠かさない<br>
+          ・週2回程度の水やりを継続
+        </div>
+      </div>
+      <div style="background:#fee2e2;border-radius:10px;padding:12px;margin-top:12px;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px;">⚠️ 注意点</div>
+        <div style="font-size:12px;line-height:1.7;">
+          ・初心者は枝を切るのに躊躇しがちですが<b>大胆に</b>！<br>
+          ・剪定後1ヶ月実がならなくても心配せず水やりを続ける<br>
+          ・北海道など寒冷地は不要、ベランダ（東京）は実施推奨<br>
+          ・剪定する前に<b>主枝近くの芽が出ているか</b>確認
+        </div>
+      </div>
+      ${!renewalDone && days >= 60 ? `<button class="btn" style="margin-top:12px;" onclick="recordAction('renewal_pruning', {action:'renewal_pruning',icon:'🌿',label:'更新剪定'})">🌿 更新剪定を記録</button>` : ''}
+    </div>
+    ` : ''}
+    
+    <div class="card">
+      <div class="card-title">📋 直近の状況</div>
+      <div style="font-size:13px;">
+        ${lastSideShoot ? `最終脇芽かき: ${dateStr(lastSideShoot.date)}（${dayDiff(lastSideShoot.date)}日前）<br>` : 'まだ脇芽かき記録なし<br>'}
+        ${sp === 'eggplant' && lastRenewal ? `更新剪定: ${dateStr(lastRenewal.date)}（${dayDiff(lastRenewal.date)}日前）` : ''}
+      </div>
+    </div>
+  `;
+}
+function renderPassionPruning(plant, tasks) {
+  const mainPinched = tasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
+  const childPinched = tasks.filter(t => t.type === 'pinching' && t.details?.target === 'child').length;
+  
+  let svgInner = '';
+  // 土
+  svgInner += `<rect x="20" y="500" width="260" height="30" fill="#92400e" rx="4"/>`;
+  svgInner += `<text x="150" y="520" text-anchor="middle" font-size="14" fill="white">土</text>`;
+  
+  // ネット
+  svgInner += `<line x1="30" y1="80" x2="270" y2="80" stroke="#9ca3af" stroke-width="2"/>`;
+  for (let x = 30; x <= 270; x += 30) {
+    svgInner += `<line x1="${x}" y1="80" x2="${x}" y2="100" stroke="#9ca3af" stroke-width="1" stroke-dasharray="2,3"/>`;
+  }
+  svgInner += `<text x="150" y="70" text-anchor="middle" font-size="12" fill="#6b7280">ネット</text>`;
+  
+  // 主枝（摘心済みなら少し短め）
+  const mainTopY = mainPinched ? 350 : 250;
+  svgInner += `<line x1="150" y1="500" x2="150" y2="${mainTopY}" stroke="#16a34a" stroke-width="6"/>`;
+  
+  if (mainPinched) {
+    // 摘心マーク
+    svgInner += `<text x="150" y="${mainTopY - 5}" text-anchor="middle" font-size="13" fill="#22c55e">✓ 摘心済</text>`;
+    
+    // 子づる3本
+    [70, 150, 230].forEach((x, idx) => {
+      const childTopY = childPinched > idx ? 200 : 130;
+      svgInner += `<line x1="150" y1="${mainTopY}" x2="${x}" y2="${childTopY}" stroke="#16a34a" stroke-width="4"/>`;
+      svgInner += `<text x="${x}" y="${childTopY - 5}" text-anchor="middle" font-size="11" fill="#374151">子づる${idx+1}</text>`;
+      
+      if (childPinched > idx) {
+        svgInner += `<text x="${x}" y="${childTopY - 18}" text-anchor="middle" font-size="11" fill="#22c55e">✓摘心</text>`;
+        // 孫づる（ネット沿い）
+        for (let j = 0; j < 3; j++) {
+          const gx = x - 20 + j * 20;
+          svgInner += `<line x1="${x}" y1="${childTopY}" x2="${gx}" y2="100" stroke="#16a34a" stroke-width="2"/>`;
+          svgInner += `<circle cx="${gx}" cy="105" r="5" fill="#ec4899"/>`;
+        }
+      } else {
+        svgInner += `<text x="${x}" y="${childTopY - 18}" text-anchor="middle" font-size="11" fill="#dc2626">✂️摘心</text>`;
+      }
+    });
+  } else {
+    // 主枝の摘心位置
+    svgInner += `<line x1="135" y1="${mainTopY}" x2="165" y2="${mainTopY}" stroke="#dc2626" stroke-width="3" stroke-dasharray="3,3"/>`;
+    svgInner += `<text x="150" y="${mainTopY - 8}" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心位置</text>`;
+    svgInner += `<text x="150" y="${mainTopY - 22}" text-anchor="middle" font-size="9" fill="#6b7280">本葉8〜10枚</text>`;
+  }
+  
+  const svg = `<svg viewBox="0 0 300 540" class="pruning-svg">${svgInner}</svg>`;
+  
+  return `
+    <div class="card">
+      <div class="card-title">🌳 剪定ガイド（パッション）</div>
+      <div class="pruning-guide">
+        ${svg}
+      </div>
+      <div style="font-size:13px;line-height:1.8;margin-top:12px;">
+        <b>【育成3ステップ】</b><br>
+        ${mainPinched ? '✓' : '□'} 主枝摘心（本葉8〜10枚で先端カット）<br>
+        ${childPinched >= 3 ? '✓' : '□'} 子づる3本に絞る<br>
+        ${childPinched >= 3 ? '✓' : '□'} 子づる摘心（各々8〜10枚で）<br>
+        □ 孫づる育成（伸ばす、摘心しない）<br>
+        □ 開花〜人工授粉<br>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">💡 なぜ摘心が必要？</div>
+      <div style="font-size:13px;line-height:1.7;">
+        パッションは<b>主枝・子づるには花がつかず、孫づるに花がつく</b>性質。<br><br>
+        摘心しないと主枝ばかり伸びて実がつきません。摘心することで子づるが出て、子づるをまた摘心すると孫づるが出て、その孫づるに花がつきます。
+      </div>
+    </div>
+  `;
+}
+
+function renderHistoryTab(tasks) {
+  if (tasks.length === 0) {
+    return '<div class="card empty"><div class="icon">📋</div>まだ作業記録がありません</div>';
+  }
+  
+  const ACTION_LABELS = {
+    watering: { icon: '💧', label: '水やり' },
+    fertilize_liquid: { icon: '🧪', label: '液肥' },
+    fertilize_granular: { icon: '💊', label: '粒肥' },
+    side_shoot_removal: { icon: '✂️', label: '脇芽かき' },
+    pinching: { icon: '✂️', label: '摘心' },
+    topsoil: { icon: '🪴', label: '増し土' },
+    training: { icon: '🌿', label: '誘引' },
+    defoliation: { icon: '🍃', label: '葉かき' },
+    tomato_tone: { icon: '🍅', label: 'トマトトーン' },
+    pollination: { icon: '🐝', label: '人工授粉' },
+    renewal_pruning: { icon: '🌿', label: '更新剪定' },
+    harvest: { icon: '🧺', label: '収穫' },
+    pest_treatment: { icon: '🐛', label: '病害虫対処' },
+    mulching: { icon: '🍂', label: 'マルチング' },
+    observation: { icon: '👀', label: '観察' }
+  };
+  
+  return `
+    <div class="card">
+      <div class="card-title">📋 作業履歴 (${tasks.length}件)</div>
+      <div>
+        ${tasks.map(t => {
+          const action = ACTION_LABELS[t.type] || { icon: '📝', label: t.type };
+          return `
+            <div class="timeline-item">
+              <div class="timeline-icon">${action.icon}</div>
+              <div class="timeline-content">
+                <div class="timeline-date">${dateStr(t.date)}</div>
+                <div class="timeline-title">${action.label}${t.details?.count ? ` × ${t.details.count}` : ''}${t.details?.cluster ? ` 第${t.details.cluster}花房` : ''}${t.details?.round ? ` ${t.details.round}回目` : ''}</div>
+                ${t.notes ? `<div class="timeline-note">${t.notes}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+async function renderTasks() {
+  const plants = (await dbGetAll('plants')).filter(p => p.status === 'active');
+  const allTasks = await dbGetAll('tasks');
+  const taskState = await dbGet('settings', 'taskState') || { key: 'taskState', value: {} };
+  cachedTasksState = taskState.value || {};
+  
+  if (!cachedWeather) cachedWeather = await fetchWeather();
+  
+  const allClustersData = await dbGetAll('clusters');
+  let allRecommended = [];
+  for (const plant of plants) {
+    const plantTasks = allTasks.filter(t => t.plantId === plant.id);
+    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData);
+    allRecommended = allRecommended.concat(recommended);
+  }
+  
+  const todayKey = today();
+  const mustTasks = [];
+  const recTasks = [];
+  const carryoverTasks = [];
+  const doneTasks = [];
+  
+  // 持ち越しを取得
+  Object.entries(cachedTasksState).forEach(([key, state]) => {
+    if (state.status === 'carryover' && state.targetDate === todayKey) {
+      carryoverTasks.push({ ...state.task, taskKey: key, isCarryover: true });
+    }
+  });
+  
+  for (const t of allRecommended) {
+    const key = `${todayKey}:${t.plantId}:${t.action}`;
+    const state = cachedTasksState[key];
+    if (state && state.status === 'done') {
+      doneTasks.push({ ...t, taskKey: key });
+    } else if (state && state.status === 'skip') {
+      // skip skip
+    } else {
+      const taskWithKey = { ...t, taskKey: key };
+      if (t.type === 'must') mustTasks.push(taskWithKey);
+      else recTasks.push(taskWithKey);
+    }
+  }
+  
+  const renderTaskItem = (t) => `
+    <div class="task-item ${t.isCarryover ? 'carryover' : t.type}">
+      <div class="task-content">
+        <div class="task-title">${t.title}${t.isCarryover ? ' 📌持ち越し' : ''}</div>
+        <div class="task-desc">${t.desc}</div>
+      </div>
+      <div class="task-actions">
+        <button class="check" onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'done')">✓</button>
+        <button onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'carryover')">⏭</button>
+        <button onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'skip')">⏸</button>
+      </div>
+    </div>
+  `;
+  
+  const renderDone = (t) => `
+    <div class="task-item done">
+      <div class="task-content">
+        <div class="task-title">${t.title} ✓</div>
+        <div class="task-desc">${t.desc}</div>
+      </div>
+    </div>
+  `;
+  
+  const html = `
+    <div class="header">
+      <h1>✅ 今日のタスク</h1>
+      <div class="greeting">${new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}</div>
+    </div>
+    
+    ${mustTasks.length === 0 && recTasks.length === 0 && carryoverTasks.length === 0 ? `
+      <div class="card empty">
+        <div class="icon">🎉</div>
+        <div>今日のタスクは完了です！</div>
+      </div>
+    ` : ''}
+    
+    ${mustTasks.length > 0 ? `
+      <div class="section-header">🔴 必須 (${mustTasks.length})</div>
+      <div class="task-list">
+        ${mustTasks.map(renderTaskItem).join('')}
+      </div>
+    ` : ''}
+    
+    ${carryoverTasks.length > 0 ? `
+      <div class="section-header">📌 持ち越し (${carryoverTasks.length})</div>
+      <div class="task-list">
+        ${carryoverTasks.map(renderTaskItem).join('')}
+      </div>
+    ` : ''}
+    
+    ${recTasks.length > 0 ? `
+      <div class="section-header">🔵 推奨 (${recTasks.length})</div>
+      <div class="task-list">
+        ${recTasks.map(renderTaskItem).join('')}
+      </div>
+    ` : ''}
+    
+    ${doneTasks.length > 0 ? `
+      <div class="section-header">✓ 完了 (${doneTasks.length})</div>
+      <div class="task-list">
+        ${doneTasks.map(renderDone).join('')}
+      </div>
+    ` : ''}
+  `;
+  document.getElementById('app').innerHTML = html;
+}
+
+async function renderSettings() {
+  const html = `
+    <div class="header">
+      <h1>⚙️ 設定</h1>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">💾 データ管理</div>
+      <button class="btn btn-secondary" onclick="exportData()">📥 データをJSON書き出し</button>
+      <button class="btn btn-secondary" onclick="importData()" style="margin-top:8px;">📤 JSONから読み込み</button>
+      <input type="file" id="importFile" accept=".json" style="display:none;" onchange="handleImport(event)">
+    </div>
+    
+    <div class="card">
+      <div class="card-title">🌍 天気の地点</div>
+      <div style="font-size:13px;color:var(--text-light);">現在は東京固定です</div>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">🔄 シーズン切り替え</div>
+      <div style="font-size:13px;line-height:1.7;color:var(--text-light);margin-bottom:8px;">
+        シーズン終了時にこのボタンを押すと、パッション以外の株を「終了」にしてリセットします
+      </div>
+      <button class="btn btn-secondary btn-danger" style="background:var(--warning);" onclick="endSeason()">🔄 シーズン終了</button>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">ℹ️ アプリについて</div>
+      <div style="font-size:13px;color:var(--text-light);line-height:1.7;">
+        ベランダ菜園マネージャー v1.0<br>
+        データはこのスマホに保存されます<br>
+        天気データ: Open-Meteo
+      </div>
+    </div>
+  `;
+  document.getElementById('app').innerHTML = html;
+}
+
+// =================================================
+// アクション関数
+// =================================================
+async function navigate(screen) {
+  currentScreen = screen;
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.screen === screen);
+  });
+  if (screen === 'home') await renderHome();
+  else if (screen === 'plants') await renderPlants();
+  else if (screen === 'tasks') await renderTasks();
+  else if (screen === 'settings') await renderSettings();
+  window.scrollTo(0, 0);
+}
+
+async function openPlant(plantId) {
+  currentPlantId = plantId;
+  currentTab = 'overview';
+  await renderPlantDetail(plantId);
+  window.scrollTo(0, 0);
+}
+
+async function switchTab(tab) {
+  currentTab = tab;
+  await renderPlantDetail(currentPlantId);
+}
+
+async function refreshWeather() {
+  cachedWeather = null;
+  cachedWeather = await fetchWeather();
+  if (currentScreen === 'home') await renderHome();
+  else if (currentScreen === 'tasks') await renderTasks();
+}
+
+function showAddPlant() {
+  showModal(`
+    <h2 class="modal-title">🌱 株を追加</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();savePlant();">
+      <div class="form-group">
+        <label>種類 *</label>
+        <select id="speciesInput" onchange="updateTrainingOptions()" required>
+          <option value="">選択</option>
+          ${Object.entries(SPECIES).map(([k, v]) => `<option value="${k}">${v.icon} ${v.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>名前（品種名やニックネーム、空欄OK）</label>
+        <input id="nameInput" type="text" placeholder="例：アイコ、桃太郎、たろう">
+      </div>
+      <div class="form-group">
+        <label>植え付け日 *</label>
+        <input id="plantingDateInput" type="date" value="${today()}" required>
+      </div>
+      <div class="form-group" id="trainingGroup" style="display:none;">
+        <label>仕立て方</label>
+        <select id="trainingInput"></select>
+      </div>
+      <div class="form-group">
+        <label>メモ（任意）</label>
+        <textarea id="notesInput" placeholder="プランターサイズ、購入店など"></textarea>
+      </div>
+      <button type="submit" class="btn">保存</button>
+    </form>
+  `);
+}
+
+function updateTrainingOptions() {
+  const species = document.getElementById('speciesInput').value;
+  const trainingGroup = document.getElementById('trainingGroup');
+  const trainingInput = document.getElementById('trainingInput');
+  if (!species || !TRAINING_METHODS[species] || TRAINING_METHODS[species][0].value === 'none') {
+    trainingGroup.style.display = 'none';
+    return;
+  }
+  trainingGroup.style.display = 'block';
+  trainingInput.innerHTML = TRAINING_METHODS[species].map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+}
+
+async function savePlant() {
+  const species = document.getElementById('speciesInput').value;
+  const name = document.getElementById('nameInput').value.trim();
+  const plantingDate = document.getElementById('plantingDateInput').value;
+  const trainingMethod = document.getElementById('trainingInput')?.value || 'none';
+  const notes = document.getElementById('notesInput').value.trim();
+  
+  if (!species || !plantingDate) return;
+  
+  const plant = {
+    id: uid(),
+    species,
+    name,
+    plantingDate,
+    trainingMethod,
+    notes,
+    status: 'active',
+    season: new Date(plantingDate).getFullYear().toString(),
+    createdAt: new Date().toISOString()
+  };
+  await dbPut('plants', plant);
+  closeModal();
+  await navigate(currentScreen);
+}
+
+async function editPlant(plantId) {
+  const plant = await dbGet('plants', plantId);
+  showModal(`
+    <h2 class="modal-title">✏️ 株を編集</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();updatePlant('${plantId}');">
+      <div class="form-group">
+        <label>名前</label>
+        <input id="nameInput" type="text" value="${plant.name || ''}">
+      </div>
+      <div class="form-group">
+        <label>植え付け日</label>
+        <input id="plantingDateInput" type="date" value="${plant.plantingDate}">
+      </div>
+      <div class="form-group">
+        <label>仕立て方</label>
+        <select id="trainingInput">
+          ${(TRAINING_METHODS[plant.species] || []).map(t => 
+            `<option value="${t.value}" ${t.value === plant.trainingMethod ? 'selected' : ''}>${t.label}</option>`
+          ).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>メモ</label>
+        <textarea id="notesInput">${plant.notes || ''}</textarea>
+      </div>
+      <button type="submit" class="btn">更新</button>
+    </form>
+  `);
+}
+
+async function updatePlant(plantId) {
+  const plant = await dbGet('plants', plantId);
+  plant.name = document.getElementById('nameInput').value.trim();
+  plant.plantingDate = document.getElementById('plantingDateInput').value;
+  plant.trainingMethod = document.getElementById('trainingInput')?.value || plant.trainingMethod;
+  plant.notes = document.getElementById('notesInput').value.trim();
+  await dbPut('plants', plant);
+  closeModal();
+  await renderPlantDetail(plantId);
+}
+
+async function deletePlant(plantId) {
+  if (!confirm('本当にこの株を削除しますか？関連する作業履歴も削除されます。')) return;
+  await dbDelete('plants', plantId);
+  // 関連タスク・花房も削除
+  const tasks = (await dbGetAll('tasks')).filter(t => t.plantId === plantId);
+  for (const t of tasks) await dbDelete('tasks', t.id);
+  const clusters = (await dbGetAll('clusters')).filter(c => c.plantId === plantId);
+  for (const c of clusters) await dbDelete('clusters', c.id);
+  navigate('plants');
+}
+
+async function recordWater() {
+  await recordTask({
+    plantId: currentPlantId,
+    type: 'watering',
+    date: new Date().toISOString(),
+    details: {},
+    notes: ''
+  });
+  await renderPlantDetail(currentPlantId);
+}
+
+async function recordAction(action, actionData) {
+  if (action === 'tomato_tone') {
+    showTomatoToneModal();
+    return;
+  }
+  if (action === 'harvest') {
+    showHarvestModal();
+    return;
+  }
+  if (action === 'side_shoot_removal') {
+    showSideShootModal();
+    return;
+  }
+  if (action === 'pinching') {
+    showPinchingModal();
+    return;
+  }
+  // その他は即座に記録
+  showQuickRecordModal(action, actionData);
+}
+
+function showQuickRecordModal(action, actionData) {
+  showModal(`
+    <h2 class="modal-title">${actionData.icon} ${actionData.label}を記録</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();saveQuickRecord('${action}');">
+      <div class="form-group">
+        <label>日時</label>
+        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+      </div>
+      <div class="form-group">
+        <label>メモ（任意）</label>
+        <textarea id="notesInput" placeholder="例：${actionData.label}実施"></textarea>
+      </div>
+      <button type="submit" class="btn">記録</button>
+    </form>
+  `);
+}
+
+async function saveQuickRecord(action) {
+  const date = document.getElementById('dateInput').value;
+  const notes = document.getElementById('notesInput').value.trim();
+  await recordTask({
+    plantId: currentPlantId,
+    type: action,
+    date: new Date(date).toISOString(),
+    details: {},
+    notes
+  });
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+function showTomatoToneModal() {
+  // 花房選択
+  (async () => {
+    const clusters = (await dbGetAll('clusters'))
+      .filter(c => c.plantId === currentPlantId)
+      .sort((a,b) => a.segmentNumber - b.segmentNumber);
+    
+    if (clusters.length === 0) {
+      alert('まずは「剪定ガイド」タブから花房を追加してください');
+      return;
+    }
+    
+    showModal(`
+      <h2 class="modal-title">🍅 トマトトーンを記録</h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+      <form onsubmit="event.preventDefault();saveTomatoTone();">
+        <div class="form-group">
+          <label>対象花房</label>
+          <select id="clusterInput" required>
+            ${clusters.map(c => {
+              const count = c.tomatoToneHistory?.length || 0;
+              return `<option value="${c.id}">${c.stem === 'B' ? '[B] ' : ''}第${c.segmentNumber}花房（${count}/2）</option>`;
+            }).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>日時</label>
+          <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+        </div>
+        <div class="form-group">
+          <label>メモ</label>
+          <textarea id="notesInput"></textarea>
+        </div>
+        <button type="submit" class="btn">記録</button>
+      </form>
+    `);
+  })();
+}
+
+async function saveTomatoTone() {
+  const clusterId = document.getElementById('clusterInput').value;
+  const date = document.getElementById('dateInput').value;
+  const notes = document.getElementById('notesInput').value.trim();
+  
+  const cluster = await dbGet('clusters', clusterId);
+  if (!cluster.tomatoToneHistory) cluster.tomatoToneHistory = [];
+  const round = cluster.tomatoToneHistory.length + 1;
+  cluster.tomatoToneHistory.push({
+    date: new Date(date).toISOString(),
+    round
+  });
+  await dbPut('clusters', cluster);
+  
+  await recordTask({
+    plantId: currentPlantId,
+    type: 'tomato_tone',
+    date: new Date(date).toISOString(),
+    details: { cluster: cluster.segmentNumber, round, clusterId },
+    notes
+  });
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+function showHarvestModal() {
+  showModal(`
+    <h2 class="modal-title">🧺 収穫を記録</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();saveHarvest();">
+      <div class="form-group">
+        <label>日時</label>
+        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+      </div>
+      <div class="form-group">
+        <label>収穫個数</label>
+        <input id="countInput" type="number" min="1" value="1" required>
+      </div>
+      <div class="form-group">
+        <label>メモ（任意）</label>
+        <textarea id="notesInput" placeholder="味の感想など"></textarea>
+      </div>
+      <button type="submit" class="btn">記録</button>
+    </form>
+  `);
+}
+
+async function saveHarvest() {
+  const date = document.getElementById('dateInput').value;
+  const count = parseInt(document.getElementById('countInput').value) || 1;
+  const notes = document.getElementById('notesInput').value.trim();
+  await recordTask({
+    plantId: currentPlantId,
+    type: 'harvest',
+    date: new Date(date).toISOString(),
+    details: { count },
+    notes
+  });
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+function showSideShootModal() {
+  showModal(`
+    <h2 class="modal-title">✂️ 脇芽かきを記録</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();saveSideShoot();">
+      <div class="form-group">
+        <label>日時</label>
+        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+      </div>
+      <div class="form-group">
+        <label>本数（任意）</label>
+        <input id="countInput" type="number" min="1" placeholder="3">
+      </div>
+      <div class="form-group">
+        <label>メモ</label>
+        <textarea id="notesInput"></textarea>
+      </div>
+      <button type="submit" class="btn">記録</button>
+    </form>
+  `);
+}
+
+async function saveSideShoot() {
+  const date = document.getElementById('dateInput').value;
+  const count = parseInt(document.getElementById('countInput').value) || null;
+  const notes = document.getElementById('notesInput').value.trim();
+  const details = {};
+  if (count) details.count = count;
+  await recordTask({
+    plantId: currentPlantId,
+    type: 'side_shoot_removal',
+    date: new Date(date).toISOString(),
+    details,
+    notes
+  });
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+async function showPinchingModal() {
+  const plant = await dbGet('plants', currentPlantId);
+  let targetOptions = '';
+  if (plant.species === 'passion') {
+    targetOptions = `
+      <div class="form-group">
+        <label>摘心対象</label>
+        <select id="targetInput" required>
+          <option value="main">主枝</option>
+          <option value="child">子づる</option>
+          <option value="grandchild">孫づる（通常摘心しない）</option>
+        </select>
+      </div>
+    `;
+  }
+  showModal(`
+    <h2 class="modal-title">✂️ 摘心を記録</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();savePinching();">
+      <div class="form-group">
+        <label>日時</label>
+        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+      </div>
+      ${targetOptions}
+      <div class="form-group">
+        <label>メモ</label>
+        <textarea id="notesInput"></textarea>
+      </div>
+      <button type="submit" class="btn">記録</button>
+    </form>
+  `);
+}
+
+async function savePinching() {
+  const date = document.getElementById('dateInput').value;
+  const target = document.getElementById('targetInput')?.value || 'main';
+  const notes = document.getElementById('notesInput').value.trim();
+  await recordTask({
+    plantId: currentPlantId,
+    type: 'pinching',
+    date: new Date(date).toISOString(),
+    details: { target },
+    notes
+  });
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+async function recordTask(task) {
+  task.id = uid();
+  await dbPut('tasks', task);
+}
+
+async function addCluster(plantId, segmentNumber, stem) {
+  showModal(`
+    <h2 class="modal-title">🌸 第${segmentNumber}花房を追加${stem === 'B' ? '（B枝）' : ''}</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();saveCluster('${plantId}', ${segmentNumber}, '${stem}');">
+      <div class="form-group">
+        <label>開花日</label>
+        <input id="bloomDateInput" type="date" value="${today()}" required>
+      </div>
+      <div class="form-group">
+        <label>状態</label>
+        <select id="statusInput">
+          <option value="blooming">開花中</option>
+          <option value="fruiting">結実中</option>
+          <option value="harvesting">収穫中</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>メモ</label>
+        <textarea id="notesInput"></textarea>
+      </div>
+      <button type="submit" class="btn">追加</button>
+    </form>
+  `);
+}
+
+async function saveCluster(plantId, segmentNumber, stem) {
+  const cluster = {
+    id: uid(),
+    plantId,
+    segmentNumber,
+    stem,
+    bloomDate: document.getElementById('bloomDateInput').value,
+    status: document.getElementById('statusInput').value,
+    tomatoToneHistory: [],
+    notes: document.getElementById('notesInput').value.trim(),
+    createdAt: new Date().toISOString()
+  };
+  await dbPut('clusters', cluster);
+  closeModal();
+  await renderPlantDetail(plantId);
+}
+
+async function showClusterDetail(plantId, segmentNumber, stem) {
+  const clusters = (await dbGetAll('clusters'))
+    .filter(c => c.plantId === plantId && c.segmentNumber === segmentNumber && (c.stem || 'A') === stem);
+  
+  if (clusters.length === 0) {
+    addCluster(plantId, segmentNumber, stem);
+    return;
+  }
+  
+  const c = clusters[0];
+  const history = c.tomatoToneHistory || [];
+  
+  showModal(`
+    <h2 class="modal-title">🌸 ${stem === 'B' ? '[B枝] ' : ''}第${segmentNumber}花房</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div style="font-size:14px;line-height:1.8;margin-bottom:16px;">
+      <div><b>開花日：</b>${dateStr(c.bloomDate)}</div>
+      <div><b>状態：</b>${({blooming: '開花中', fruiting: '結実中', harvesting: '収穫中', finished: '終了'})[c.status]}</div>
+    </div>
+    
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;">🍅 トマトトーン履歴 (${history.length}/2)</h3>
+    <div style="background:#f9fafb;border-radius:8px;padding:12px;margin-bottom:16px;">
+      ${history.length === 0 ? '<div style="color:var(--text-light);font-size:13px;">まだ記録なし</div>' :
+        history.map(h => `<div style="font-size:13px;">${h.round}回目: ${dateStr(h.date)}</div>`).join('')
+      }
+    </div>
+    
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${history.length < 2 ? `<button class="btn" onclick="quickToneRecord('${c.id}')">🍅 トマトトーンを散布</button>` : '<div style="color:var(--text-light);font-size:13px;text-align:center;">トマトトーン2回完了 ✓</div>'}
+      <button class="btn btn-secondary" onclick="updateClusterStatus('${c.id}')">📝 状態を変更</button>
+      <button class="btn btn-secondary" onclick="deleteCluster('${c.id}')" style="color:var(--danger);border-color:var(--danger);">🗑️ 削除</button>
+    </div>
+  `);
+}
+
+async function quickToneRecord(clusterId) {
+  const cluster = await dbGet('clusters', clusterId);
+  if (!cluster.tomatoToneHistory) cluster.tomatoToneHistory = [];
+  if (cluster.tomatoToneHistory.length >= 2) {
+    alert('既に2回散布済みです');
+    return;
+  }
+  const round = cluster.tomatoToneHistory.length + 1;
+  cluster.tomatoToneHistory.push({
+    date: new Date().toISOString(),
+    round
+  });
+  await dbPut('clusters', cluster);
+  
+  await recordTask({
+    plantId: currentPlantId,
+    type: 'tomato_tone',
+    date: new Date().toISOString(),
+    details: { cluster: cluster.segmentNumber, round, clusterId },
+    notes: ''
+  });
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+async function updateClusterStatus(clusterId) {
+  const cluster = await dbGet('clusters', clusterId);
+  showModal(`
+    <h2 class="modal-title">📝 状態を変更</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();saveClusterStatus('${clusterId}');">
+      <div class="form-group">
+        <label>状態</label>
+        <select id="statusInput">
+          <option value="blooming" ${cluster.status === 'blooming' ? 'selected' : ''}>開花中</option>
+          <option value="fruiting" ${cluster.status === 'fruiting' ? 'selected' : ''}>結実中</option>
+          <option value="harvesting" ${cluster.status === 'harvesting' ? 'selected' : ''}>収穫中</option>
+          <option value="finished" ${cluster.status === 'finished' ? 'selected' : ''}>終了</option>
+        </select>
+      </div>
+      <button type="submit" class="btn">更新</button>
+    </form>
+  `);
+}
+
+async function saveClusterStatus(clusterId) {
+  const cluster = await dbGet('clusters', clusterId);
+  cluster.status = document.getElementById('statusInput').value;
+  await dbPut('clusters', cluster);
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+async function deleteCluster(clusterId) {
+  if (!confirm('この花房を削除しますか？')) return;
+  await dbDelete('clusters', clusterId);
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+async function markTask(taskKey, taskData, status) {
+  const taskState = await dbGet('settings', 'taskState') || { key: 'taskState', value: {} };
+  taskState.value = taskState.value || {};
+  
+  if (status === 'carryover') {
+    // 翌日に持ち越し
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowKey = tomorrow.toISOString().split('T')[0];
+    taskState.value[taskKey] = {
+      status: 'carryover',
+      date: today(),
+      targetDate: tomorrowKey,
+      task: taskData
+    };
+  } else {
+    taskState.value[taskKey] = {
+      status,
+      date: new Date().toISOString()
+    };
+  }
+  
+  await dbPut('settings', taskState);
+  
+  // 完了時、対応する作業も自動記録
+  if (status === 'done' && taskData.action) {
+    await recordTask({
+      plantId: taskData.plantId,
+      type: taskData.action,
+      date: new Date().toISOString(),
+      details: {},
+      notes: '（タスクから自動記録）'
+    });
+  }
+  
+  await renderTasks();
+}
+
+// =================================================
+// データ書き出し・読み込み
+// =================================================
+async function exportData() {
+  const data = {
+    plants: await dbGetAll('plants'),
+    tasks: await dbGetAll('tasks'),
+    clusters: await dbGetAll('clusters'),
+    settings: await dbGetAll('settings'),
+    exportedAt: new Date().toISOString(),
+    version: '1.0'
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `garden-backup-${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData() {
+  document.getElementById('importFile').click();
+}
+
+async function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!confirm('既存のデータが上書きされます。続けますか？')) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    for (const p of data.plants || []) await dbPut('plants', p);
+    for (const t of data.tasks || []) await dbPut('tasks', t);
+    for (const c of data.clusters || []) await dbPut('clusters', c);
+    for (const s of data.settings || []) await dbPut('settings', s);
+    alert('インポート完了！');
+    navigate('home');
+  } catch (e) {
+    alert('インポートに失敗しました: ' + e.message);
+  }
+}
+
+async function endSeason() {
+  if (!confirm('シーズンを終了しますか？\nパッション以外の株が「終了」状態になります。\n（事前にデータ書き出しを推奨）')) return;
+  const plants = await dbGetAll('plants');
+  for (const p of plants) {
+    if (p.species !== 'passion' && p.status === 'active') {
+      p.status = 'finished';
+      p.finishedAt = new Date().toISOString();
+      await dbPut('plants', p);
+    }
+  }
+  alert('シーズン終了しました');
+  await navigate('home');
+}
+
+// =================================================
+// モーダル管理
+// =================================================
+function showModal(content) {
+  const existing = document.querySelector('.modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `<div class="modal-content">${content}</div>`;
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+  document.body.appendChild(modal);
+}
+
+function closeModal() {
+  const modal = document.querySelector('.modal');
+  if (modal) modal.remove();
+}
+
+// =================================================
+// 初期化
+// =================================================
+(async () => {
+  await openDB();
+  await navigate('home');
+})();
+</script>
+</body>
+</html>
