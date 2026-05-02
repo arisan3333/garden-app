@@ -463,6 +463,14 @@ body {
 }
 .tone-dot.empty { background: #e5e7eb; }
 
+
+.eggplant-one-fruit-svg {
+  width: 100%;
+  max-width: 560px;
+  display: block;
+  margin: 8px auto;
+}
+
 /* Responsive emoji rendering on Android */
 .emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
 </style>
@@ -1598,112 +1606,184 @@ function renderEggplantPepperPruning(plant, tasks) {
   const isRenewalSeason = sp === 'eggplant' && days >= 60 && days <= 120 && !lastRenewal;
   const renewalDone = sp === 'eggplant' && lastRenewal;
   
-  // 側枝一果の図解SVG（ナスのみ）— タキイの図解に基づく
+  // 側枝一果の図解SVG（ナスのみ）— 参考画像をSVGで再現
   let oneFruitSvg = '';
   if (isOneFruit) {
     oneFruitSvg = `
-      <svg viewBox="0 0 360 740" class="pruning-svg">
-        <!-- ===== Ⓐ図 ===== -->
-        <text x="180" y="20" text-anchor="middle" font-size="14" fill="#374151" font-weight="bold">Ⓐ 1次側枝の摘芯と収穫時の切り戻し</text>
-        
-        <!-- 主枝（縦の太い枝） -->
-        <line x1="80" y1="320" x2="140" y2="60" stroke="#7c3aed" stroke-width="11" stroke-linecap="round"/>
-        <text x="50" y="310" font-size="11" fill="#7c3aed" font-weight="bold">主枝</text>
-        
-        <!-- 1次側枝（主枝から右に伸びる） -->
-        <line x1="115" y1="170" x2="320" y2="170" stroke="#7c3aed" stroke-width="9" stroke-linecap="round"/>
-        <text x="270" y="195" font-size="10" fill="#7c3aed" font-weight="bold">1次側枝</text>
-        
-        <!-- 第1わき芽（残す＝2次側枝、上方向に伸びる） -->
-        <line x1="170" y1="170" x2="170" y2="100" stroke="#7c3aed" stroke-width="6" stroke-linecap="round"/>
-        <ellipse cx="155" cy="115" rx="13" ry="7" fill="#22c55e"/>
-        <ellipse cx="180" cy="105" rx="13" ry="7" fill="#22c55e"/>
-        <text x="100" y="80" font-size="11" fill="#374151" font-weight="bold">第1わき芽は残す</text>
-        <text x="120" y="93" font-size="10" fill="#6b7280">（2次側枝）</text>
-        <line x1="135" y1="83" x2="170" y2="105" stroke="#374151" stroke-width="0.8"/>
-        
-        <!-- 第2・3わき芽（取る、第1と花の間） -->
-        <line x1="220" y1="170" x2="220" y2="135" stroke="#9ca3af" stroke-width="3" stroke-dasharray="3,3"/>
-        <line x1="213" y1="128" x2="227" y2="142" stroke="#dc2626" stroke-width="2.5"/>
-        <line x1="227" y1="128" x2="213" y2="142" stroke="#dc2626" stroke-width="2.5"/>
-        <line x1="250" y1="170" x2="250" y2="135" stroke="#9ca3af" stroke-width="3" stroke-dasharray="3,3"/>
-        <line x1="243" y1="128" x2="257" y2="142" stroke="#dc2626" stroke-width="2.5"/>
-        <line x1="257" y1="128" x2="243" y2="142" stroke="#dc2626" stroke-width="2.5"/>
-        <text x="235" y="115" font-size="11" fill="#374151" font-weight="bold">第2・3わき芽はとる</text>
-        <line x1="235" y1="118" x2="220" y2="132" stroke="#374151" stroke-width="0.8"/>
-        <line x1="295" y1="118" x2="252" y2="132" stroke="#374151" stroke-width="0.8"/>
-        
-        <!-- つぼみ（花）— 1次側枝の先端、その上に葉1枚、その先で摘心 -->
-        <line x1="290" y1="170" x2="290" y2="120" stroke="#7c3aed" stroke-width="4"/>
-        <circle cx="290" cy="160" r="7" fill="#a78bfa"/>
-        <text x="298" y="163" font-size="9" fill="#374151">つぼみ</text>
-        <ellipse cx="285" cy="135" rx="11" ry="5" fill="#22c55e"/>
-        <text x="300" y="138" font-size="9" fill="#374151">葉1枚</text>
-        <line x1="282" y1="118" x2="298" y2="118" stroke="#dc2626" stroke-width="3.5"/>
-        <text x="300" y="115" font-size="12" fill="#dc2626" font-weight="bold">✂️</text>
-        <text x="220" y="105" font-size="11" fill="#dc2626" font-weight="bold">花の上1葉残して摘心</text>
-        <line x1="270" y1="108" x2="290" y2="118" stroke="#dc2626" stroke-width="0.8" stroke-dasharray="2,2"/>
-        
-        <!-- 主枝の果実（収穫対象） -->
-        <ellipse cx="135" cy="200" rx="11" ry="24" fill="#7c3aed" stroke="#581c87" stroke-width="1"/>
-        <text x="80" y="222" font-size="11" fill="#374151" font-weight="bold">主枝の果実</text>
-        <line x1="105" y1="218" x2="125" y2="208" stroke="#374151" stroke-width="0.8"/>
-        
-        <!-- 矢印 -->
-        <path d="M 180 360 L 180 405 L 168 393 M 180 405 L 192 393" stroke="#f97316" stroke-width="3.5" fill="none"/>
-        <text x="200" y="385" font-size="11" fill="#f97316" font-weight="bold">残した2次側枝が伸びたら</text>
-        
-        <!-- ===== Ⓑ図 ===== -->
-        <text x="180" y="430" text-anchor="middle" font-size="14" fill="#374151" font-weight="bold">Ⓑ 2次側枝で同じことを繰り返す</text>
-        
-        <!-- 主枝 -->
-        <line x1="60" y1="700" x2="120" y2="470" stroke="#7c3aed" stroke-width="11" stroke-linecap="round"/>
-        <text x="30" y="690" font-size="11" fill="#7c3aed" font-weight="bold">主枝</text>
-        
-        <!-- 1次側枝 -->
-        <line x1="100" y1="570" x2="320" y2="570" stroke="#7c3aed" stroke-width="8" stroke-linecap="round"/>
-        <text x="265" y="595" font-size="10" fill="#7c3aed" font-weight="bold">1次側枝</text>
-        
-        <!-- 1次側枝の果実 -->
-        <ellipse cx="290" cy="600" rx="10" ry="22" fill="#7c3aed"/>
-        
-        <!-- 2次側枝（残したわき芽が伸びた、上方向） -->
-        <line x1="160" y1="570" x2="160" y2="475" stroke="#7c3aed" stroke-width="7"/>
-        <text x="195" y="495" font-size="10" fill="#7c3aed" font-weight="bold">2次側枝</text>
-        <line x1="195" y1="490" x2="165" y2="495" stroke="#374151" stroke-width="0.8"/>
-        
-        <!-- 第1わき芽（3次側枝、左方向に伸びる） -->
-        <line x1="160" y1="520" x2="100" y2="520" stroke="#7c3aed" stroke-width="5"/>
-        <ellipse cx="85" cy="510" rx="13" ry="6" fill="#22c55e"/>
-        <ellipse cx="85" cy="530" rx="13" ry="6" fill="#22c55e"/>
-        <text x="35" y="495" font-size="10" fill="#374151" font-weight="bold">第1わき芽は残す</text>
-        <text x="45" y="508" font-size="9" fill="#6b7280">（3次側枝）</text>
-        
-        <!-- 第2・3わき芽（つぼみと第1わき芽の間に配置） -->
-        <line x1="160" y1="500" x2="160" y2="490" stroke="#9ca3af" stroke-width="3" stroke-dasharray="3,3"/>
-        <line x1="153" y1="483" x2="167" y2="497" stroke="#dc2626" stroke-width="2.5"/>
-        <line x1="167" y1="483" x2="153" y2="497" stroke="#dc2626" stroke-width="2.5"/>
-        <line x1="178" y1="495" x2="190" y2="495" stroke="#9ca3af" stroke-width="3" stroke-dasharray="3,3"/>
-        <line x1="195" y1="488" x2="209" y2="502" stroke="#dc2626" stroke-width="2.5"/>
-        <line x1="209" y1="488" x2="195" y2="502" stroke="#dc2626" stroke-width="2.5"/>
-        <text x="220" y="497" font-size="10" fill="#374151" font-weight="bold">第2・3わき芽はとる</text>
-        
-        <!-- つぼみ・葉・摘心位置 -->
-        <circle cx="160" cy="465" r="7" fill="#a78bfa"/>
-        <text x="170" y="468" font-size="9" fill="#374151">つぼみ</text>
-        <ellipse cx="155" cy="448" rx="11" ry="5" fill="#22c55e"/>
-        <text x="170" y="451" font-size="9" fill="#374151">葉1枚</text>
-        <line x1="152" y1="432" x2="168" y2="432" stroke="#dc2626" stroke-width="3.5"/>
-        <text x="170" y="429" font-size="12" fill="#dc2626" font-weight="bold">✂️</text>
-        <text x="40" y="450" font-size="10" fill="#dc2626" font-weight="bold">花の上に葉1枚残して摘心</text>
-        <line x1="120" y1="448" x2="150" y2="437" stroke="#dc2626" stroke-width="0.8" stroke-dasharray="2,2"/>
-        
-        <!-- ループ表示 -->
-        <text x="180" y="730" text-anchor="middle" font-size="12" fill="#16a34a" font-weight="bold">↻ これを繰り返す（着果負担が少なく長く収穫できる）</text>
-      </svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1450" class="pruning-svg eggplant-one-fruit-svg" role="img" aria-label="ナスの側枝一果剪定図">
+  <defs>
+    <style>
+      .title { font: 700 28px 'Hiragino Sans', 'Yu Gothic', sans-serif; fill: #111; }
+      .label { font: 700 26px 'Hiragino Sans', 'Yu Gothic', sans-serif; fill: #111; }
+      .body  { font: 400 22px 'Hiragino Sans', 'Yu Gothic', sans-serif; fill: #222; }
+      .small { font: 400 18px 'Hiragino Sans', 'Yu Gothic', sans-serif; fill: #333; }
+      .stem  { stroke: #6f4e8b; stroke-width: 14; stroke-linecap: round; }
+      .thinStem { stroke: #6f4e8b; stroke-width: 10; stroke-linecap: round; }
+      .cut   { stroke: #ff2f92; stroke-width: 6; }
+      .arrow { stroke: #111; stroke-width: 3.5; fill: none; marker-end: url(#arrow); }
+      .leafStroke { stroke: #2f855a; stroke-width: 2; }
+      .fruit { fill: #5b2a86; stroke: #41205f; stroke-width: 2; }
+      .flowerPetal { fill: #ddd4ff; stroke: #8f86bf; stroke-width: 1.5; }
+      .flowerCenter { fill: #f3c316; }
+      .circleMark { fill: none; stroke: #111; stroke-width: 3; }
+      .orange { fill: #f59e0b; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,7 L8,3.5 z" fill="#111"/>
+    </marker>
+    <g id="leafLarge">
+      <path d="M0,0 C20,-18 40,-18 62,0 C44,34 18,48 0,0z" fill="#18b7a0" class="leafStroke"/>
+      <path d="M7,4 C24,-10 36,-10 50,0 C35,22 17,29 7,4z" fill="#3cc77f" opacity="0.65"/>
+      <path d="M0,0 C14,10 28,24 36,44" fill="none" class="leafStroke"/>
+      <path d="M20,-5 C24,8 24,25 18,40" fill="none" class="leafStroke" opacity="0.7"/>
+      <path d="M36,-2 C38,10 36,20 28,34" fill="none" class="leafStroke" opacity="0.7"/>
+    </g>
+    <g id="leafSmall">
+      <path d="M0,0 C10,-10 22,-10 34,0 C24,18 10,26 0,0z" fill="#22c55e" class="leafStroke"/>
+      <path d="M5,3 C13,-6 20,-6 28,0 C20,12 10,17 5,3z" fill="#66d690" opacity="0.65"/>
+      <path d="M0,0 C8,6 15,13 19,24" fill="none" class="leafStroke"/>
+    </g>
+    <g id="flower">
+      <path class="flowerPetal" d="M0,-20 C6,-10 6,10 0,20 C-6,10 -6,-10 0,-20z"/>
+      <path class="flowerPetal" d="M20,0 C10,6 -10,6 -20,0 C-10,-6 10,-6 20,0z"/>
+      <path class="flowerPetal" d="M14,-14 C8,-5 -5,8 -14,14 C-8,5 5,-8 14,-14z"/>
+      <path class="flowerPetal" d="M14,14 C5,8 -8,-5 -14,-14 C-5,-8 8,5 14,14z"/>
+      <ellipse class="flowerCenter" cx="0" cy="0" rx="5" ry="10"/>
+    </g>
+    <g id="fruit">
+      <path class="fruit" d="M0,0 C24,-8 42,10 35,38 C29,66 6,90 -12,93 C-22,95 -34,84 -33,66 C-31,33 -22,9 0,0z"/>
+      <path d="M-2,-2 C5,-10 16,-12 24,-10" fill="none" stroke="#3f2261" stroke-width="3"/>
+      <path d="M-7,3 C-3,-8 5,-11 11,-13" fill="none" stroke="#3f2261" stroke-width="2"/>
+    </g>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#fff"/>
+
+  <!-- Section A -->
+  <circle cx="55" cy="70" r="30" class="circleMark"/>
+  <text x="45" y="82" class="title">A</text>
+
+  <!-- A diagram stems -->
+  <line x1="150" y1="430" x2="235" y2="165" class="stem"/>
+  <line x1="220" y1="255" x2="655" y2="235" class="thinStem"/>
+
+  <!-- A leaves and shoots -->
+  <line x1="335" y1="248" x2="320" y2="204" stroke="#5ca45d" stroke-width="4"/>
+  <use href="#leafSmall" transform="translate(305 177) rotate(-8) scale(1.35)"/>
+  <line x1="382" y1="246" x2="395" y2="286" stroke="#5ca45d" stroke-width="4"/>
+  <use href="#leafLarge" transform="translate(380 288) rotate(30) scale(1.05)"/>
+  <line x1="500" y1="242" x2="495" y2="195" stroke="#5ca45d" stroke-width="4"/>
+  <use href="#leafSmall" transform="translate(475 165) rotate(-4) scale(1.35)"/>
+  <line x1="575" y1="238" x2="596" y2="215" stroke="#5ca45d" stroke-width="3.5"/>
+  <use href="#leafSmall" transform="translate(590 203) rotate(18) scale(0.95)"/>
+  <line x1="210" y1="258" x2="182" y2="302" stroke="#5ca45d" stroke-width="4"/>
+  <use href="#leafLarge" transform="translate(135 300) rotate(12) scale(1.15)"/>
+
+  <!-- A flower -->
+  <line x1="560" y1="240" x2="545" y2="275" stroke="#5ca45d" stroke-width="3.5"/>
+  <use href="#flower" transform="translate(535 290) scale(1.15)"/>
+
+  <!-- A cut marks -->
+  <line x1="610" y1="210" x2="620" y2="270" class="cut"/>
+  <line x1="178" y1="286" x2="214" y2="270" class="cut"/>
+
+  <!-- A labels -->
+  <text x="155" y="115" class="label">第1わき芽は残す</text>
+  <text x="172" y="150" class="label">（2次側枝）</text>
+  <path d="M355,155 L370,200" class="arrow"/>
+
+  <text x="490" y="110" class="label">第2・3わき芽</text>
+  <text x="515" y="145" class="label">はとる</text>
+  <path d="M560,150 L505,215" class="arrow"/>
+  <path d="M560,150 L600,205" class="arrow"/>
+
+  <text x="697" y="170" class="label">花の上1葉</text>
+  <text x="697" y="205" class="label">残して摘芯</text>
+  <path d="M705,220 L625,238" class="arrow"/>
+
+  <text x="84" y="300" class="label">主枝</text>
+  <path d="M145,292 L225,292" class="arrow"/>
+
+  <text x="140" y="485" class="label">側枝の葉が大きくなったらとる</text>
+  <path d="M405,468 L326,380" class="arrow"/>
+
+  <text x="40" y="585" class="body">①1次側枝の1花目の先端に葉を1枚残して摘芯し、収穫の際、</text>
+  <text x="74" y="618" class="body">A図のように主枝に近い2次側枝を1芽残して切り戻します。</text>
+
+  <!-- orange arrow separator -->
+  <polygon points="430,650 470,650 450,680" class="orange"/>
+
+  <!-- Section B -->
+  <circle cx="55" cy="750" r="30" class="circleMark"/>
+  <text x="45" y="762" class="title">B</text>
+
+  <!-- B stems -->
+  <line x1="150" y1="1180" x2="235" y2="905" class="stem"/>
+  <line x1="215" y1="1040" x2="630" y2="1015" class="thinStem"/>
+  <line x1="320" y1="1030" x2="560" y2="845" class="thinStem"/>
+
+  <!-- B leaves / shoots -->
+  <line x1="355" y1="1008" x2="340" y2="965" stroke="#5ca45d" stroke-width="4"/>
+  <use href="#leafSmall" transform="translate(320 940) rotate(-5) scale(1.2)"/>
+  <line x1="280" y1="1038" x2="272" y2="985" stroke="#5ca45d" stroke-width="4"/>
+  <use href="#leafSmall" transform="translate(250 955) rotate(-5) scale(1.2)"/>
+  <line x1="418" y1="954" x2="398" y2="910" stroke="#5ca45d" stroke-width="4"/>
+  <use href="#leafSmall" transform="translate(376 882) rotate(-10) scale(1.35)"/>
+  <line x1="435" y1="936" x2="455" y2="965" stroke="#5ca45d" stroke-width="4"/>
+  <use href="#leafSmall" transform="translate(450 958) rotate(20) scale(1.05)"/>
+  <line x1="496" y1="894" x2="515" y2="870" stroke="#5ca45d" stroke-width="3.5"/>
+  <use href="#leafSmall" transform="translate(508 858) rotate(15) scale(1.0)"/>
+  <line x1="525" y1="872" x2="556" y2="884" stroke="#5ca45d" stroke-width="3.5"/>
+  <use href="#leafLarge" transform="translate(548 877) rotate(38) scale(0.8)"/>
+  <line x1="445" y1="1023" x2="447" y2="965" stroke="#5ca45d" stroke-width="4"/>
+  <use href="#leafSmall" transform="translate(432 930) rotate(-4) scale(1.25)"/>
+  <line x1="318" y1="1031" x2="344" y2="1090" stroke="#5ca45d" stroke-width="4"/>
+  <use href="#leafLarge" transform="translate(327 1092) rotate(25) scale(0.9)"/>
+
+  <!-- B fruit and flower -->
+  <line x1="510" y1="1018" x2="550" y2="1060" stroke="#5ca45d" stroke-width="3.5"/>
+  <use href="#fruit" transform="translate(572 1068) rotate(8) scale(0.72)"/>
+  <line x1="500" y1="892" x2="482" y2="925" stroke="#5ca45d" stroke-width="3"/>
+  <use href="#flower" transform="translate(470 936) scale(0.95)"/>
+
+  <!-- B cut marks -->
+  <line x1="256" y1="1072" x2="277" y2="1062" class="cut"/>
+  <line x1="365" y1="1000" x2="377" y2="1045" class="cut"/>
+  <line x1="520" y1="835" x2="532" y2="892" class="cut"/>
+
+  <!-- B labels -->
+  <text x="172" y="818" class="label">第1わき芽は残す</text>
+  <text x="182" y="853" class="label">（3次側枝）</text>
+  <path d="M365,858 L430,955" class="arrow"/>
+
+  <text x="490" y="818" class="label">第2・3わき芽はとる</text>
+  <path d="M620,835 L545,875" class="arrow"/>
+  <path d="M620,835 L505,895" class="arrow"/>
+
+  <text x="648" y="895" class="label">2次側枝</text>
+  <text x="664" y="930" class="label">摘芯</text>
+  <path d="M666,910 L536,860" class="arrow"/>
+
+  <text x="665" y="1042" class="label">1次側枝</text>
+  <path d="M662,1028 L610,1018" class="arrow"/>
+
+  <text x="74" y="1108" class="label">主枝</text>
+  <path d="M142,1095 L228,1095" class="arrow"/>
+
+  <text x="92" y="940" class="label">孫枝の葉が</text>
+  <text x="92" y="975" class="label">大きくなったらとる</text>
+  <path d="M330,980 L245,953" class="arrow"/>
+
+  <text x="286" y="1222" class="label">収穫時に切り戻す</text>
+  <path d="M430,1200 L372,1048" class="arrow"/>
+
+  <text x="40" y="1330" class="body">②残した2次側枝が伸びたら同じように摘芯、収穫、を繰り返します。</text>
+  <text x="74" y="1363" class="body">こうすれば着果負担が少ないので、秋まで草勢が安定し、</text>
+  <text x="74" y="1396" class="body">品質のよいものが収穫できます。</text>
+</svg>
+
     `;
   }
-  
   // 上級者ピーマン整枝の図解SVG
   let advancedPepperSvg = '';
   if (isAdvancedPepper) {
