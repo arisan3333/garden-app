@@ -624,6 +624,184 @@ body {
   font-size: 13px;
   color: var(--text);
 }
+
+/* === Weekly Highlight === */
+.highlight-card {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border-left: 4px solid var(--primary-dark);
+}
+.highlight-item {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(34,197,94,0.15);
+}
+.highlight-item:last-child { border-bottom: none; }
+.highlight-item .plant-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.highlight-item .plant-row .icon { font-size: 18px; }
+.highlight-item .plant-row .name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.highlight-item .plant-row .day-tag {
+  font-size: 11px;
+  background: var(--primary);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+.highlight-item .stage-msg {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  margin-left: 26px;
+}
+.highlight-item .next-milestone {
+  font-size: 11px;
+  color: var(--text-light);
+  margin-left: 26px;
+  margin-top: 4px;
+}
+
+/* === Harvest Stats === */
+.harvest-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.harvest-summary .stat {
+  background: white;
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.harvest-summary .stat .num {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  line-height: 1;
+}
+.harvest-summary .stat .label {
+  font-size: 10px;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+.harvest-summary .stat .unit {
+  font-size: 11px;
+  color: var(--text-light);
+}
+
+.harvest-chart-wrap {
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+.harvest-chart-wrap svg {
+  display: block;
+  width: 100%;
+  min-width: 320px;
+  height: auto;
+}
+.chart-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.chart-legend .item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-light);
+}
+.chart-legend .swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.chart-legend .swatch.line {
+  height: 3px;
+  border-radius: 2px;
+}
+
+.plant-rank {
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+}
+.plant-rank .rank-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.plant-rank .rank-row:last-child { border-bottom: none; }
+.plant-rank .rank-row .rank-num {
+  font-size: 14px;
+  font-weight: 700;
+  width: 24px;
+  color: var(--text-light);
+}
+.plant-rank .rank-row .icon { font-size: 18px; }
+.plant-rank .rank-row .name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+}
+.plant-rank .rank-row .count {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+.plant-rank .rank-row .bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 0 8px;
+}
+.plant-rank .rank-row .bar {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+.period-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 12px;
+}
+.period-tabs .period-tab {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-light);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.period-tabs .period-tab.active {
+  background: white;
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
 </style>
 </head>
 <body>
@@ -1485,6 +1663,18 @@ async function renderHome() {
     return 'こんばんは';
   })();
   
+  // 今週の見どころ（活動中の株のみ）
+  const activePlants = plants.filter(p => p.status === 'active');
+  const highlights = activePlants.map(p => ({
+    plant: p,
+    ...generateWeeklyHighlight(p, allClustersData, allTasks)
+  })).filter(h => h.msg); // メッセージあるもののみ
+  
+  // 収穫数（今シーズン総数）
+  const totalHarvest = allTasks
+    .filter(t => t.type === 'harvest')
+    .reduce((sum, t) => sum + (t.details?.count || 1), 0);
+  
   const html = `
     <div class="header">
       <h1>🌱 ベランダ菜園</h1>
@@ -1523,6 +1713,40 @@ async function renderHome() {
         <button class="btn btn-small btn-secondary" onclick="refreshWeather()">再試行</button>
       `}
     </div>
+    
+    ${highlights.length > 0 ? `
+      <div class="card highlight-card">
+        <div class="card-title">✨ 今週の見どころ</div>
+        ${highlights.map(h => {
+          const sp = SPECIES[h.plant.species];
+          const days = dayDiff(h.plant.plantingDate);
+          return `
+            <div class="highlight-item">
+              <div class="plant-row">
+                <div class="icon">${sp.icon}</div>
+                <div class="name">${h.plant.name || sp.name}</div>
+                <div class="day-tag">Day ${days}</div>
+              </div>
+              <div class="stage-msg">${h.msg}</div>
+              ${h.nextMilestone ? `<div class="next-milestone">📌 ${h.nextMilestone}</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : ''}
+    
+    ${totalHarvest > 0 ? `
+      <div class="card" onclick="navigate('harvest')" style="cursor:pointer;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📊 今シーズンの収穫</span>
+          <span style="font-size:11px;color:var(--text-light);">詳細 ›</span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:8px;">
+          <div style="font-size:32px;font-weight:700;color:var(--primary-dark);">${totalHarvest}</div>
+          <div style="font-size:13px;color:var(--text-light);">個 収穫</div>
+        </div>
+      </div>
+    ` : ''}
     
     <div class="card">
       <div class="card-title">🌱 育てている株 (${plants.filter(p => p.status === 'active').length})</div>
@@ -2755,12 +2979,15 @@ async function deleteAllPhotos() {
 async function navigate(screen) {
   currentScreen = screen;
   document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.screen === screen);
+    // harvest画面はホーム配下扱い
+    const matchScreen = screen === 'harvest' ? 'home' : screen;
+    el.classList.toggle('active', el.dataset.screen === matchScreen);
   });
   if (screen === 'home') await renderHome();
   else if (screen === 'plants') await renderPlants();
   else if (screen === 'tasks') await renderTasks();
   else if (screen === 'settings') await renderSettings();
+  else if (screen === 'harvest') await renderHarvestStats('week');
   window.scrollTo(0, 0);
 }
 
@@ -3506,8 +3733,414 @@ function closeModal() {
 })();
 
 // =================================================
-// 📸 写真機能
+// 🌱 今週の見どころ
 // =================================================
+function generateWeeklyHighlight(plant, clusters, tasks) {
+  const days = dayDiff(plant.plantingDate);
+  const sp = SPECIES[plant.species];
+  const myClusters = clusters.filter(c => c.plantId === plant.id);
+  const myTasks = tasks.filter(t => t.plantId === plant.id);
+  const harvestCount = myTasks
+    .filter(t => t.type === 'harvest')
+    .reduce((sum, t) => sum + (t.details?.count || 1), 0);
+  
+  // 品種別・Day別のステージメッセージ
+  let msg = '';
+  let nextMilestone = '';
+  
+  if (plant.species === 'tomato') {
+    if (days < 7) {
+      msg = '🌱 根がまだ活着中。水やりは控えめに、苗がぐらつかないか確認を。';
+      nextMilestone = `あと${7-days}日で活着、${14-days}日で第1花房観察期間に入ります`;
+    } else if (days < 14) {
+      msg = '🌿 茎が太くなる時期。直射日光に慣らし、支柱を立てるなら今のうち。';
+      nextMilestone = `あと${14-days}日で第1花房チェック開始`;
+    } else if (days < 21) {
+      msg = '🌼 第1花房が見えてくる頃。最初の花は確実に着果させたい。';
+      nextMilestone = '結実したら脇芽かきスタート';
+    } else if (days < 35) {
+      const c1 = myClusters.find(c => c.segmentNumber === 1);
+      if (c1 && (c1.status === 'fruiting' || c1.status === 'harvesting')) {
+        msg = '✂️ 第1花房が結実！脇芽かきを3日に1回チェック、5-10cmで除去。';
+      } else {
+        msg = '🌸 開花期。トマトトーンを使うなら受粉率UPに効果的（午前中・1花房1回）。';
+      }
+      nextMilestone = `Day35頃に第3花房開花→追肥開始の節目`;
+    } else if (days < 60) {
+      msg = '🍅 結実〜初収穫期。水やりは控えめに（味が濃くなる）、追肥は週1。';
+      nextMilestone = '初収穫まであと少し';
+    } else if (days < 90) {
+      msg = '🍅 収穫最盛期。下葉かき・摘心の判断時期、株のバランスを見て。';
+      nextMilestone = '8月下旬まで収穫継続可能';
+    } else {
+      msg = '🍂 終盤。最後の花房まで実らせるか、株疲れなら見切りも検討。';
+    }
+  } else if (plant.species === 'eggplant') {
+    if (days < 7) {
+      msg = '🌱 活着期。深植えNG、根鉢が乾かないよう毎日チェック。';
+      nextMilestone = `${21-days}日で一番花・追肥スタート`;
+    } else if (days < 21) {
+      msg = '🌿 一番花が見えてくる頃。一番花の下の脇芽2本を残して2本仕立てに。';
+      nextMilestone = `あと${21-days}日で追肥スタート`;
+    } else if (days < 50) {
+      msg = '🍆 着果期。一番果は早めに収穫して株を疲れさせない（小ぶりでOK）。';
+      nextMilestone = '盛夏期の更新剪定（8月）に向けて準備';
+    } else if (days < 100) {
+      msg = '🍆 収穫期。水切れさせないこと、葉色が薄くなったら追肥のサイン。';
+      nextMilestone = '7月下旬〜8月の更新剪定で秋ナスへ';
+    } else {
+      msg = '🍆 秋ナス期。株を切り戻して新芽を促し、10月まで収穫可能。';
+    }
+  } else if (plant.species === 'pepper') {
+    if (days < 21) {
+      msg = '🫑 一番花が見えてくる頃。一番花は摘んで株を充実させると後の収量UP。';
+      nextMilestone = `あと${21-days}日で追肥スタート`;
+    } else if (days < 50) {
+      msg = '🫑 着果期。3又仕立て・整枝で風通しを確保、アブラムシ要注意。';
+      nextMilestone = '本格的な収穫期へ';
+    } else if (days < 100) {
+      msg = '🫑 収穫最盛期。早めに収穫すると次々に実がつく、追肥は週1継続。';
+    } else {
+      msg = '🫑 終盤。霜が降りる前にすべて収穫を。';
+    }
+  } else if (plant.species === 'passion') {
+    if (days < 30) {
+      msg = '🌺 つるを伸ばす時期。誘引・摘芯で枝数を増やし、花芽の数を確保。';
+    } else if (days < 60) {
+      msg = '🌸 開花期。受粉は午前中、雨の日は人工授粉を（綿棒で雄しべ→雌しべ）。';
+    } else if (days < 100) {
+      msg = '🍇 結実期。実が紫色になり自然落果したら完熟のサイン。';
+    } else {
+      msg = '🌿 越冬準備期。霜に当てないよう室内へ移動、剪定して春を待つ。';
+    }
+  } else if (plant.species === 'ginger') {
+    if (days < 30) {
+      msg = '🫚 発芽待ち。土を乾かさず、でも過湿NG。発芽まで気長に。';
+      nextMilestone = `あと${Math.max(0,30-days)}日で発芽の目安`;
+    } else if (days < 90) {
+      msg = '🌿 葉が伸びる時期。乾燥に弱いので朝水やり、追肥（固形）を月1。';
+    } else if (days < 180) {
+      msg = '🫚 根茎が肥大する時期。葉が黄色くなり始めたら収穫サイン。';
+    } else {
+      msg = '🫚 収穫期。霜が降りる前に掘り上げを。';
+    }
+  } else if (plant.species === 'okra') {
+    if (days < 30) {
+      msg = '🌱 ゆっくり成長。本葉5-6枚で間引き、1鉢1-2本に。';
+    } else if (days < 60) {
+      msg = '🌼 開花〜結実期。実は2-3日で硬くなるので早めに収穫を（5-7cm）。';
+    } else {
+      msg = '🌶️ 収穫最盛期。下葉かきで風通しを良くすると上の実が育ちやすい。';
+    }
+  } else if (plant.species === 'mitsuba' || plant.species === 'negi') {
+    msg = '🌿 必要な分だけ切り取って収穫。根元を残せば再生します。';
+  }
+  
+  return { msg, nextMilestone, harvestCount };
+}
+
+// 過去気温履歴のキャッシュ管理
+async function getHistoricalTemperature(startDate, endDate) {
+  const cacheKey = `weather_history_${startDate}_${endDate}`;
+  const cached = await dbGet('settings', cacheKey);
+  if (cached && cached.value && (new Date() - new Date(cached.fetchedAt)) < 86400000 * 3) {
+    // 3日キャッシュ
+    return cached.value;
+  }
+  
+  try {
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=35.6762&longitude=139.6503&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=Asia%2FTokyo`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('API failed');
+    const data = await res.json();
+    const result = {
+      dates: data.daily.time,
+      tempMax: data.daily.temperature_2m_max,
+      tempMin: data.daily.temperature_2m_min,
+      tempMean: data.daily.temperature_2m_mean
+    };
+    await dbPut('settings', { key: cacheKey, value: result, fetchedAt: new Date().toISOString() });
+    return result;
+  } catch (e) {
+    console.warn('Historical weather fetch failed', e);
+    return null;
+  }
+}
+
+// =================================================
+// 📊 収穫統計
+// =================================================
+async function renderHarvestStats(period = 'week') {
+  const plants = await dbGetAll('plants');
+  const allTasks = await dbGetAll('tasks');
+  const harvests = allTasks.filter(t => t.type === 'harvest');
+  
+  // 集計
+  const totalCount = harvests.reduce((sum, t) => sum + (t.details?.count || 1), 0);
+  const activeOrFinishedPlants = plants.filter(p => 
+    harvests.some(h => h.plantId === p.id)
+  );
+  const avgPerPlant = activeOrFinishedPlants.length > 0 
+    ? (totalCount / activeOrFinishedPlants.length).toFixed(1) 
+    : '0';
+  
+  // 株別ランキング
+  const byPlant = {};
+  for (const h of harvests) {
+    if (!byPlant[h.plantId]) byPlant[h.plantId] = 0;
+    byPlant[h.plantId] += h.details?.count || 1;
+  }
+  const ranking = Object.entries(byPlant)
+    .map(([pid, count]) => {
+      const p = plants.find(pl => pl.id === pid);
+      return { plant: p, count };
+    })
+    .filter(r => r.plant)
+    .sort((a, b) => b.count - a.count);
+  const maxCount = ranking[0]?.count || 1;
+  
+  // グラフ用データ生成
+  const chartHtml = await generateHarvestChart(harvests, plants, period);
+  
+  const html = `
+    <div class="header">
+      <button class="btn-icon" style="position:absolute;top:16px;left:8px;background:rgba(255,255,255,0.2);border:none;color:white;" onclick="navigate('home')">‹</button>
+      <h1 style="text-align:center;">📊 収穫統計</h1>
+      <div class="greeting" style="text-align:center;">今シーズンの記録</div>
+    </div>
+    
+    <div class="harvest-summary">
+      <div class="stat">
+        <div class="num">${totalCount}</div>
+        <div class="label">総収穫数</div>
+      </div>
+      <div class="stat">
+        <div class="num">${activeOrFinishedPlants.length}</div>
+        <div class="label">収穫した株</div>
+      </div>
+      <div class="stat">
+        <div class="num">${avgPerPlant}</div>
+        <div class="label">1株あたり<span class="unit">(平均)</span></div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">📈 収穫推移と気温</div>
+      <div class="period-tabs">
+        <div class="period-tab ${period==='week'?'active':''}" onclick="renderHarvestStats('week')">週別</div>
+        <div class="period-tab ${period==='month'?'active':''}" onclick="renderHarvestStats('month')">月別</div>
+      </div>
+      ${chartHtml}
+    </div>
+    
+    ${ranking.length > 0 ? `
+      <div class="card">
+        <div class="card-title">🏆 株別ランキング</div>
+        <div class="plant-rank">
+          ${ranking.map((r, idx) => {
+            const sp = SPECIES[r.plant.species];
+            const pct = (r.count / maxCount) * 100;
+            return `
+              <div class="rank-row">
+                <div class="rank-num">${idx + 1}</div>
+                <div class="icon">${sp.icon}</div>
+                <div class="name">${r.plant.name || sp.name}</div>
+                <div class="bar-wrap"><div class="bar" style="width:${pct}%;background:${sp.color};"></div></div>
+                <div class="count">${r.count}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    ` : `
+      <div class="card empty">
+        <div class="icon">🌾</div>
+        <div>まだ収穫記録がありません</div>
+        <div style="font-size:12px;color:var(--text-light);margin-top:4px;">株詳細から収穫を記録するとグラフに反映されます</div>
+      </div>
+    `}
+  `;
+  document.getElementById('app').innerHTML = html;
+  currentScreen = 'harvest';
+}
+
+// 収穫グラフSVG生成（気温オーバーレイ付き）
+async function generateHarvestChart(harvests, plants, period) {
+  if (harvests.length === 0) {
+    return `<div style="text-align:center;color:var(--text-light);padding:24px 8px;font-size:13px;">収穫記録がありません</div>`;
+  }
+  
+  // 期間ごとにグルーピング
+  const buckets = {}; // key: 期間ラベル, value: 収穫数
+  const sortedHarvests = [...harvests].sort((a,b) => new Date(a.date) - new Date(b.date));
+  const firstDate = new Date(sortedHarvests[0].date);
+  const lastDate = new Date(sortedHarvests[sortedHarvests.length-1].date);
+  
+  // バケット定義
+  const bucketKeys = []; // 順序保持
+  if (period === 'week') {
+    // 週別：月曜始まり
+    const cursor = new Date(firstDate);
+    cursor.setHours(0,0,0,0);
+    cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7)); // 月曜
+    while (cursor <= lastDate) {
+      const key = `${cursor.getMonth()+1}/${cursor.getDate()}`;
+      const isoKey = cursor.toISOString().split('T')[0];
+      buckets[isoKey] = { label: key, count: 0, start: new Date(cursor), end: null };
+      bucketKeys.push(isoKey);
+      cursor.setDate(cursor.getDate() + 7);
+    }
+    // end埋め
+    bucketKeys.forEach((k, i) => {
+      const next = bucketKeys[i+1];
+      buckets[k].end = next 
+        ? new Date(new Date(buckets[next].start).getTime() - 86400000)
+        : new Date(buckets[k].start.getTime() + 6*86400000);
+    });
+  } else {
+    // 月別
+    const cursor = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+    while (cursor <= lastDate) {
+      const isoKey = `${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}`;
+      buckets[isoKey] = {
+        label: `${cursor.getMonth()+1}月`,
+        count: 0,
+        start: new Date(cursor),
+        end: new Date(cursor.getFullYear(), cursor.getMonth()+1, 0)
+      };
+      bucketKeys.push(isoKey);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  }
+  
+  // 収穫数をバケットに割り当て
+  for (const h of harvests) {
+    const d = new Date(h.date);
+    for (const k of bucketKeys) {
+      const b = buckets[k];
+      if (d >= b.start && d <= b.end) {
+        b.count += h.details?.count || 1;
+        break;
+      }
+    }
+  }
+  
+  // 気温取得（最初の収穫日〜今日まで）
+  const tempStart = firstDate.toISOString().split('T')[0];
+  const today = new Date();
+  const tempEnd = (today < lastDate ? lastDate : today).toISOString().split('T')[0];
+  // 過去気温API は当日含まないことがあるので、念のため2日前まで
+  const safeEnd = new Date(today.getTime() - 2*86400000).toISOString().split('T')[0];
+  const tempData = await getHistoricalTemperature(tempStart, safeEnd < tempStart ? tempStart : safeEnd);
+  
+  // バケットごとの平均気温
+  const bucketTemps = bucketKeys.map(k => {
+    const b = buckets[k];
+    if (!tempData) return null;
+    const temps = [];
+    tempData.dates.forEach((dStr, i) => {
+      const d = new Date(dStr);
+      if (d >= b.start && d <= b.end && tempData.tempMean[i] != null) {
+        temps.push(tempData.tempMean[i]);
+      }
+    });
+    return temps.length > 0 ? temps.reduce((a,b)=>a+b,0) / temps.length : null;
+  });
+  
+  // SVG描画
+  const W = 320, H = 200;
+  const PAD = { top: 20, right: 36, bottom: 30, left: 32 };
+  const innerW = W - PAD.left - PAD.right;
+  const innerH = H - PAD.top - PAD.bottom;
+  const n = bucketKeys.length;
+  if (n === 0) return '<div style="padding:24px;text-align:center;color:var(--text-light);">データなし</div>';
+  
+  const maxCount = Math.max(...bucketKeys.map(k => buckets[k].count), 1);
+  const validTemps = bucketTemps.filter(t => t != null);
+  const minTemp = validTemps.length > 0 ? Math.min(...validTemps) : 0;
+  const maxTemp = validTemps.length > 0 ? Math.max(...validTemps) : 30;
+  const tempRange = Math.max(maxTemp - minTemp, 5);
+  
+  const barW = innerW / n * 0.65;
+  const xCenter = (i) => PAD.left + (i + 0.5) * (innerW / n);
+  
+  // バー（収穫数）
+  let barsSvg = '';
+  bucketKeys.forEach((k, i) => {
+    const v = buckets[k].count;
+    const h = v === 0 ? 0 : (v / maxCount) * innerH;
+    const x = xCenter(i) - barW/2;
+    const y = PAD.top + innerH - h;
+    barsSvg += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#22c55e" rx="3"/>`;
+    if (v > 0) {
+      barsSvg += `<text x="${xCenter(i)}" y="${y - 3}" text-anchor="middle" font-size="10" fill="#22c55e" font-weight="600">${v}</text>`;
+    }
+  });
+  
+  // 折れ線（気温）
+  let linePath = '';
+  let linePoints = '';
+  if (validTemps.length >= 1) {
+    const pts = [];
+    bucketTemps.forEach((t, i) => {
+      if (t != null) {
+        const x = xCenter(i);
+        const y = PAD.top + innerH - ((t - minTemp) / tempRange) * innerH;
+        pts.push({ x, y, t });
+      }
+    });
+    pts.forEach((p, i) => {
+      linePath += (i === 0 ? `M ${p.x} ${p.y}` : ` L ${p.x} ${p.y}`);
+      linePoints += `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#f59e0b"/>`;
+    });
+  }
+  
+  // X軸ラベル
+  let xLabels = '';
+  bucketKeys.forEach((k, i) => {
+    // ラベル多すぎ防止：最大8個まで
+    if (n <= 8 || i % Math.ceil(n/8) === 0 || i === n-1) {
+      xLabels += `<text x="${xCenter(i)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#6b7280">${buckets[k].label}</text>`;
+    }
+  });
+  
+  // Y軸ラベル（左：収穫数、右：気温）
+  let yLabels = '';
+  for (let i = 0; i <= 4; i++) {
+    const yVal = Math.round(maxCount * (4-i) / 4);
+    const y = PAD.top + (innerH * i / 4);
+    yLabels += `<text x="${PAD.left - 4}" y="${y + 3}" text-anchor="end" font-size="9" fill="#22c55e">${yVal}</text>`;
+    if (validTemps.length > 0) {
+      const tVal = (minTemp + tempRange * (4-i) / 4).toFixed(0);
+      yLabels += `<text x="${W - PAD.right + 4}" y="${y + 3}" text-anchor="start" font-size="9" fill="#f59e0b">${tVal}°</text>`;
+    }
+    // グリッド線
+    yLabels += `<line x1="${PAD.left}" y1="${y}" x2="${W - PAD.right}" y2="${y}" stroke="#f3f4f6" stroke-width="1"/>`;
+  }
+  
+  const tempNote = !tempData 
+    ? '<div style="font-size:11px;color:var(--text-light);margin-top:4px;">※気温データを取得できませんでした</div>'
+    : '';
+  
+  return `
+    <div class="harvest-chart-wrap">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+        ${yLabels}
+        ${barsSvg}
+        ${linePath ? `<path d="${linePath}" fill="none" stroke="#f59e0b" stroke-width="2"/>` : ''}
+        ${linePoints}
+        ${xLabels}
+      </svg>
+      <div class="chart-legend">
+        <div class="item"><span class="swatch" style="background:#22c55e;"></span>収穫数（個）</div>
+        ${validTemps.length > 0 ? '<div class="item"><span class="swatch line" style="background:#f59e0b;"></span>平均気温（°C）</div>' : ''}
+      </div>
+      ${tempNote}
+    </div>
+  `;
+}
+
+
 
 // 画像圧縮：1280px以内 / WebP / 品質0.85
 async function compressImage(file) {
