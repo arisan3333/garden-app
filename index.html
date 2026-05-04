@@ -1951,9 +1951,9 @@ function renderEggplantPepperPruning(plant, tasks) {
     svgInner += `<line x1="150" y1="280" x2="100" y2="180" stroke="#16a34a" stroke-width="5"/>`;
     svgInner += `<line x1="150" y1="280" x2="200" y2="180" stroke="#16a34a" stroke-width="5"/>`;
     svgInner += `<text x="100" y="170" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心</text>`;
-    svgInner += `<text x="100" y="158" text-anchor="middle" font-size="9" fill="#6b7280">8〜10花後</text>`;
+    svgInner += `<text x="100" y="158" text-anchor="middle" font-size="9" fill="#6b7280">20花後</text>`;
     svgInner += `<text x="200" y="170" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心</text>`;
-    svgInner += `<text x="200" y="158" text-anchor="middle" font-size="9" fill="#6b7280">8〜10花後</text>`;
+    svgInner += `<text x="200" y="158" text-anchor="middle" font-size="9" fill="#6b7280">20花後</text>`;
     [100, 200].forEach(x => {
       svgInner += `<circle cx="${x-15}" cy="220" r="8" fill="${sp === 'eggplant' ? '#a78bfa' : '#10b981'}"/>`;
       svgInner += `<circle cx="${x+15}" cy="240" r="8" fill="${sp === 'eggplant' ? '#a78bfa' : '#10b981'}"/>`;
@@ -2149,7 +2149,7 @@ function renderEggplantPepperPruning(plant, tasks) {
           <b>1️⃣ 親（主枝2本）を作る</b><br>
           <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
             ・一番花の下の脇芽1本を残してY字に<br>
-            ・主枝は伸ばし続ける
+            ・20花後摘芯
           </div>
         </div>
         <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;">
@@ -2165,7 +2165,7 @@ function renderEggplantPepperPruning(plant, tasks) {
           <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
             ・子からまた脇芽（孫）が出てくる<br>
             ・孫には<b>1つだけ実をつけさせる</b><br>
-            ・実が収穫できたら、最後は<b>子の根本で摘心</b>（孫枝ごと切り戻す）<br>
+            ・実が収穫できたら、最後は<b>子の根本で摘心</b><br>
             ・これでまたスペースができて新しい子が出てくる
           </div>
         </div>
