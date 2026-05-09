@@ -997,12 +997,26 @@ function today() {
 }
 function dateStr(d) { return new Date(d).toLocaleDateString('ja-JP', {month: 'numeric', day: 'numeric'}); }
 function dayDiff(date) {
-  const parse = (s) => {
-    const [y, m, d] = String(s).split('-').map(Number);
-    return new Date(y, m - 1, d);
+  // ISO datetime ("2026-05-09T00:13:45.123Z") でも日付のみ ("2026-05-09") でも、
+  // ローカルタイム(JST)基準の年月日として解釈する
+  const toLocalMidnight = (s) => {
+    const str = String(s);
+    let y, m, d;
+    if (str.includes('T')) {
+      // ISO datetime: Dateとしてパースし、ローカルタイムの年月日を取り出す
+      const dt = new Date(str);
+      y = dt.getFullYear();
+      m = dt.getMonth();
+      d = dt.getDate();
+    } else {
+      // "YYYY-MM-DD" 形式
+      const [yy, mm, dd] = str.split('-').map(Number);
+      y = yy; m = mm - 1; d = dd;
+    }
+    return new Date(y, m, d);
   };
-  const d1 = parse(today());
-  const d2 = parse(date);
+  const d1 = toLocalMidnight(today());
+  const d2 = toLocalMidnight(date);
   return Math.floor((d1 - d2) / (1000 * 60 * 60 * 24));
 }
 function getPhase(plant) {
