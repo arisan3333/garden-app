@@ -1332,14 +1332,16 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
   }
 
   // パッション主枝摘心
-  if (plant.species === 'passion' && days >= 18) {
+  // ※植え付け時から既に30cm近い苗もあるので早めにアラートを出す。
+  //   ユーザーは草丈に達していなければスキップ判断する想定。
+  if (plant.species === 'passion' && days >= 7) {
     const mainPinched = lastTasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
-    if (!mainPinched && days <= 35) {
+    if (!mainPinched && days <= 45) {
       tasks.push({
         type: 'must',
         action: 'pinching',
         title: `🌺 ${displayName}: 主枝摘心`,
-        desc: '本葉8-10枚で先端カット',
+        desc: '草丈30cm or 支柱頂点に達したら先端カット（未達ならスキップ）',
         plantId: plant.id
       });
     }
@@ -1615,8 +1617,8 @@ function generateUpcomingTasks(plant, lastTasks) {
   }
   
   if (sp === 'passion') {
-    if (days < 25) tasks.push({ daysOffset: 25 - days, label: '✂️ 主枝摘心（本葉8-10枚で）', urgent: false });
-    if (days < 40) tasks.push({ daysOffset: 40 - days, label: '✂️ 子づる摘心', urgent: false });
+    if (days < 30) tasks.push({ daysOffset: Math.max(0, 14 - days), label: '✂️ 主枝摘心（草丈30cm/支柱頂点に達したら）', urgent: false });
+    if (days < 45) tasks.push({ daysOffset: Math.max(0, 30 - days), label: '✂️ 子づる摘心（リング1周＝約50cmで）', urgent: false });
     if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🐝 開花・人工授粉開始', urgent: false });
     if (days < 30) tasks.push({ daysOffset: 30 - days, label: '💊 リンカリ肥料開始', urgent: false });
     if (days < 90) tasks.push({ daysOffset: 90 - days, label: '🧺 収穫開始', urgent: false });
@@ -2798,7 +2800,7 @@ function renderPassionPruning(plant, tasks) {
     <line x1="150" y1="500" x2="150" y2="120" stroke="#22c55e" stroke-width="6" stroke-linecap="round"/>
     <line x1="130" y1="120" x2="170" y2="120" stroke="#dc2626" stroke-width="3" stroke-dasharray="4,3"/>
     <text x="150" y="105" text-anchor="middle" font-size="12" fill="#dc2626" font-weight="bold">✂️ 摘心位置</text>
-    <text x="150" y="90" text-anchor="middle" font-size="10" fill="#6b7280">本葉8〜10枚</text>
+    <text x="150" y="90" text-anchor="middle" font-size="10" fill="#6b7280">草丈30cm/支柱頂点</text>
     <path d="M 150 280 Q 100 290 50 285" stroke="#ef4444" stroke-width="5" fill="none" stroke-linecap="round"/>
     <line x1="40" y1="278" x2="56" y2="292" stroke="#dc2626" stroke-width="2"/>
     <line x1="56" y1="278" x2="40" y2="292" stroke="#dc2626" stroke-width="2"/>
@@ -2826,9 +2828,9 @@ function renderPassionPruning(plant, tasks) {
       </div>
       <div style="font-size:13px;line-height:1.8;margin-top:12px;">
         <b>【育成3ステップ】</b><br>
-        ${mainPinched ? '✓' : '□'} 主枝摘心（本葉8〜10枚で先端カット）<br>
+        ${mainPinched ? '✓' : '□'} 主枝摘心（<b>草丈30cm</b> or 支柱の頂点で先端カット）<br>
         ${childPinched >= 3 ? '✓' : '□'} 子づる3本に絞る<br>
-        ${childPinched >= 3 ? '✓' : '□'} 子づる摘心（各々8〜10枚で）<br>
+        ${childPinched >= 3 ? '✓' : '□'} 子づる摘心（リング1周＝<b>約50cm</b>伸びたら）<br>
         □ 孫づる育成（伸ばす、摘心しない）<br>
         □ 開花〜人工授粉<br>
       </div>
@@ -3903,10 +3905,12 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
       msg = '🫑 終盤。霜が降りる前にすべて収穫を。';
     }
   } else if (plant.species === 'passion') {
-    if (days < 30) {
-      msg = '🌺 つるを伸ばす時期。誘引・摘芯で枝数を増やし、花芽の数を確保。';
+    if (days < 14) {
+      msg = '🌺 株づくり期。<b>主枝が草丈30cm or 支柱頂点に達したら摘心</b>を。春先の蕾は思い切って摘み、株を充実させて。';
+    } else if (days < 30) {
+      msg = '🌺 つるを伸ばす時期。主枝摘心後は子づる3本に絞る。<b>子づるはリング1周（約50cm）伸びたら先端カット</b>。';
     } else if (days < 60) {
-      msg = '🌸 開花期。受粉は午前中、雨の日は人工授粉を（綿棒で雄しべ→雌しべ）。';
+      msg = '🌸 開花期。受粉は午前中、雨の日は人工授粉を（綿棒で雄しべ→雌しべ）。孫づるには絶対ハサミを入れない。';
     } else if (days < 100) {
       msg = '🍇 結実期。実が紫色になり自然落果したら完熟のサイン。';
     } else {
