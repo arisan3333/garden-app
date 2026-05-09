@@ -280,15 +280,25 @@ body {
 .task-desc { font-size: 12px; color: var(--text-light); margin-top: 2px; }
 .task-actions { display: flex; gap: 4px; }
 .task-actions button {
-  background: none;
+  background: white;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: 6px 4px;
+  font-size: 10px;
+  line-height: 1.2;
   cursor: pointer;
   font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 44px;
 }
+.task-actions button .ico { font-size: 16px; }
 .task-actions .check { background: var(--primary); color: white; border-color: var(--primary); }
+.task-actions .skip-btn { color: var(--text-light); }
+.task-actions .carry-btn { color: #92400e; }
 .section-header {
   font-size: 12px;
   font-weight: 700;
@@ -3068,9 +3078,12 @@ async function renderTasks() {
         <div class="task-desc">${t.desc}</div>
       </div>
       <div class="task-actions">
-        <button class="check" onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'done')">✓</button>
-        <button onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'carryover')">⏭</button>
-        <button onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'skip')">⏸</button>
+        <button class="check" onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'done')" title="作業した・完了として記録">
+          <span class="ico">✓</span><span>完了</span>
+        </button>
+        <button class="skip-btn" onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'skip')" title="今日はやらない（明日また表示）">
+          <span class="ico">⏭</span><span>あとで</span>
+        </button>
       </div>
     </div>
   `;
