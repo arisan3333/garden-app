@@ -988,11 +988,21 @@ function dbDelete(store, key) {
 // ユーティリティ
 // =================================================
 function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
-function today() { return new Date().toISOString().split('T')[0]; }
+function today() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 function dateStr(d) { return new Date(d).toLocaleDateString('ja-JP', {month: 'numeric', day: 'numeric'}); }
 function dayDiff(date) {
-  const d1 = new Date(today());
-  const d2 = new Date(date);
+  const parse = (s) => {
+    const [y, m, d] = String(s).split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const d1 = parse(today());
+  const d2 = parse(date);
   return Math.floor((d1 - d2) / (1000 * 60 * 60 * 24));
 }
 function getPhase(plant) {
