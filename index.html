@@ -1152,6 +1152,10 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
         } else {
           descText = `前回の固形肥料から${daysSinceGranular}日経過`;
         }
+        // なすは肥料食いだがリン酸過多に注意。ハイポネックス原液(6-10-5)でも家庭菜園量なら問題なし
+        if (plant.species === 'eggplant') {
+          descText += '（なす：N・K重視。ハイポ原液でOK、量は控えめに）';
+        }
         tasks.push({
           type: 'recommended',
           action: 'fertilize_liquid',
@@ -1535,6 +1539,28 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
           plantId: plant.id
         });
       }
+    }
+  }
+
+  // やさお酢散布（食酢ベース・回数制限なし・3日サイクル予防）
+  // 対象：トマト・ナス・ピーマン・パッション・オクラ（虫がつく実野菜）
+  if (['tomato', 'eggplant', 'pepper', 'passion', 'okra'].includes(plant.species)) {
+    const vinegarHistory = lastTasks.filter(t => t.type === 'vinegar_spray');
+    const lastVinegar = vinegarHistory[0];
+    const daysSinceVinegar = lastVinegar ? dayDiff(lastVinegar.date) : 999;
+    
+    // 3日以上経過していれば予防散布をレコメンド（活着以降）
+    if (daysSinceVinegar >= 3 && days >= 3) {
+      const descText = lastVinegar
+        ? `前回から${daysSinceVinegar}日経過。葉の表裏にたっぷり`
+        : '初回。葉の表裏にたっぷり散布';
+      tasks.push({
+        type: 'recommended',
+        action: 'vinegar_spray',
+        title: `🍶 ${displayName}: やさお酢で予防散布`,
+        desc: descText,
+        plantId: plant.id
+      });
     }
   }
 
@@ -1986,6 +2012,49 @@ function renderOverviewTab(plant, tasks) {
       `;
     })()}
     
+    ${(() => {
+      // やさお酢（食酢ベース・回数制限なし・3日サイクル予防）
+      // 対象：トマト・ナス・ピーマン・パッション・オクラ
+      if (!['tomato', 'eggplant', 'pepper', 'passion', 'okra'].includes(plant.species)) return '';
+      const vinegarHistory = tasks.filter(t => t.type === 'vinegar_spray');
+      const lastVinegar = vinegarHistory[0];
+      const vUsed = vinegarHistory.length;
+      const daysSinceVinegar = lastVinegar ? dayDiff(lastVinegar.date) : null;
+      
+      // ステータス判定
+      let statusBg, statusText, statusLabel, statusEmoji;
+      if (daysSinceVinegar === null) {
+        statusBg = '#f3f4f6'; statusText = '#374151';
+        statusLabel = '未記録'; statusEmoji = '➖';
+      } else if (daysSinceVinegar < 3) {
+        statusBg = '#dcfce7'; statusText = '#166534';
+        statusLabel = `${daysSinceVinegar}日前 ・ まだOK`; statusEmoji = '✓';
+      } else if (daysSinceVinegar < 5) {
+        statusBg = '#fef3c7'; statusText = '#92400e';
+        statusLabel = `${daysSinceVinegar}日前 ・ そろそろ`; statusEmoji = '⚠️';
+      } else {
+        statusBg = '#fee2e2'; statusText = '#991b1b';
+        statusLabel = `${daysSinceVinegar}日前 ・ 散布推奨`; statusEmoji = '🍶';
+      }
+      
+      return `
+      <div class="card">
+        <div class="card-title">🍶 やさお酢（予防散布）</div>
+        <div style="background:${statusBg};border-radius:10px;padding:12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;color:${statusText};font-weight:600;">${statusEmoji} 前回の散布</span>
+            <span style="font-size:14px;color:${statusText};font-weight:700;">${statusLabel}</span>
+          </div>
+          ${vUsed > 0 ? `<div style="font-size:11px;color:${statusText};margin-top:6px;">これまでに${vUsed}回散布${lastVinegar ? `（最終: ${dateStr(lastVinegar.date)}）` : ''}</div>` : ''}
+        </div>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.6;">
+          📌 食酢ベースで<b>使用回数制限なし</b>。2〜3日おきの予防散布で害虫の増殖を1ヶ月程度抑制。<br>
+          葉の表裏にたっぷり、早朝か夕方に散布。雨後は再散布。
+        </div>
+      </div>
+      `;
+    })()}
+    
     <div class="card">
       <div class="card-title">📝 メモ・編集</div>
       <button class="btn btn-secondary btn-small" style="width:100%;" onclick="editPlant('${plant.id}')">✏️ 株情報を編集</button>
@@ -2047,6 +2116,7 @@ function getQuickActions(plant) {
       { action: 'pinching', icon: '✂️', label: '摘心' },
       { action: 'defoliation', icon: '🍃', label: '下葉かき' },
       { action: 'pest_spray', icon: '🛡️', label: '防虫散布' },
+      { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ],
     eggplant: [
@@ -2054,17 +2124,20 @@ function getQuickActions(plant) {
       { action: 'pinching', icon: '✂️', label: '摘心' },
       { action: 'renewal_pruning', icon: '🌿', label: '更新剪定' },
       { action: 'pest_spray', icon: '🛡️', label: '防虫散布' },
+      { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ],
     pepper: [
       { action: 'side_shoot_removal', icon: '✂️', label: '脇芽かき' },
       { action: 'pinching', icon: '✂️', label: '摘心' },
       { action: 'pest_spray', icon: '🛡️', label: '防虫散布' },
+      { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ],
     passion: [
       { action: 'pinching', icon: '✂️', label: '摘心' },
       { action: 'training', icon: '🌿', label: '誘引' },
+      { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ],
     ginger: [
@@ -2074,6 +2147,7 @@ function getQuickActions(plant) {
     ],
     okra: [
       { action: 'defoliation', icon: '🍃', label: '下葉かき' },
+      { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ]
   };
@@ -2796,6 +2870,7 @@ function renderHistoryTab(tasks) {
     harvest: { icon: '🧺', label: '収穫' },
     pest_treatment: { icon: '🐛', label: '病害虫対処' },
     pest_spray: { icon: '🛡️', label: '防虫散布' },
+    vinegar_spray: { icon: '🍶', label: 'やさお酢散布' },
     mulching: { icon: '🍂', label: 'マルチング' },
     observation: { icon: '👀', label: '観察' }
   };
