@@ -1096,13 +1096,45 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
   const daysSinceWater = lastWatering ? dayDiff(lastWatering.date) : 999;
 
   // 水やり推奨（フェーズと天気で判断）
+  // 種別の特性（リサーチ反映）：
+  //   トマト：終始乾燥気味管理が望ましい（軟弱化防止・甘み確保）
+  //   ピーマン：開花までは控えめ、開花後（=firstFruit記録後）に頻度UP
+  //   なす：活着後は毎日たっぷり（乾燥に弱い）
+  //   オクラ：基本毎日
+  //   生姜：発芽前は超控えめ、発芽後増やす
+  //   パッション：活着後は1〜2日、結実期は毎日
   let waterInterval = 2;
-  if (days < 14) waterInterval = 3;
-  if (days >= 35 && days < 90) waterInterval = 1;
-  if (plant.species === 'eggplant' || plant.species === 'okra') waterInterval = 1;
-  if (plant.species === 'tomato' && days >= 35) waterInterval = 2;
-  if (plant.species === 'ginger' && days < 30) waterInterval = 5; // 生姜は最初超控えめ
-  if (plant.species === 'ginger' && days >= 60) waterInterval = 1;
+  if (days < 14) waterInterval = 3; // どの株も活着期は控えめ
+  
+  if (plant.species === 'tomato') {
+    // トマトは乾燥気味管理が大原則（毎日NG）
+    if (days < 14) waterInterval = 3;
+    else waterInterval = 2; // Day 14以降も2〜3日に1回キープ
+  } else if (plant.species === 'pepper') {
+    // ピーマンは開花前まで2〜3日に1回、開花後（firstFruit記録後）から毎日
+    if (days < 14) waterInterval = 3;
+    else if (plant.firstFruit?.date) waterInterval = 1; // 着果後は毎日
+    else waterInterval = 2;
+  } else if (plant.species === 'eggplant') {
+    // なすは活着後は毎日（乾燥に弱い）
+    if (days < 14) waterInterval = 2;
+    else waterInterval = 1;
+  } else if (plant.species === 'okra') {
+    if (days < 14) waterInterval = 2;
+    else waterInterval = 1;
+  } else if (plant.species === 'passion') {
+    // 乾燥に弱い・葉の蒸散量大。一方で過湿は根腐れ。
+    // 活着期でも表面が乾いたら早めに水やり（1〜2日）、つる旺盛期以降は毎日。
+    if (days < 14) waterInterval = 2;
+    else waterInterval = 1;
+  } else if (plant.species === 'ginger') {
+    if (days < 30) waterInterval = 5; // 発芽前は超控えめ
+    else if (days < 60) waterInterval = 2;
+    else waterInterval = 1;
+  } else {
+    // 三つ葉・小ねぎなど葉物
+    if (days >= 14) waterInterval = 2;
+  }
   
   const noWaterToday = weather.success && weather.precip >= 60;
   
@@ -1348,23 +1380,31 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
     } else if (ff?.handled && !fr?.date) {
       // 一番花処理済み・一番果未着果。開花から平均10〜14日で着果。
       const daysSinceFlower = dayDiff(ff.date);
+      const flowerRemoved = ff.handled === 'removed';
       if (daysSinceFlower >= 7) {
         tasks.push({
           type: 'recommended',
           action: 'first_fruit',
-          title: `🍆 ${displayName}: 一番果の確認`,
-          desc: '実が見えたら概要タブで記録（液肥本格スタートのトリガー）',
+          title: flowerRemoved 
+            ? `🍆 ${displayName}: 初めての着果を確認`
+            : `🍆 ${displayName}: 一番果の確認`,
+          desc: flowerRemoved
+            ? '次の花が咲いて実が見えたら概要タブで記録（液肥本格スタートのトリガー）'
+            : '実が見えたら概要タブで記録（液肥本格スタートのトリガー）',
           plantId: plant.id
         });
       }
     } else if (fr?.date && !fr.handled) {
-      const fruitDesc = plant.species === 'pepper'
-        ? '小さいうちに摘果すると株が充実、後の収量UP（概要タブで記録）'
-        : '小さいうちに摘果すると秋まで安定収穫（概要タブで記録）';
+      const flowerRemoved = ff?.handled === 'removed';
+      const fruitDesc = flowerRemoved
+        ? '記録だけ残せばOK（一番花を摘んだ場合は普通に育てて収穫）'
+        : (plant.species === 'pepper'
+          ? '小さいうちに摘果すると株が充実、後の収量UP（概要タブで記録）'
+          : '小さいうちに摘果すると秋まで安定収穫（概要タブで記録）');
       tasks.push({
-        type: 'must',
+        type: flowerRemoved ? 'recommended' : 'must',
         action: 'first_fruit',
-        title: `🍆 ${displayName}: 一番果の処理`,
+        title: `🍆 ${displayName}: ${flowerRemoved ? '着果記録の処理' : '一番果の処理'}`,
         desc: fruitDesc,
         plantId: plant.id
       });
@@ -1659,28 +1699,30 @@ function generateUpcomingTasks(plant, lastTasks) {
   }
   
   if (sp === 'eggplant') {
+    const eFlowerRemoved = plant.firstFlower?.handled === 'removed';
     if (!plant.firstFlower?.date) {
       tasks.push({ daysOffset: '随時', label: '🌸 一番花の確認（咲いたら記録）', urgent: false });
     } else if (!plant.firstFlower?.handled) {
       tasks.push({ daysOffset: '今', label: '🌸 一番花の処理を記録', urgent: true });
     } else if (!plant.firstFruit?.date) {
-      tasks.push({ daysOffset: '随時', label: '🍆 一番果の確認（着果したら記録）', urgent: false });
+      tasks.push({ daysOffset: '随時', label: eFlowerRemoved ? '🍆 初めての着果を待つ（着いたら記録）' : '🍆 一番果の確認（着果したら記録）', urgent: false });
     } else if (!plant.firstFruit?.handled) {
-      tasks.push({ daysOffset: '今', label: '🍆 一番果の処理を記録（液肥スタート）', urgent: true });
+      tasks.push({ daysOffset: '今', label: '🍆 着果記録を完了（液肥スタート）', urgent: true });
     }
     if (days < 80) tasks.push({ daysOffset: 80 - days, label: '🌿 更新剪定（秋ナスのため）', urgent: false });
     if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🧺 収穫開始', urgent: false });
   }
   
   if (sp === 'pepper') {
+    const pFlowerRemoved = plant.firstFlower?.handled === 'removed';
     if (!plant.firstFlower?.date) {
       tasks.push({ daysOffset: '随時', label: '🌸 一番花の確認（咲いたら記録）', urgent: false });
     } else if (!plant.firstFlower?.handled) {
       tasks.push({ daysOffset: '今', label: '🌸 一番花を摘み取る（記録）', urgent: true });
     } else if (!plant.firstFruit?.date) {
-      tasks.push({ daysOffset: '随時', label: '🍆 一番果の確認（着果したら記録）', urgent: false });
+      tasks.push({ daysOffset: '随時', label: pFlowerRemoved ? '🍆 初めての着果を待つ（着いたら記録）' : '🍆 一番果の確認（着果したら記録）', urgent: false });
     } else if (!plant.firstFruit?.handled) {
-      tasks.push({ daysOffset: '今', label: '🍆 一番果を摘果（記録）', urgent: true });
+      tasks.push({ daysOffset: '今', label: '🍆 着果記録を完了（液肥スタート）', urgent: true });
     }
     if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🧺 収穫開始', urgent: false });
   }
@@ -2055,22 +2097,32 @@ function renderOverviewTab(plant, tasks) {
       const ff = plant.firstFlower;  // {date, handled: 'removed'|'kept'} or null
       const fr = plant.firstFruit;   // {date, handled: 'thinned'|'kept'} or null
       
+      // 一番花を摘除済みかどうかで step2 の意味が変わる:
+      // - removed: その花からは実ができないので「初めての着果」を待つ
+      // - kept:    その花が結実するのを待つ
+      const flowerRemoved = ff?.handled === 'removed';
+      
       const flowerAction = plant.species === 'pepper'
         ? '株を充実させるため<b>摘み取る</b>のが基本'
         : '受粉させて<b>結実を確認</b>（小さいうちに摘果する手もあり）';
       
-      const fruitAction = plant.species === 'pepper'
-        ? '小さいうちに<b>摘果して株を充実</b>させると後の収量UP'
-        : '小さいうちに<b>摘果</b>すると秋まで安定して収穫できる';
+      // 一番果（または初着果）の処理アドバイス
+      const fruitAction = flowerRemoved
+        ? '次の花が咲いて実がついたら記録を。これが液肥の本格スタートのトリガー'
+        : (plant.species === 'pepper'
+          ? '小さいうちに<b>摘果して株を充実</b>させると後の収量UP'
+          : '小さいうちに<b>摘果</b>すると秋まで安定して収穫できる');
       
       const step1 = ff?.date 
         ? `<div style="color:#166534;">✓ <b>一番花 開花記録あり</b>（${dateStr(ff.date)}${ff.handled === 'removed' ? ' / 摘除済み' : ff.handled === 'kept' ? ' / 残した' : ''}）</div>`
         : `<div style="color:#92400e;">⏳ <b>一番花の開花を待っています</b><br><span style="font-size:11px;color:var(--text-light);">咲いたら下のボタンを押してください</span></div>`;
       
+      // step2 のラベルも状態に応じて変える
+      const step2Label = flowerRemoved ? '初めての着果' : '一番果';
       const step2 = fr?.date
-        ? `<div style="color:#166534;margin-top:8px;">✓ <b>一番果 着果記録あり</b>（${dateStr(fr.date)}${fr.handled === 'thinned' ? ' / 摘果済み' : fr.handled === 'kept' ? ' / 残した' : ''}）<br><span style="font-size:11px;color:var(--text-light);">→ 液肥の本格スタート時期です</span></div>`
+        ? `<div style="color:#166534;margin-top:8px;">✓ <b>${step2Label} 記録あり</b>（${dateStr(fr.date)}${fr.handled === 'thinned' ? ' / 摘果済み' : fr.handled === 'kept' ? ' / 残した' : ''}）<br><span style="font-size:11px;color:var(--text-light);">→ 液肥の本格スタート時期です</span></div>`
         : ff?.date
-          ? `<div style="color:#92400e;margin-top:8px;">⏳ <b>一番果の着果を待っています</b><br><span style="font-size:11px;color:var(--text-light);">${fruitAction}</span></div>`
+          ? `<div style="color:#92400e;margin-top:8px;">⏳ <b>${step2Label}を待っています</b><br><span style="font-size:11px;color:var(--text-light);">${fruitAction}</span></div>`
           : `<div style="color:var(--text-light);margin-top:8px;font-size:12px;">（一番花が咲いてから次へ）</div>`;
       
       let buttons = '';
@@ -2084,13 +2136,17 @@ function renderOverviewTab(plant, tasks) {
             <button class="btn btn-small btn-secondary" onclick="setFirstFlowerHandled('${plant.id}','kept')">残した</button>
           </div>`;
       } else if (!fr?.date) {
-        buttons = `<button class="btn btn-small" style="width:100%;margin-top:10px;" onclick="recordFirstFruit('${plant.id}')">🍆 一番果が着いた</button>`;
+        // ボタンラベルも一番花を摘除したかで変える
+        const btnLabel = flowerRemoved ? '🍆 初めての実が着いた' : '🍆 一番果が着いた';
+        buttons = `<button class="btn btn-small" style="width:100%;margin-top:10px;" onclick="recordFirstFruit('${plant.id}')">${btnLabel}</button>`;
       } else if (!fr.handled) {
+        // 一番花摘除パターンでは「摘果/残す」の判断は不要（株に初めて着いた実をそのまま育てる選択肢が中心）
+        // ただし手動で記録したい人もいるので両ボタン残す
         buttons = `
-          <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.6;">${fruitAction}</div>
+          <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.6;">${flowerRemoved ? 'この実は普通に育てて収穫してOK。記録だけ残しましょう' : fruitAction}</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
             <button class="btn btn-small btn-secondary" onclick="setFirstFruitHandled('${plant.id}','thinned')">摘果した</button>
-            <button class="btn btn-small btn-secondary" onclick="setFirstFruitHandled('${plant.id}','kept')">残した</button>
+            <button class="btn btn-small btn-secondary" onclick="setFirstFruitHandled('${plant.id}','kept')">残した（収穫まで育てる）</button>
           </div>`;
       }
       
@@ -2199,23 +2255,30 @@ function getWaterGuide(plant) {
   
   // 株種類×フェーズ別ガイド
   if (sp === 'tomato') {
-    if (days < 14) return { frequency: '2〜3日に1回', amount: '土の表面が乾いたらたっぷり', tip: '雨の日は控えめ。葉がしおれるまで待つくらいでOK' };
-    if (days < 35) return { frequency: '1〜2日に1回', amount: '底から少し流れる程度', tip: '葉がしなしなならすぐ水やり' };
-    if (days < 90) return { frequency: '2日に1回（控えめ）', amount: '表面が乾いてから', tip: 'トマトは乾かしめで甘くなる！梅雨は雨除け推奨' };
+    // トマトは終始乾燥気味管理。水多すぎは軟弱化・味薄くなる原因
+    if (days < 14) return { frequency: '2〜3日に1回', amount: '土の表面が乾いてからたっぷり', tip: '⚠️ あげすぎ注意。葉が少ししおれるくらいでもOK。乾燥気味にすると根が深く張る' };
+    if (days < 35) return { frequency: '2〜3日に1回', amount: '底から少し流れる程度', tip: 'まだ乾かしめキープ。表面が乾いてから2〜3日待ってOK' };
+    if (days < 90) return { frequency: '2〜3日に1回（控えめ）', amount: '表面が乾いてから', tip: 'トマトは乾かしめで甘くなる！梅雨は雨除け推奨' };
     return { frequency: '2〜3日に1回', amount: '控えめに', tip: '実が割れないように' };
   }
   if (sp === 'eggplant') {
-    if (days < 14) return { frequency: '2〜3日に1回', amount: '表面が乾いたらたっぷり', tip: '活着期は控えめに' };
-    return { frequency: '毎日（夏は朝晩）', amount: 'たっぷり、底から流れるまで', tip: 'ナスは水大好き！水切れさせない。葉が下を向いたら水不足' };
+    // なすは水大好き。活着後は毎日
+    if (days < 14) return { frequency: '2日に1回', amount: '表面が乾いたらたっぷり', tip: '活着期は控えめだが、なすは乾燥に弱いので切らさない' };
+    return { frequency: '毎日（夏は朝晩）', amount: 'たっぷり、底から流れるまで', tip: '🌊 ナスは水大好き！プランターは特に乾きやすいので毎朝チェック。葉が下を向いたら水不足のサイン' };
   }
   if (sp === 'pepper') {
-    if (days < 14) return { frequency: '2〜3日に1回', amount: '表面が乾いたらたっぷり', tip: '活着期は控えめ' };
-    return { frequency: '1〜2日に1回', amount: '底から流れる程度', tip: '葉が垂れ気味になったら水のサイン' };
+    // ピーマンは開花前は控えめ、開花後（着果後）は要求量UP
+    if (days < 14) return { frequency: '2〜3日に1回', amount: '表面が乾いたらたっぷり', tip: '⚠️ 活着期は控えめ。水多すぎると徒長します' };
+    if (!plant.firstFruit?.date) return { frequency: '2〜3日に1回', amount: '底から少し流れる程度', tip: '開花までは控えめキープ。水多すぎは徒長・尻腐れの原因' };
+    return { frequency: '1〜2日に1回', amount: '底から流れる程度', tip: '着果後は要求量UP。ただし常時湿りっぱなしはNG（カルシウム吸収を阻害→尻腐れ）' };
   }
   if (sp === 'passion') {
-    if (days < 14) return { frequency: '2〜3日に1回', amount: '表面が乾いたらたっぷり', tip: '梅雨は控えめ。水多すぎると根腐れ' };
-    if (days < 60) return { frequency: '1〜2日に1回', amount: 'たっぷり', tip: 'つるが伸び始める時期、水不足注意' };
-    return { frequency: 'ほぼ毎日', amount: 'たっぷり', tip: '開花・結実期は水切れ厳禁、実が落ちる' };
+    // パッションは「乾燥に弱いが過湿で根腐れ・立枯れ」のジレンマ。
+    // 表面が乾いたタイミングで底から流れるまでが原則。気温上昇とともに頻度UP。
+    if (days < 14) return { frequency: '1〜2日に1回', amount: '表面が乾いたらたっぷり', tip: '⚠️ 過湿NG（フザリウム立枯れの原因）。水受け皿の水は捨てる。表面の乾きを目視確認してから' };
+    if (days < 60) return { frequency: '毎日（気温20℃超なら朝晩）', amount: '底から流れるまでたっぷり', tip: '🌡️ つる旺盛期。葉の蒸散量が多いので水切れ注意。ただし表面が湿っているうちは追加水やり禁止（根腐れ防止）' };
+    if (days < 120) return { frequency: '1日2回（朝晩）', amount: 'たっぷり', tip: '⚠️ 開花・結実期は水切れ厳禁。容器栽培で水切れすると実がシワになり落下します。果実成熟期は特に要注意' };
+    return { frequency: '冬は数週間に1回', amount: '控えめ', tip: '休眠期は水やりほぼ不要、過湿で根腐れ' };
   }
   if (sp === 'ginger') {
     if (days < 30) return { frequency: '週1〜2回（超控えめ）', amount: '土の表面が乾いて数日経ってから', tip: '⚠️発芽前のあげすぎは種生姜が腐る原因！' };
@@ -4073,6 +4136,7 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
   } else if (plant.species === 'eggplant') {
     const ff = plant.firstFlower;
     const fr = plant.firstFruit;
+    const removed = ff?.handled === 'removed';
     if (days < 7) {
       msg = '🌱 活着期。深植えNG、根鉢が乾かないよう毎日チェック。一番花が早く見えたら概要タブで記録。';
     } else if (!ff?.date) {
@@ -4080,9 +4144,13 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
     } else if (!ff.handled) {
       msg = '🌸 一番花が咲きました！受粉させて結実を待つか、小さいうちに摘果。<b>処理を概要タブで記録</b>。';
     } else if (!fr?.date) {
-      msg = '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これが液肥本格スタートのトリガー。';
+      msg = removed
+        ? '🍆 一番花は摘除済み。次の花が咲いて<b>初めて実が着いたら概要タブで記録</b>を。これが液肥本格スタートのトリガーです。'
+        : '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これが液肥本格スタートのトリガー。';
     } else if (!fr.handled) {
-      msg = '🍆 一番果を確認しました！小ぶりで早めに摘果すると株が疲れず秋まで収穫続きます。';
+      msg = removed
+        ? '🍆 初めての実が着きました！普通に育てて収穫してOK。<b>概要タブで「残した」を記録</b>すると液肥スタート。'
+        : '🍆 一番果を確認しました！小ぶりで早めに摘果すると株が疲れず秋まで収穫続きます。';
     } else if (days < 100) {
       msg = '🍆 収穫期。水切れさせないこと、葉色が薄くなったら追肥のサイン。';
       nextMilestone = '7月下旬〜8月の更新剪定で秋ナスへ';
@@ -4092,14 +4160,19 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
   } else if (plant.species === 'pepper') {
     const ff = plant.firstFlower;
     const fr = plant.firstFruit;
+    const removed = ff?.handled === 'removed';
     if (!ff?.date) {
       msg = '🫑 一番花を待つ時期。<b>咲いたら概要タブの「一番花が咲いた」ボタンを押して</b>。一番花は摘んで株を充実させると後の収量UPです。';
     } else if (!ff.handled) {
       msg = '🌸 一番花が咲きました！<b>株を充実させるため摘み取って、概要タブで記録</b>を。';
     } else if (!fr?.date) {
-      msg = '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これが液肥本格スタートのトリガー。';
+      msg = removed
+        ? '🫑 一番花は摘除済み。次の花が咲いて<b>初めて実が着いたら概要タブで記録</b>を。これが液肥本格スタートのトリガーです。'
+        : '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これが液肥本格スタートのトリガー。';
     } else if (!fr.handled) {
-      msg = '🍆 一番果を確認しました！小さいうちに摘果すると、その後の収量が大きく増えます。';
+      msg = removed
+        ? '🫑 初めての実が着きました！普通に育てて収穫してOK。<b>概要タブで「残した」を記録</b>すると液肥スタート。'
+        : '🍆 一番果を確認しました！小さいうちに摘果すると、その後の収量が大きく増えます。';
     } else if (days < 100) {
       msg = '🫑 収穫最盛期。早めに収穫すると次々に実がつく、追肥は週1継続。';
     } else {
