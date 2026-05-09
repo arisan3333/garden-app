@@ -1124,8 +1124,12 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
       const cluster3 = myClusters.find(c => c.segmentNumber === 3);
       const cluster3Reached = cluster3 && ['blooming', 'fruiting', 'harvesting', 'finished'].includes(cluster3.status);
       canFertilize = cluster3Reached;
-    } else if (FRUIT_DELAY_SPECIES.includes(plant.species)) {
-      // 一番花が咲き実がつき始める頃 = 植え付け21日後
+    } else if (plant.species === 'eggplant' || plant.species === 'pepper') {
+      // 一番果の着果が確認できたら液肥本格スタート。
+      // 未記録でもDay 35を過ぎたらフォールバック（記録忘れ救済）。
+      canFertilize = !!plant.firstFruit?.date || days >= 35;
+    } else if (plant.species === 'passion') {
+      // パッションは植え付け21日後（一番花が咲き実がつき始める頃）
       canFertilize = days >= 21;
     } else if (plant.species === 'ginger') {
       // 生姜は1回目の固形追肥（6月中旬）が完了するまで液肥アラートを出さない
@@ -1302,16 +1306,56 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
     }
   }
 
-  // ナス・ピーマンの一番花処理（14-25日目）
-  if ((plant.species === 'eggplant' || plant.species === 'pepper') && days >= 14 && days <= 28) {
-    const firstFlowerHandled = lastTasks.find(t => t.type === 'pinching' || t.type === 'side_shoot_removal');
-    if (!firstFlowerHandled) {
-      const action = plant.species === 'pepper' ? '一番花を摘み取る' : '一番花を残し、下の脇芽を整理';
+  // ナス・ピーマンの一番花・一番果処理
+  // plant.firstFlower / plant.firstFruit のステータスでフェーズを管理。
+  // - firstFlower 未記録 → 「一番花が咲いていたら記録を」（早期から表示）
+  // - firstFlower 記録済み・handled 未設定 → 「処理（摘む or 残す）を」
+  // - firstFruit 未記録 → 「着果したら記録を」
+  // - firstFruit 記録済み・handled 未設定 → 「処理を」
+  if (['eggplant', 'pepper'].includes(plant.species) && days >= 5) {
+    const ff = plant.firstFlower;
+    const fr = plant.firstFruit;
+    
+    if (!ff?.date && days <= 45) {
+      tasks.push({
+        type: days >= 14 ? 'must' : 'recommended',
+        action: 'first_flower',
+        title: `🌸 ${displayName}: 一番花の確認`,
+        desc: '咲いていたら概要タブで記録（咲く前ならスキップ）',
+        plantId: plant.id
+      });
+    } else if (ff?.date && !ff.handled) {
+      const actionDesc = plant.species === 'pepper' 
+        ? '株を充実させるため摘み取るのが基本（概要タブで記録）'
+        : '受粉させて結実を確認、または摘果（概要タブで記録）';
       tasks.push({
         type: 'must',
-        action: 'side_shoot_removal',
+        action: 'first_flower',
         title: `🌸 ${displayName}: 一番花の処理`,
-        desc: action,
+        desc: actionDesc,
+        plantId: plant.id
+      });
+    } else if (ff?.handled && !fr?.date) {
+      // 一番花処理済み・一番果未着果。開花から平均10〜14日で着果。
+      const daysSinceFlower = dayDiff(ff.date);
+      if (daysSinceFlower >= 7) {
+        tasks.push({
+          type: 'recommended',
+          action: 'first_fruit',
+          title: `🍆 ${displayName}: 一番果の確認`,
+          desc: '実が見えたら概要タブで記録（液肥本格スタートのトリガー）',
+          plantId: plant.id
+        });
+      }
+    } else if (fr?.date && !fr.handled) {
+      const fruitDesc = plant.species === 'pepper'
+        ? '小さいうちに摘果すると株が充実、後の収量UP（概要タブで記録）'
+        : '小さいうちに摘果すると秋まで安定収穫（概要タブで記録）';
+      tasks.push({
+        type: 'must',
+        action: 'first_fruit',
+        title: `🍆 ${displayName}: 一番果の処理`,
+        desc: fruitDesc,
         plantId: plant.id
       });
     }
@@ -1605,14 +1649,29 @@ function generateUpcomingTasks(plant, lastTasks) {
   }
   
   if (sp === 'eggplant') {
-    if (days < 21) tasks.push({ daysOffset: 21 - days, label: '🌸 一番花の処理（残す）', urgent: false });
-    if (days < 28) tasks.push({ daysOffset: 28 - days, label: '🍆 一番果を5-6cmで早採り', urgent: false });
+    if (!plant.firstFlower?.date) {
+      tasks.push({ daysOffset: '随時', label: '🌸 一番花の確認（咲いたら記録）', urgent: false });
+    } else if (!plant.firstFlower?.handled) {
+      tasks.push({ daysOffset: '今', label: '🌸 一番花の処理を記録', urgent: true });
+    } else if (!plant.firstFruit?.date) {
+      tasks.push({ daysOffset: '随時', label: '🍆 一番果の確認（着果したら記録）', urgent: false });
+    } else if (!plant.firstFruit?.handled) {
+      tasks.push({ daysOffset: '今', label: '🍆 一番果の処理を記録（液肥スタート）', urgent: true });
+    }
     if (days < 80) tasks.push({ daysOffset: 80 - days, label: '🌿 更新剪定（秋ナスのため）', urgent: false });
     if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🧺 収穫開始', urgent: false });
   }
   
   if (sp === 'pepper') {
-    if (days < 21) tasks.push({ daysOffset: 21 - days, label: '🌸 一番花を摘み取る', urgent: false });
+    if (!plant.firstFlower?.date) {
+      tasks.push({ daysOffset: '随時', label: '🌸 一番花の確認（咲いたら記録）', urgent: false });
+    } else if (!plant.firstFlower?.handled) {
+      tasks.push({ daysOffset: '今', label: '🌸 一番花を摘み取る（記録）', urgent: true });
+    } else if (!plant.firstFruit?.date) {
+      tasks.push({ daysOffset: '随時', label: '🍆 一番果の確認（着果したら記録）', urgent: false });
+    } else if (!plant.firstFruit?.handled) {
+      tasks.push({ daysOffset: '今', label: '🍆 一番果を摘果（記録）', urgent: true });
+    }
     if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🧺 収穫開始', urgent: false });
   }
   
@@ -1978,6 +2037,64 @@ function renderOverviewTab(plant, tasks) {
         </div>`;
       })()}
     </div>
+    
+    ${(() => {
+      // ナス・ピーマンの開花・着果ステータス管理
+      if (!['eggplant', 'pepper'].includes(plant.species)) return '';
+      const speciesName = plant.species === 'eggplant' ? 'ナス' : 'ピーマン';
+      const ff = plant.firstFlower;  // {date, handled: 'removed'|'kept'} or null
+      const fr = plant.firstFruit;   // {date, handled: 'thinned'|'kept'} or null
+      
+      const flowerAction = plant.species === 'pepper'
+        ? '株を充実させるため<b>摘み取る</b>のが基本'
+        : '受粉させて<b>結実を確認</b>（小さいうちに摘果する手もあり）';
+      
+      const fruitAction = plant.species === 'pepper'
+        ? '小さいうちに<b>摘果して株を充実</b>させると後の収量UP'
+        : '小さいうちに<b>摘果</b>すると秋まで安定して収穫できる';
+      
+      const step1 = ff?.date 
+        ? `<div style="color:#166534;">✓ <b>一番花 開花記録あり</b>（${dateStr(ff.date)}${ff.handled === 'removed' ? ' / 摘除済み' : ff.handled === 'kept' ? ' / 残した' : ''}）</div>`
+        : `<div style="color:#92400e;">⏳ <b>一番花の開花を待っています</b><br><span style="font-size:11px;color:var(--text-light);">咲いたら下のボタンを押してください</span></div>`;
+      
+      const step2 = fr?.date
+        ? `<div style="color:#166534;margin-top:8px;">✓ <b>一番果 着果記録あり</b>（${dateStr(fr.date)}${fr.handled === 'thinned' ? ' / 摘果済み' : fr.handled === 'kept' ? ' / 残した' : ''}）<br><span style="font-size:11px;color:var(--text-light);">→ 液肥の本格スタート時期です</span></div>`
+        : ff?.date
+          ? `<div style="color:#92400e;margin-top:8px;">⏳ <b>一番果の着果を待っています</b><br><span style="font-size:11px;color:var(--text-light);">${fruitAction}</span></div>`
+          : `<div style="color:var(--text-light);margin-top:8px;font-size:12px;">（一番花が咲いてから次へ）</div>`;
+      
+      let buttons = '';
+      if (!ff?.date) {
+        buttons = `<button class="btn btn-small" style="width:100%;margin-top:10px;" onclick="recordFirstFlower('${plant.id}')">🌸 一番花が咲いた</button>`;
+      } else if (!ff.handled) {
+        buttons = `
+          <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.6;">${flowerAction}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+            <button class="btn btn-small btn-secondary" onclick="setFirstFlowerHandled('${plant.id}','removed')">摘み取った</button>
+            <button class="btn btn-small btn-secondary" onclick="setFirstFlowerHandled('${plant.id}','kept')">残した</button>
+          </div>`;
+      } else if (!fr?.date) {
+        buttons = `<button class="btn btn-small" style="width:100%;margin-top:10px;" onclick="recordFirstFruit('${plant.id}')">🍆 一番果が着いた</button>`;
+      } else if (!fr.handled) {
+        buttons = `
+          <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.6;">${fruitAction}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+            <button class="btn btn-small btn-secondary" onclick="setFirstFruitHandled('${plant.id}','thinned')">摘果した</button>
+            <button class="btn btn-small btn-secondary" onclick="setFirstFruitHandled('${plant.id}','kept')">残した</button>
+          </div>`;
+      }
+      
+      return `
+      <div class="card">
+        <div class="card-title">🌸 ${speciesName}の開花・着果</div>
+        <div style="font-size:13px;line-height:1.7;">
+          ${step1}
+          ${step2}
+        </div>
+        ${buttons}
+      </div>
+      `;
+    })()}
     
     ${(() => {
       // ベニカXファインスプレー残り回数（トマト・ナス・ピーマンのみ）
@@ -2873,6 +2990,8 @@ function renderHistoryTab(tasks) {
     pest_treatment: { icon: '🐛', label: '病害虫対処' },
     pest_spray: { icon: '🛡️', label: '防虫散布' },
     vinegar_spray: { icon: '🍶', label: 'やさお酢散布' },
+    first_flower: { icon: '🌸', label: '一番花の処理' },
+    first_fruit: { icon: '🍆', label: '一番果の処理' },
     mulching: { icon: '🍂', label: 'マルチング' },
     observation: { icon: '👀', label: '観察' }
   };
@@ -3243,6 +3362,68 @@ async function recordWater() {
     notes: ''
   });
   await renderPlantDetail(currentPlantId);
+}
+
+// =================================================
+// ナス・ピーマン 一番花・一番果の管理
+// =================================================
+async function recordFirstFlower(plantId) {
+  const plant = await dbGet('plants', plantId);
+  plant.firstFlower = { date: new Date().toISOString(), handled: null };
+  await dbPut('plants', plant);
+  // 履歴にも残す
+  await recordTask({
+    plantId,
+    type: 'first_flower',
+    date: new Date().toISOString(),
+    details: { event: 'bloomed' },
+    notes: '一番花 開花'
+  });
+  await renderPlantDetail(plantId);
+}
+
+async function setFirstFlowerHandled(plantId, handled) {
+  const plant = await dbGet('plants', plantId);
+  if (!plant.firstFlower) plant.firstFlower = { date: new Date().toISOString() };
+  plant.firstFlower.handled = handled;
+  await dbPut('plants', plant);
+  await recordTask({
+    plantId,
+    type: 'first_flower',
+    date: new Date().toISOString(),
+    details: { event: 'handled', handled },
+    notes: handled === 'removed' ? '一番花 摘除' : '一番花 残した'
+  });
+  await renderPlantDetail(plantId);
+}
+
+async function recordFirstFruit(plantId) {
+  const plant = await dbGet('plants', plantId);
+  plant.firstFruit = { date: new Date().toISOString(), handled: null };
+  await dbPut('plants', plant);
+  await recordTask({
+    plantId,
+    type: 'first_fruit',
+    date: new Date().toISOString(),
+    details: { event: 'fruited' },
+    notes: '一番果 着果'
+  });
+  await renderPlantDetail(plantId);
+}
+
+async function setFirstFruitHandled(plantId, handled) {
+  const plant = await dbGet('plants', plantId);
+  if (!plant.firstFruit) plant.firstFruit = { date: new Date().toISOString() };
+  plant.firstFruit.handled = handled;
+  await dbPut('plants', plant);
+  await recordTask({
+    plantId,
+    type: 'first_fruit',
+    date: new Date().toISOString(),
+    details: { event: 'handled', handled },
+    notes: handled === 'thinned' ? '一番果 摘果' : '一番果 残した'
+  });
+  await renderPlantDetail(plantId);
 }
 
 async function recordAction(action, actionData) {
@@ -3877,15 +4058,18 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
       msg = '🍂 終盤。最後の花房まで実らせるか、株疲れなら見切りも検討。';
     }
   } else if (plant.species === 'eggplant') {
+    const ff = plant.firstFlower;
+    const fr = plant.firstFruit;
     if (days < 7) {
-      msg = '🌱 活着期。深植えNG、根鉢が乾かないよう毎日チェック。';
-      nextMilestone = `${21-days}日で一番花・追肥スタート`;
-    } else if (days < 21) {
-      msg = '🌿 一番花が見えてくる頃。一番花の下の脇芽2本を残して2本仕立てに。';
-      nextMilestone = `あと${21-days}日で追肥スタート`;
-    } else if (days < 50) {
-      msg = '🍆 着果期。一番果は早めに収穫して株を疲れさせない（小ぶりでOK）。';
-      nextMilestone = '盛夏期の更新剪定（8月）に向けて準備';
+      msg = '🌱 活着期。深植えNG、根鉢が乾かないよう毎日チェック。一番花が早く見えたら概要タブで記録。';
+    } else if (!ff?.date) {
+      msg = '🌿 一番花を待つ時期。一番花の下の脇芽2本を残して2本仕立てに。<b>咲いたら概要タブの「一番花が咲いた」ボタンを押して</b>。';
+    } else if (!ff.handled) {
+      msg = '🌸 一番花が咲きました！受粉させて結実を待つか、小さいうちに摘果。<b>処理を概要タブで記録</b>。';
+    } else if (!fr?.date) {
+      msg = '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これが液肥本格スタートのトリガー。';
+    } else if (!fr.handled) {
+      msg = '🍆 一番果を確認しました！小ぶりで早めに摘果すると株が疲れず秋まで収穫続きます。';
     } else if (days < 100) {
       msg = '🍆 収穫期。水切れさせないこと、葉色が薄くなったら追肥のサイン。';
       nextMilestone = '7月下旬〜8月の更新剪定で秋ナスへ';
@@ -3893,12 +4077,16 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
       msg = '🍆 秋ナス期。株を切り戻して新芽を促し、10月まで収穫可能。';
     }
   } else if (plant.species === 'pepper') {
-    if (days < 21) {
-      msg = '🫑 一番花が見えてくる頃。一番花は摘んで株を充実させると後の収量UP。';
-      nextMilestone = `あと${21-days}日で追肥スタート`;
-    } else if (days < 50) {
-      msg = '🫑 着果期。3又仕立て・整枝で風通しを確保、アブラムシ要注意。';
-      nextMilestone = '本格的な収穫期へ';
+    const ff = plant.firstFlower;
+    const fr = plant.firstFruit;
+    if (!ff?.date) {
+      msg = '🫑 一番花を待つ時期。<b>咲いたら概要タブの「一番花が咲いた」ボタンを押して</b>。一番花は摘んで株を充実させると後の収量UPです。';
+    } else if (!ff.handled) {
+      msg = '🌸 一番花が咲きました！<b>株を充実させるため摘み取って、概要タブで記録</b>を。';
+    } else if (!fr?.date) {
+      msg = '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これが液肥本格スタートのトリガー。';
+    } else if (!fr.handled) {
+      msg = '🍆 一番果を確認しました！小さいうちに摘果すると、その後の収量が大きく増えます。';
     } else if (days < 100) {
       msg = '🫑 収穫最盛期。早めに収穫すると次々に実がつく、追肥は週1継続。';
     } else {
