@@ -5386,7 +5386,7 @@ async function renderPhotosTab(plant) {
                 <img src="${getPhotoUrl(p)}" alt="" loading="lazy">
                 <div class="day-badge">D${dayN >= 0 ? dayN : 0}</div>
                 ${p.memo ? '<div class="memo-icon">📝</div>' : ''}
-                ${p.taskId ? '<div style="position:absolute;top:4px;left:4px;background:rgba(255,255,255,0.85);border-radius:4px;padding:1px 4px;font-size:11px;">👀</div>' : ''}
+                ${p.taskId ? `<div style="position:absolute;bottom:4px;right:${p.memo ? 28 : 4}px;font-size:12px;background:rgba(0,0,0,0.5);color:white;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;">👀</div>` : ''}
               </div>
             `;
           }).join('')}
@@ -5485,7 +5485,14 @@ async function navigatePhoto(dir, plantId) {
 function closePhotoViewer() {
   const viewer = document.getElementById('photoViewer');
   if (viewer) viewer.style.display = 'none';
+  // ビューア内で削除があった場合、背景のタブを再描画してサムネを更新
+  if (_viewerHadDeletion && currentScreen === 'plants' && currentPlantId) {
+    _viewerHadDeletion = false;
+    renderPlantDetail(currentPlantId);
+  }
 }
+
+let _viewerHadDeletion = false;
 
 async function editPhotoMemo(photoId, plantId) {
   const photo = await dbGet('photos', photoId);
@@ -5528,19 +5535,32 @@ async function deletePhoto(photoId, plantId) {
     URL.revokeObjectURL(photoUrlCache.get(photoId));
     photoUrlCache.delete(photoId);
   }
-  // リストから削除
-  currentViewerPhotos = currentViewerPhotos.filter(p => p.id !== photoId);
   showToast('削除しました');
   
-  if (currentViewerPhotos.length === 0) {
-    closePhotoViewer();
-    if (currentTab === 'photos') renderPlantDetail(plantId);
-  } else {
-    if (currentViewerIndex >= currentViewerPhotos.length) {
-      currentViewerIndex = currentViewerPhotos.length - 1;
+  // ビューアが「表示中」かを判定（display:noneのDOM残骸は除外）
+  const viewer = document.getElementById('photoViewer');
+  const viewerVisible = viewer && viewer.style.display !== 'none' && viewer.style.display !== '';
+  
+  // 共通: 株詳細画面なら背景タブも再描画（サムネを即時反映）
+  const needsRerender = currentScreen === 'plants' && currentPlantId === plantId;
+  
+  if (viewerVisible) {
+    // ビューア表示中の削除：リスト更新して次の写真表示、空ならビューア閉じる
+    _viewerHadDeletion = true; // 閉じる時にも再描画されるよう保険
+    currentViewerPhotos = currentViewerPhotos.filter(p => p.id !== photoId);
+    if (currentViewerPhotos.length === 0) {
+      closePhotoViewer();
+    } else {
+      if (currentViewerIndex >= currentViewerPhotos.length) {
+        currentViewerIndex = currentViewerPhotos.length - 1;
+      }
+      const plant = await dbGet('plants', plantId);
+      renderPhotoViewer(plant);
     }
-    const plant = await dbGet('plants', plantId);
-    renderPhotoViewer(plant);
+  }
+  
+  if (needsRerender) {
+    await renderPlantDetail(plantId);
   }
 }
 
