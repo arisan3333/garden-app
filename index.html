@@ -2394,16 +2394,16 @@ function getWaterGuide(plant) {
 }
 
 function getQuickActions(plant) {
+  // 水やりは概要タブの「💧 水やりを記録」ボタンで記録するためここから除外
   const common = [
-    { action: 'watering', icon: '💧', label: '水やり' },
     { action: 'fertilize_liquid', icon: '🧪', label: '液肥' },
     { action: 'fertilize_granular', icon: '💊', label: '固形肥料' },
     { action: 'observation', icon: '👀', label: '観察' }
   ];
   const specific = {
     tomato: [
+      // トマトトーンは剪定ガイドの花房タップから記録（花房と紐付くため、より確実）
       { action: 'side_shoot_removal', icon: '✂️', label: '脇芽かき' },
-      { action: 'tomato_tone', icon: '🍅', label: 'トマトトーン' },
       { action: 'topsoil', icon: '🪴', label: '増し土' },
       { action: 'pinching', icon: '✂️', label: '摘心' },
       { action: 'defoliation', icon: '🍃', label: '下葉かき' },
@@ -2427,7 +2427,7 @@ function getQuickActions(plant) {
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ],
     passion: [
-      { action: 'pinching', icon: '✂️', label: '摘心' },
+      // 摘心は剪定ガイドの「摘心する」ボタン（つる①〜④ごと）から記録
       { action: 'training', icon: '🌿', label: '誘引' },
       { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
@@ -3652,6 +3652,7 @@ async function recordWater() {
     details: {},
     notes: ''
   });
+  await syncTaskStateOnRecord(currentPlantId, 'watering');
   await renderPlantDetail(currentPlantId);
 }
 
@@ -3767,13 +3768,42 @@ function showQuickRecordModal(action, actionData) {
 async function saveQuickRecord(action) {
   const date = document.getElementById('dateInput').value;
   const notes = document.getElementById('notesInput').value.trim();
+  const isoDate = new Date(date).toISOString();
+  
+  // やさお酢の連打防止（10分以内）
+  //   ただし「日時」を3分以上前に明示的に変更している場合は、過去記録の意図とみなしてスキップしない
+  if (action === 'vinegar_spray' && currentPlantId) {
+    const inputDateMs = new Date(isoDate).getTime();
+    const nowMs = Date.now();
+    const isNowRecord = (nowMs - inputDateMs) < 3 * 60 * 1000;
+    if (isNowRecord) {
+      const allTasks = await dbGetAll('tasks');
+      const recent = allTasks
+        .filter(t => t.plantId === currentPlantId && t.type === action)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+      if (recent) {
+        const elapsedSec = (nowMs - new Date(recent.date).getTime()) / 1000;
+        if (elapsedSec < 600) {
+          closeModal();
+          await renderPlantDetail(currentPlantId);
+          return;
+        }
+      }
+    }
+  }
+  
   await recordTask({
     plantId: currentPlantId,
     type: action,
-    date: new Date(date).toISOString(),
+    date: isoDate,
     details: {},
     notes
   });
+  // 入力日時が今日の場合のみ taskState を完了にする
+  const inputDate = new Date(isoDate);
+  if (inputDate.toDateString() === new Date().toDateString()) {
+    await syncTaskStateOnRecord(currentPlantId, action);
+  }
   closeModal();
   await renderPlantDetail(currentPlantId);
 }
@@ -3838,6 +3868,7 @@ async function saveTomatoTone() {
     details: { cluster: cluster.segmentNumber, round, clusterId },
     notes
   });
+  await syncTaskStateOnRecord(currentPlantId, 'tomato_tone');
   closeModal();
   await renderPlantDetail(currentPlantId);
 }
@@ -3875,6 +3906,7 @@ async function saveHarvest() {
     details: { count },
     notes
   });
+  await syncTaskStateOnRecord(currentPlantId, 'harvest');
   closeModal();
   await renderPlantDetail(currentPlantId);
 }
@@ -3914,6 +3946,7 @@ async function saveSideShoot() {
     details,
     notes
   });
+  await syncTaskStateOnRecord(currentPlantId, 'side_shoot_removal');
   closeModal();
   await renderPlantDetail(currentPlantId);
 }
@@ -3955,13 +3988,67 @@ async function savePinching() {
   const date = document.getElementById('dateInput').value;
   const target = document.getElementById('targetInput')?.value || 'main';
   const notes = document.getElementById('notesInput').value.trim();
-  await recordTask({
+  const isoDate = new Date(date).toISOString();
+  const taskId = uid();
+  
+  await dbPut('tasks', {
+    id: taskId,
     plantId: currentPlantId,
     type: 'pinching',
-    date: new Date(date).toISOString(),
+    date: isoDate,
     details: { target },
     notes
   });
+  
+  // パッションフルーツの場合、vinesテーブルにも反映
+  //   主枝→main#1、子づる→空きスロットの若い順（①→②→③→④）
+  const plant = await dbGet('plants', currentPlantId);
+  if (plant?.species === 'passion' && (target === 'main' || target === 'child')) {
+    const allVines = await dbGetAll('vines');
+    const myVines = allVines.filter(v => v.plantId === currentPlantId);
+    if (target === 'main') {
+      const mainVine = myVines.find(v => v.vineType === 'main' && v.vineIndex === 1);
+      if (mainVine) {
+        if (!mainVine.pinchedAt) {
+          mainVine.pinchedAt = isoDate;
+          mainVine.taskId = taskId;
+          await dbPut('vines', mainVine);
+        }
+      } else {
+        await dbPut('vines', {
+          id: uid(), plantId: currentPlantId,
+          vineType: 'main', vineIndex: 1,
+          pinchedAt: isoDate,
+          grandchildren: 0, flowers: 0, fruits: 0,
+          taskId
+        });
+      }
+    } else if (target === 'child') {
+      let assigned = false;
+      for (let idx = 1; idx <= 4; idx++) {
+        const existing = myVines.find(v => v.vineType === 'child' && v.vineIndex === idx);
+        if (!existing) {
+          await dbPut('vines', {
+            id: uid(), plantId: currentPlantId,
+            vineType: 'child', vineIndex: idx,
+            pinchedAt: isoDate,
+            grandchildren: 0, flowers: 0, fruits: 0,
+            taskId
+          });
+          assigned = true;
+          break;
+        } else if (!existing.pinchedAt) {
+          existing.pinchedAt = isoDate;
+          existing.taskId = taskId;
+          await dbPut('vines', existing);
+          assigned = true;
+          break;
+        }
+      }
+    }
+  }
+  
+  await syncTaskStateOnRecord(currentPlantId, 'pinching');
   closeModal();
   await renderPlantDetail(currentPlantId);
 }
@@ -3969,6 +4056,32 @@ async function savePinching() {
 async function recordTask(task) {
   task.id = uid();
   await dbPut('tasks', task);
+}
+
+// ===========================================================
+// クイック記録から、対応する今日のタスクがあれば「完了」状態にする
+//   - キー形式: `${todayKey}:${plantId}:${action}`
+//   - 既に done/skip 済みなら何もしない
+//   - 該当タスクが今日のおすすめタスクに無くてもエラーにはしない
+// ===========================================================
+async function syncTaskStateOnRecord(plantId, action) {
+  if (!plantId || !action) return;
+  const todayKey = today();
+  const key = `${todayKey}:${plantId}:${action}`;
+  const taskState = await dbGet('settings', 'taskState') || { key: 'taskState', value: {} };
+  taskState.value = taskState.value || {};
+  // 既に done または skip なら触らない
+  const existing = taskState.value[key];
+  if (existing && (existing.status === 'done' || existing.status === 'skip')) return;
+  taskState.value[key] = {
+    status: 'done',
+    date: new Date().toISOString()
+  };
+  await dbPut('settings', taskState);
+  // 共通キャッシュも更新
+  if (typeof cachedTasksState !== 'undefined') {
+    cachedTasksState[key] = taskState.value[key];
+  }
 }
 
 // =================================================
@@ -4012,6 +4125,7 @@ async function markVinePinch(plantId, vineType, vineIndex) {
   });
   v.taskId = taskId;
   await dbPut('vines', v);
+  await syncTaskStateOnRecord(plantId, 'pinching');
   await renderPlantDetail(plantId);
 }
 
@@ -4165,6 +4279,7 @@ async function quickToneRecord(clusterId) {
     details: { cluster: cluster.segmentNumber, round, clusterId },
     notes: ''
   });
+  await syncTaskStateOnRecord(currentPlantId, 'tomato_tone');
   closeModal();
   await renderPlantDetail(currentPlantId);
 }
