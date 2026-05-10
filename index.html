@@ -899,14 +899,39 @@ function openDB() {
       resolve(null);
       return;
     }
+    // 安全弁：DB が 5 秒以内に開かない場合（onblocked 等で無限待機を回避）
+    let resolved = false;
+    const safeResolve = (val) => { if (!resolved) { resolved = true; resolve(val); } };
+    const timeout = setTimeout(() => {
+      console.warn('IndexedDB open timed out (5s). 別タブが古いバージョンを開いている可能性があります。');
+      alert('データベースを開けませんでした。\n他のタブで古いバージョンのこのアプリを開いている場合、それらを閉じて再読み込みしてください。');
+      safeResolve(null);
+    }, 5000);
+    
     try {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onerror = () => {
+        clearTimeout(timeout);
         console.warn('IndexedDB unavailable. Falling back to localStorage.', request.error);
         useLocalStorage = true;
-        resolve(null);
+        safeResolve(null);
       };
-      request.onsuccess = () => { db = request.result; resolve(db); };
+      request.onsuccess = () => {
+        clearTimeout(timeout);
+        db = request.result;
+        // 別タブでアップグレード要求が来たら、こちらの接続を閉じて妨害しない
+        db.onversionchange = () => {
+          db.close();
+          alert('別のタブでアップグレードされました。このタブを再読み込みしてください。');
+        };
+        safeResolve(db);
+      };
+      request.onblocked = () => {
+        // 別タブが古いバージョンで開いている → ユーザーに通知
+        clearTimeout(timeout);
+        alert('別のタブでこのアプリが開かれているため、データベースのアップグレードができません。\n他のタブを閉じてから再読み込みしてください。');
+        safeResolve(null);
+      };
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('plants')) {
@@ -940,9 +965,10 @@ function openDB() {
         }
       };
     } catch (e) {
+      clearTimeout(timeout);
       console.warn('IndexedDB failed. Falling back to localStorage.', e);
       useLocalStorage = true;
-      resolve(null);
+      safeResolve(null);
     }
   });
 }
@@ -951,22 +977,41 @@ function dbGet(store, key) {
   if (useLocalStorage || !db) {
     return Promise.resolve(lsReadStore(store)[key]);
   }
+  if (!db.objectStoreNames.contains(store)) {
+    // 古いバージョンのDB（store未作成）の場合は空を返す
+    console.warn(`Store "${store}" not found in DB. Returning empty.`);
+    return Promise.resolve(undefined);
+  }
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readonly');
-    const req = tx.objectStore(store).get(key);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    try {
+      const tx = db.transaction(store, 'readonly');
+      const req = tx.objectStore(store).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    } catch (e) {
+      console.warn(`dbGet failed for "${store}":`, e);
+      resolve(undefined);
+    }
   });
 }
 function dbGetAll(store) {
   if (useLocalStorage || !db) {
     return Promise.resolve(Object.values(lsReadStore(store)));
   }
+  if (!db.objectStoreNames.contains(store)) {
+    console.warn(`Store "${store}" not found in DB. Returning empty array.`);
+    return Promise.resolve([]);
+  }
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readonly');
-    const req = tx.objectStore(store).getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    try {
+      const tx = db.transaction(store, 'readonly');
+      const req = tx.objectStore(store).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    } catch (e) {
+      console.warn(`dbGetAll failed for "${store}":`, e);
+      resolve([]);
+    }
   });
 }
 function dbPut(store, value) {
@@ -977,11 +1022,20 @@ function dbPut(store, value) {
     lsWriteStore(store, data);
     return Promise.resolve(key);
   }
+  if (!db.objectStoreNames.contains(store)) {
+    console.warn(`Store "${store}" not found in DB. Skipping put.`);
+    return Promise.resolve(null);
+  }
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readwrite');
-    const req = tx.objectStore(store).put(value);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    try {
+      const tx = db.transaction(store, 'readwrite');
+      const req = tx.objectStore(store).put(value);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    } catch (e) {
+      console.warn(`dbPut failed for "${store}":`, e);
+      resolve(null);
+    }
   });
 }
 function dbDelete(store, key) {
@@ -991,11 +1045,20 @@ function dbDelete(store, key) {
     lsWriteStore(store, data);
     return Promise.resolve();
   }
+  if (!db.objectStoreNames.contains(store)) {
+    console.warn(`Store "${store}" not found in DB. Skipping delete.`);
+    return Promise.resolve();
+  }
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readwrite');
-    const req = tx.objectStore(store).delete(key);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
+    try {
+      const tx = db.transaction(store, 'readwrite');
+      const req = tx.objectStore(store).delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    } catch (e) {
+      console.warn(`dbDelete failed for "${store}":`, e);
+      resolve();
+    }
   });
 }
 
