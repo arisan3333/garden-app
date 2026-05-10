@@ -841,7 +841,7 @@ body {
 // データ管理（IndexedDB）
 // =================================================
 const DB_NAME = 'gardenApp';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 let db;
 let useLocalStorage = false;
 
@@ -932,6 +932,11 @@ function openDB() {
           const store = db.createObjectStore('photos', { keyPath: 'id' });
           store.createIndex('plantId', 'plantId');
           store.createIndex('takenAt', 'takenAt');
+        }
+        // v3で追加: パッションフルーツのつる管理（主枝・子づる①〜④）
+        if (!db.objectStoreNames.contains('vines')) {
+          const store = db.createObjectStore('vines', { keyPath: 'id' });
+          store.createIndex('plantId', 'plantId');
         }
       };
     } catch (e) {
@@ -1088,7 +1093,7 @@ function weatherAlerts(weather) {
 // =================================================
 // 自動レコメンドタスク生成（今日のタスク用）
 // =================================================
-function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
+function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vines = []) {
   const tasks = [];
   const days = dayDiff(plant.plantingDate);
   const displayName = plant.name || SPECIES[plant.species].name;
@@ -1428,9 +1433,13 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
   // パッション主枝摘心
   // ※植え付け時から既に30cm近い苗もあるので早めにアラートを出す。
   //   ユーザーは草丈に達していなければスキップ判断する想定。
+  // 摘心済み判定：vinesテーブル優先、なければ既存tasksのdetails.targetを後方互換で見る
   if (plant.species === 'passion' && days >= 7) {
-    const mainPinched = lastTasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
-    if (!mainPinched && days <= 45) {
+    const mainVine = vines.find(v => v.vineType === 'main' && v.vineIndex === 1);
+    const mainPinchedLegacy = lastTasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
+    const mainPinchedAt = mainVine?.pinchedAt || mainPinchedLegacy?.date || null;
+    
+    if (!mainPinchedAt && days <= 45) {
       tasks.push({
         type: 'must',
         action: 'pinching',
@@ -1440,9 +1449,12 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
       });
     }
     // 子づる摘心（主枝摘心から2〜3週間後）
-    if (mainPinched) {
-      const daysSinceMainPinch = dayDiff(mainPinched.date);
-      const childPinched = lastTasks.filter(t => t.type === 'pinching' && t.details?.target === 'child').length;
+    if (mainPinchedAt) {
+      const daysSinceMainPinch = dayDiff(mainPinchedAt);
+      const childVinesPinched = vines.filter(v => v.vineType === 'child' && v.pinchedAt).length;
+      const childPinchedLegacy = lastTasks.filter(t => t.type === 'pinching' && t.details?.target === 'child').length;
+      // vinesに記録があればそれを優先、なければレガシーカウント
+      const childPinched = childVinesPinched > 0 ? childVinesPinched : childPinchedLegacy;
       if (daysSinceMainPinch >= 14 && childPinched < 3) {
         tasks.push({
           type: 'recommended',
@@ -1666,7 +1678,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = []) {
 // =================================================
 // 今後の予定リスト生成（株詳細用）
 // =================================================
-function generateUpcomingTasks(plant, lastTasks) {
+function generateUpcomingTasks(plant, lastTasks, vines = []) {
   const tasks = [];
   const days = dayDiff(plant.plantingDate);
   const sp = plant.species;
@@ -1735,8 +1747,23 @@ function generateUpcomingTasks(plant, lastTasks) {
   }
   
   if (sp === 'passion') {
-    if (days < 30) tasks.push({ daysOffset: Math.max(0, 14 - days), label: '✂️ 主枝摘心（草丈30cm/支柱頂点に達したら）', urgent: false });
-    if (days < 45) tasks.push({ daysOffset: Math.max(0, 30 - days), label: '✂️ 子づる摘心（リング1周＝約50cmで）', urgent: false });
+    // 摘心済み判定（vinesテーブル優先 + tasksレガシー後方互換）
+    const mainVine = vines.find(v => v.vineType === 'main' && v.vineIndex === 1);
+    const mainPinchedLegacy = lastTasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
+    const mainPinchedAt = mainVine?.pinchedAt || mainPinchedLegacy?.date || null;
+    const childVinesPinched = vines.filter(v => v.vineType === 'child' && v.pinchedAt).length;
+    const childPinchedLegacy = lastTasks.filter(t => t.type === 'pinching' && t.details?.target === 'child').length;
+    const childPinchedCount = childVinesPinched > 0 ? childVinesPinched : childPinchedLegacy;
+    
+    // 主枝摘心が未済の場合のみ表示
+    if (!mainPinchedAt && days < 30) {
+      tasks.push({ daysOffset: Math.max(0, 14 - days), label: '✂️ 主枝摘心（草丈30cm/支柱頂点に達したら）', urgent: false });
+    }
+    // 子づる摘心が3本未満なら表示（残本数も表示）
+    if (childPinchedCount < 3 && days < 45) {
+      const remaining = 3 - childPinchedCount;
+      tasks.push({ daysOffset: Math.max(0, 30 - days), label: `✂️ 子づる摘心（残${remaining}本／リング1周＝約50cmで）`, urgent: false });
+    }
     if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🐝 開花・人工授粉開始', urgent: false });
     if (days < 30) tasks.push({ daysOffset: 30 - days, label: '💊 リンカリ肥料開始', urgent: false });
     if (days < 90) tasks.push({ daysOffset: 90 - days, label: '🧺 収穫開始', urgent: false });
@@ -1798,10 +1825,12 @@ async function renderHome() {
   
   // 今日のタスクを集計
   const allClustersData = await dbGetAll('clusters');
+  const allVinesData = await dbGetAll('vines');
   let allRecommended = [];
   for (const plant of plants.filter(p => p.status === 'active')) {
     const plantTasks = allTasks.filter(t => t.plantId === plant.id);
-    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData);
+    const plantVines = allVinesData.filter(v => v.plantId === plant.id);
+    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines);
     allRecommended = allRecommended.concat(recommended);
   }
   
@@ -1996,12 +2025,13 @@ async function renderPlantDetail(plantId) {
   const days = dayDiff(plant.plantingDate);
   const tasks = (await dbGetAll('tasks')).filter(t => t.plantId === plantId).sort((a,b) => new Date(b.date) - new Date(a.date));
   const clusters = (await dbGetAll('clusters')).filter(c => c.plantId === plantId).sort((a,b) => a.segmentNumber - b.segmentNumber);
+  const vines = (await dbGetAll('vines')).filter(v => v.plantId === plantId);
   
   let tabContent = '';
   if (currentTab === 'overview') {
     tabContent = renderOverviewTab(plant, tasks);
   } else if (currentTab === 'pruning') {
-    tabContent = renderPruningTab(plant, clusters, tasks);
+    tabContent = renderPruningTab(plant, clusters, tasks, vines);
   } else if (currentTab === 'history') {
     tabContent = renderHistoryTab(tasks);
   } else if (currentTab === 'photos') {
@@ -2079,7 +2109,7 @@ function renderOverviewTab(plant, tasks) {
     <div class="card">
       <div class="card-title">📅 今後の予定</div>
       ${(() => {
-        const upcoming = generateUpcomingTasks(plant, tasks);
+        const upcoming = generateUpcomingTasks(plant, tasks, vines);
         if (upcoming.length === 0) {
           return '<div style="font-size:13px;color:var(--text-light);">特になし</div>';
         }
@@ -2353,11 +2383,11 @@ function getQuickActions(plant) {
   return [...common, ...(specific[plant.species] || [])];
 }
 
-function renderPruningTab(plant, clusters, tasks) {
+function renderPruningTab(plant, clusters, tasks, vines) {
   const sp = plant.species;
   if (sp === 'tomato') return renderTomatoPruning(plant, clusters);
   if (sp === 'eggplant' || sp === 'pepper') return renderEggplantPepperPruning(plant, tasks);
-  if (sp === 'passion') return renderPassionPruning(plant, tasks);
+  if (sp === 'passion') return renderPassionPruning(plant, tasks, vines || []);
   if (sp === 'ginger') return renderGingerGuide(plant, tasks);
   return `<div class="card"><div class="empty"><div class="icon">🌱</div>${SPECIES[sp].name}は剪定不要です</div></div>`;
 }
@@ -2986,9 +3016,36 @@ function renderEggplantPepperPruning(plant, tasks) {
     </div>
   `;
 }
-function renderPassionPruning(plant, tasks) {
-  const mainPinched = tasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
-  const childPinched = tasks.filter(t => t.type === 'pinching' && t.details?.target === 'child').length;
+// vines レコードを取得するヘルパー
+//   vineType: 'main' | 'child'
+//   vineIndex: main=1固定、child=1〜4
+function getVine(vines, vineType, vineIndex) {
+  return vines.find(v => v.vineType === vineType && v.vineIndex === vineIndex);
+}
+
+function renderPassionPruning(plant, tasks, vines) {
+  vines = vines || [];
+  // 摘心済み判定：vinesテーブル優先、なければ既存tasksの details.target を後方互換でも見る
+  const mainVine = getVine(vines, 'main', 1);
+  const mainPinchedLegacy = tasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
+  const mainPinched = mainVine?.pinchedAt || mainPinchedLegacy?.date || null;
+
+  // 子づる①〜④
+  const children = [1, 2, 3, 4].map(idx => {
+    const v = getVine(vines, 'child', idx);
+    return {
+      idx,
+      vine: v,
+      pinchedAt: v?.pinchedAt || null,
+      grandchildren: v?.grandchildren || 0,
+      flowers: v?.flowers || 0,
+      fruits: v?.fruits || 0
+    };
+  });
+  const totalGrandchildren = children.reduce((s, c) => s + c.grandchildren, 0);
+  const totalFlowers = children.reduce((s, c) => s + c.flowers, 0);
+  const totalFruits = children.reduce((s, c) => s + c.fruits, 0);
+  const childPinchedCount = children.filter(c => c.pinchedAt).length;
   
   // 主枝=緑、子づる=赤、孫づる=青（主枝と区別）
   const svgInner = `
@@ -3017,20 +3074,90 @@ function renderPassionPruning(plant, tasks) {
   
   const svg = `<svg viewBox="0 0 300 540" class="pruning-svg">${svgInner}</svg>`;
   
+  // 主枝行
+  const mainRow = `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:${mainPinched ? '#dcfce7' : '#f9fafb'};border-radius:8px;margin-bottom:8px;">
+      <div>
+        <div style="font-weight:600;font-size:14px;">🌿 主枝</div>
+        ${mainPinched ? `<div style="font-size:11px;color:#166534;">✓ 摘心済 ${dateStr(mainPinched)}</div>` : '<div style="font-size:11px;color:var(--text-light);">草丈30cm/支柱頂点で先端カット</div>'}
+      </div>
+      ${mainPinched
+        ? `<button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="undoVinePinch('${plant.id}', 'main', 1)">取消</button>`
+        : `<button class="btn btn-small" onclick="markVinePinch('${plant.id}', 'main', 1)">摘心する</button>`}
+    </div>
+  `;
+  
+  // 子づる行（①〜③ + ④予備）
+  const childRows = children.map(c => {
+    const isReserve = c.idx === 4;
+    const label = isReserve ? `子づる④（予備）` : `子づる${['①','②','③'][c.idx-1]}`;
+    return `
+      <div style="padding:10px 12px;background:${c.pinchedAt ? '#dcfce7' : '#f9fafb'};border-radius:8px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:600;font-size:14px;">🌱 ${label}</div>
+            ${c.pinchedAt ? `<div style="font-size:11px;color:#166534;">✓ 摘心済 ${dateStr(c.pinchedAt)}</div>` : '<div style="font-size:11px;color:var(--text-light);">リング1周（約50cm）で先端カット</div>'}
+          </div>
+          ${c.pinchedAt
+            ? `<button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="undoVinePinch('${plant.id}', 'child', ${c.idx})">取消</button>`
+            : `<button class="btn btn-small" onclick="markVinePinch('${plant.id}', 'child', ${c.idx})">摘心する</button>`}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;font-size:12px;">
+          ${[
+            { key: 'grandchildren', label: '🌿 孫づる', val: c.grandchildren },
+            { key: 'flowers', label: '🌸 花数', val: c.flowers },
+            { key: 'fruits', label: '🍈 着果', val: c.fruits }
+          ].map(f => `
+            <div style="display:flex;flex-direction:column;align-items:center;background:white;border:1px solid #e5e7eb;border-radius:6px;padding:6px 4px;">
+              <div style="color:var(--text-light);font-size:10px;">${f.label}</div>
+              <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
+                <button onclick="adjustVineCount('${plant.id}', 'child', ${c.idx}, '${f.key}', -1)" style="width:24px;height:24px;border:1px solid #d1d5db;background:white;border-radius:4px;font-size:14px;cursor:pointer;">−</button>
+                <span style="min-width:20px;text-align:center;font-weight:600;">${f.val}</span>
+                <button onclick="adjustVineCount('${plant.id}', 'child', ${c.idx}, '${f.key}', 1)" style="width:24px;height:24px;border:1px solid #d1d5db;background:white;border-radius:4px;font-size:14px;cursor:pointer;">＋</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // サマリー
+  const summary = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px;background:#fef3c7;border-radius:8px;margin-bottom:12px;">
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--text-light);">🌿 孫づる合計</div>
+        <div style="font-size:18px;font-weight:700;color:#92400e;">${totalGrandchildren}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--text-light);">🌸 花合計</div>
+        <div style="font-size:18px;font-weight:700;color:#be185d;">${totalFlowers}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--text-light);">🍈 着果合計</div>
+        <div style="font-size:18px;font-weight:700;color:#15803d;">${totalFruits}</div>
+      </div>
+    </div>
+  `;
+  
   return `
     <div class="card">
-      <div class="card-title">🌳 剪定ガイド（パッション）</div>
-      <div class="pruning-guide">
-        ${svg}
-      </div>
-      <div style="font-size:13px;line-height:1.8;margin-top:12px;">
-        <b>【育成3ステップ】</b><br>
-        ${mainPinched ? '✓' : '□'} 主枝摘心（<b>草丈30cm</b> or 支柱の頂点で先端カット）<br>
-        ${childPinched >= 3 ? '✓' : '□'} 子づる3本に絞る<br>
-        ${childPinched >= 3 ? '✓' : '□'} 子づる摘心（リング1周＝<b>約50cm</b>伸びたら）<br>
+      <div class="card-title">🌳 つる管理（パッション）</div>
+      ${summary}
+      ${mainRow}
+      <div style="font-size:12px;color:var(--text-light);margin:12px 0 8px;">─── 子づる（基本3本＋予備1本）───</div>
+      ${childRows}
+      <div style="font-size:12px;color:var(--text-light);margin-top:8px;line-height:1.6;">
+        <b>📋 育成ステップ</b><br>
+        ${mainPinched ? '✓' : '□'} 主枝摘心（草丈30cm/支柱頂点）<br>
+        ${childPinchedCount >= 3 ? '✓' : `□（${childPinchedCount}/3）`} 子づる摘心（リング1周＝約50cm）<br>
         □ 孫づる育成（伸ばす、摘心しない）<br>
-        □ 開花〜人工授粉<br>
+        □ 開花〜人工授粉
       </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📐 剪定ガイド（参考図）</div>
+      <div class="pruning-guide">${svg}</div>
       <div style="font-size:12px;color:var(--text-light);margin-top:8px;line-height:1.6;">
         <b>📌 凡例</b><br>
         🟢 緑＝主枝<br>
@@ -3083,13 +3210,14 @@ function renderHistoryTab(tasks) {
         ${tasks.map(t => {
           const action = ACTION_LABELS[t.type] || { icon: '📝', label: t.type };
           return `
-            <div class="timeline-item">
+            <div class="timeline-item" style="display:flex;gap:8px;align-items:flex-start;">
               <div class="timeline-icon">${action.icon}</div>
-              <div class="timeline-content">
+              <div class="timeline-content" style="flex:1;">
                 <div class="timeline-date">${dateStr(t.date)}</div>
                 <div class="timeline-title">${action.label}${t.details?.count ? ` × ${t.details.count}` : ''}${t.details?.cluster ? ` 第${t.details.cluster}花房` : ''}${t.details?.round ? ` ${t.details.round}回目` : ''}</div>
                 ${t.notes ? `<div class="timeline-note">${t.notes}</div>` : ''}
               </div>
+              <button onclick="deleteHistoryItem('${t.id}')" title="この履歴を削除" style="background:transparent;border:none;color:#9ca3af;font-size:16px;cursor:pointer;padding:4px 8px;align-self:center;">🗑️</button>
             </div>
           `;
         }).join('')}
@@ -3107,10 +3235,12 @@ async function renderTasks() {
   if (!cachedWeather) cachedWeather = await fetchWeather();
   
   const allClustersData = await dbGetAll('clusters');
+  const allVinesData = await dbGetAll('vines');
   let allRecommended = [];
   for (const plant of plants) {
     const plantTasks = allTasks.filter(t => t.plantId === plant.id);
-    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData);
+    const plantVines = allVinesData.filter(v => v.plantId === plant.id);
+    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines);
     allRecommended = allRecommended.concat(recommended);
   }
   
@@ -3433,6 +3563,8 @@ async function deletePlant(plantId) {
   for (const t of tasks) await dbDelete('tasks', t.id);
   const clusters = (await dbGetAll('clusters')).filter(c => c.plantId === plantId);
   for (const c of clusters) await dbDelete('clusters', c.id);
+  const vines = (await dbGetAll('vines')).filter(v => v.plantId === plantId);
+  for (const v of vines) await dbDelete('vines', v.id);
   navigate('plants');
 }
 
@@ -3776,6 +3908,101 @@ async function recordTask(task) {
   await dbPut('tasks', task);
 }
 
+// =================================================
+// パッションフルーツ つる管理（vines）
+// =================================================
+async function getOrCreateVine(plantId, vineType, vineIndex) {
+  const all = await dbGetAll('vines');
+  let v = all.find(x => x.plantId === plantId && x.vineType === vineType && x.vineIndex === vineIndex);
+  if (!v) {
+    v = {
+      id: uid(),
+      plantId,
+      vineType,
+      vineIndex,
+      pinchedAt: null,
+      grandchildren: 0,
+      flowers: 0,
+      fruits: 0,
+      taskId: null
+    };
+  }
+  return v;
+}
+
+async function markVinePinch(plantId, vineType, vineIndex) {
+  const v = await getOrCreateVine(plantId, vineType, vineIndex);
+  if (v.pinchedAt) return; // 既に摘心済みなら何もしない
+  const now = new Date().toISOString();
+  v.pinchedAt = now;
+  
+  // 履歴にも記録（既存の pinching 互換）
+  const target = vineType === 'main' ? 'main' : 'child';
+  const taskId = uid();
+  await dbPut('tasks', {
+    id: taskId,
+    plantId,
+    type: 'pinching',
+    date: now,
+    details: { target, vineIndex },
+    notes: `${vineType === 'main' ? '主枝' : `子づる${['①','②','③','④'][vineIndex-1]}`}摘心`
+  });
+  v.taskId = taskId;
+  await dbPut('vines', v);
+  await renderPlantDetail(plantId);
+}
+
+async function undoVinePinch(plantId, vineType, vineIndex) {
+  const label = vineType === 'main' ? '主枝' : `子づる${['①','②','③','④'][vineIndex-1]}`;
+  if (!confirm(`${label}の摘心記録を取り消しますか？\n（履歴からも削除されます）`)) return;
+  const all = await dbGetAll('vines');
+  const v = all.find(x => x.plantId === plantId && x.vineType === vineType && x.vineIndex === vineIndex);
+  if (!v) return;
+  // 連動する履歴を削除
+  if (v.taskId) {
+    await dbDelete('tasks', v.taskId);
+  }
+  // カウント類が残っていれば vines レコード自体は残し、pinchedAt と taskId だけクリア
+  if ((v.grandchildren || 0) > 0 || (v.flowers || 0) > 0 || (v.fruits || 0) > 0) {
+    v.pinchedAt = null;
+    v.taskId = null;
+    await dbPut('vines', v);
+  } else {
+    // 何も残っていなければレコードごと削除
+    await dbDelete('vines', v.id);
+  }
+  await renderPlantDetail(plantId);
+}
+
+async function adjustVineCount(plantId, vineType, vineIndex, field, delta) {
+  const v = await getOrCreateVine(plantId, vineType, vineIndex);
+  v[field] = Math.max(0, (v[field] || 0) + delta);
+  await dbPut('vines', v);
+  await renderPlantDetail(plantId);
+}
+
+// 履歴アイテムの個別削除
+async function deleteHistoryItem(taskId) {
+  if (!confirm('この履歴を削除しますか？')) return;
+  const task = await dbGet('tasks', taskId);
+  await dbDelete('tasks', taskId);
+  // 連動するvinesがあれば整合：摘心済フラグも取り消す
+  if (task && task.type === 'pinching') {
+    const allVines = await dbGetAll('vines');
+    const linked = allVines.find(v => v.taskId === taskId);
+    if (linked) {
+      if ((linked.grandchildren || 0) > 0 || (linked.flowers || 0) > 0 || (linked.fruits || 0) > 0) {
+        linked.pinchedAt = null;
+        linked.taskId = null;
+        await dbPut('vines', linked);
+      } else {
+        await dbDelete('vines', linked.id);
+      }
+    }
+  }
+  if (currentPlantId) await renderPlantDetail(currentPlantId);
+}
+
 async function addCluster(plantId, segmentNumber, stem) {
   showModal(`
     <h2 class="modal-title">🌸 第${segmentNumber}花房を追加${stem === 'B' ? '（B枝）' : ''}</h2>
@@ -3963,13 +4190,70 @@ async function markTask(taskKey, taskData, status) {
         }
       }
     }
-    await recordTask({
+    
+    const taskId = uid();
+    await dbPut('tasks', {
+      id: taskId,
       plantId: taskData.plantId,
       type: taskData.action,
       date: new Date().toISOString(),
       details,
       notes: '（タスクから自動記録）'
     });
+    
+    // パッション pinching：vines テーブルにも反映
+    //   主枝→必ずmain#1
+    //   子づる→未摘心の若いインデックス（①→②→③→④）に自動割当
+    if (taskData.action === 'pinching' && taskData.plantId && (details.target === 'main' || details.target === 'child')) {
+      const allVines = await dbGetAll('vines');
+      const myVines = allVines.filter(v => v.plantId === taskData.plantId);
+      if (details.target === 'main') {
+        const mainVine = myVines.find(v => v.vineType === 'main' && v.vineIndex === 1);
+        if (mainVine) {
+          if (!mainVine.pinchedAt) {
+            mainVine.pinchedAt = new Date().toISOString();
+            mainVine.taskId = taskId;
+            await dbPut('vines', mainVine);
+          }
+        } else {
+          await dbPut('vines', {
+            id: uid(),
+            plantId: taskData.plantId,
+            vineType: 'main',
+            vineIndex: 1,
+            pinchedAt: new Date().toISOString(),
+            grandchildren: 0, flowers: 0, fruits: 0,
+            taskId
+          });
+        }
+      } else if (details.target === 'child') {
+        // 空きスロット（pinchedAt が null）または存在しないスロットを若い順に探す
+        let assigned = false;
+        for (let idx = 1; idx <= 4; idx++) {
+          const existing = myVines.find(v => v.vineType === 'child' && v.vineIndex === idx);
+          if (!existing) {
+            await dbPut('vines', {
+              id: uid(),
+              plantId: taskData.plantId,
+              vineType: 'child',
+              vineIndex: idx,
+              pinchedAt: new Date().toISOString(),
+              grandchildren: 0, flowers: 0, fruits: 0,
+              taskId
+            });
+            assigned = true;
+            break;
+          } else if (!existing.pinchedAt) {
+            existing.pinchedAt = new Date().toISOString();
+            existing.taskId = taskId;
+            await dbPut('vines', existing);
+            assigned = true;
+            break;
+          }
+        }
+        // 4本とも摘心済みなら何もしない（履歴だけ残す）
+      }
+    }
   }
   
   await renderTasks();
@@ -3994,6 +4278,7 @@ async function exportData(includePhotos = null) {
     plants: await dbGetAll('plants'),
     tasks: await dbGetAll('tasks'),
     clusters: await dbGetAll('clusters'),
+    vines: await dbGetAll('vines'),
     settings: await dbGetAll('settings'),
     exportedAt: new Date().toISOString(),
     version: includePhotos ? '2.0' : '1.0'
@@ -4056,6 +4341,7 @@ async function handleImport(event) {
     for (const p of data.plants || []) await dbPut('plants', p);
     for (const t of data.tasks || []) await dbPut('tasks', t);
     for (const c of data.clusters || []) await dbPut('clusters', c);
+    for (const v of data.vines || []) await dbPut('vines', v);
     for (const s of data.settings || []) await dbPut('settings', s);
     // 写真データ復元
     for (const p of data.photos || []) {
