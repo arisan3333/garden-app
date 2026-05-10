@@ -2092,7 +2092,7 @@ async function renderPlantDetail(plantId) {
   
   let tabContent = '';
   if (currentTab === 'overview') {
-    tabContent = renderOverviewTab(plant, tasks);
+    tabContent = renderOverviewTab(plant, tasks, vines);
   } else if (currentTab === 'pruning') {
     tabContent = renderPruningTab(plant, clusters, tasks, vines);
   } else if (currentTab === 'history') {
@@ -2120,7 +2120,7 @@ async function renderPlantDetail(plantId) {
   document.getElementById('app').innerHTML = html;
 }
 
-function renderOverviewTab(plant, tasks) {
+function renderOverviewTab(plant, tasks, vines = []) {
   const sp = SPECIES[plant.species];
   const days = dayDiff(plant.plantingDate);
   const trainingLabel = (TRAINING_METHODS[plant.species] || []).find(t => t.value === plant.trainingMethod)?.label || '';
