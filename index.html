@@ -2096,7 +2096,7 @@ async function renderPlantDetail(plantId) {
   } else if (currentTab === 'pruning') {
     tabContent = renderPruningTab(plant, clusters, tasks, vines);
   } else if (currentTab === 'history') {
-    tabContent = renderHistoryTab(tasks);
+    tabContent = await renderHistoryTab(tasks);
   } else if (currentTab === 'photos') {
     tabContent = await renderPhotosTab(plant);
   }
@@ -3239,7 +3239,7 @@ function renderPassionPruning(plant, tasks, vines) {
   `;
 }
 
-function renderHistoryTab(tasks) {
+async function renderHistoryTab(tasks) {
   if (tasks.length === 0) {
     return '<div class="card empty"><div class="icon">📋</div>まだ作業記録がありません</div>';
   }
@@ -3266,12 +3266,34 @@ function renderHistoryTab(tasks) {
     observation: { icon: '👀', label: '観察' }
   };
   
+  // 観察記録に紐付いた写真を取得
+  const allPhotos = await dbGetAll('photos');
+  
   return `
     <div class="card">
       <div class="card-title">📋 作業履歴 (${tasks.length}件)</div>
       <div>
         ${tasks.map(t => {
           const action = ACTION_LABELS[t.type] || { icon: '📝', label: t.type };
+          // 観察記録の写真サムネイル
+          let photosHtml = '';
+          if (t.type === 'observation' && Array.isArray(t.details?.photoIds) && t.details.photoIds.length > 0) {
+            const linkedPhotos = t.details.photoIds
+              .map(pid => allPhotos.find(p => p.id === pid))
+              .filter(p => p);
+            if (linkedPhotos.length > 0) {
+              photosHtml = `
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+                  ${linkedPhotos.map(p => `
+                    <div style="width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid #e5e7eb;cursor:pointer;" 
+                         onclick="openPhotoViewer('${p.id}','${p.plantId}')">
+                      <img src="${getPhotoUrl(p)}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
+                    </div>
+                  `).join('')}
+                </div>
+              `;
+            }
+          }
           return `
             <div class="timeline-item" style="display:flex;gap:8px;align-items:flex-start;">
               <div class="timeline-icon">${action.icon}</div>
@@ -3279,6 +3301,7 @@ function renderHistoryTab(tasks) {
                 <div class="timeline-date">${dateStr(t.date)}</div>
                 <div class="timeline-title">${action.label}${t.details?.count ? ` × ${t.details.count}` : ''}${t.details?.cluster ? ` 第${t.details.cluster}花房` : ''}${t.details?.round ? ` ${t.details.round}回目` : ''}</div>
                 ${t.notes ? `<div class="timeline-note">${t.notes}</div>` : ''}
+                ${photosHtml}
               </div>
               <button onclick="deleteHistoryItem('${t.id}')" title="この履歴を削除" style="background:transparent;border:none;color:#9ca3af;font-size:16px;cursor:pointer;padding:4px 8px;align-self:center;">🗑️</button>
             </div>
@@ -3735,6 +3758,10 @@ async function recordAction(action, actionData) {
     showPinchingModal();
     return;
   }
+  if (action === 'observation') {
+    showObservationModal();
+    return;
+  }
   // その他は即座に記録
   showQuickRecordModal(action, actionData);
 }
@@ -3947,6 +3974,136 @@ async function saveSideShoot() {
     notes
   });
   await syncTaskStateOnRecord(currentPlantId, 'side_shoot_removal');
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+// =================================================
+// 観察記録（写真添付対応）
+// =================================================
+let _pendingObservationPhotos = []; // {id, url, blob, takenAt}
+
+function showObservationModal() {
+  _pendingObservationPhotos = [];
+  showModal(`
+    <h2 class="modal-title">👀 観察を記録</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();saveObservation();">
+      <div class="form-group">
+        <label>日時</label>
+        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+      </div>
+      <div class="form-group">
+        <label>メモ</label>
+        <textarea id="notesInput" placeholder="例：新葉が展開、第1花房開花、葉色やや黄色気味…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>写真（任意・複数枚可）</label>
+        <div id="obsPhotoList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn btn-small btn-secondary" style="flex:1;" onclick="pickObservationPhoto(true)">📸 撮影</button>
+          <button type="button" class="btn btn-small btn-secondary" style="flex:1;" onclick="pickObservationPhoto(false)">🖼️ ギャラリー</button>
+        </div>
+      </div>
+      <button type="submit" class="btn">記録</button>
+    </form>
+  `);
+}
+
+function pickObservationPhoto(useCamera) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  if (useCamera) input.capture = 'environment';
+  if (!useCamera) input.multiple = true;
+  input.style.display = 'none';
+  input.onchange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) {
+      document.body.removeChild(input);
+      return;
+    }
+    showUploadProgress(`圧縮中… ${files.length}枚`);
+    try {
+      for (const f of files) {
+        const blob = await compressImage(f);
+        const id = 'photo_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const url = URL.createObjectURL(blob);
+        _pendingObservationPhotos.push({
+          id, blob, url,
+          takenAt: new Date().toISOString()
+        });
+      }
+      renderObservationPhotoList();
+    } catch (err) {
+      console.error('photo prep failed', err);
+      alert('写真の処理に失敗しました');
+    } finally {
+      hideUploadProgress();
+      document.body.removeChild(input);
+    }
+  };
+  document.body.appendChild(input);
+  input.click();
+}
+
+function renderObservationPhotoList() {
+  const list = document.getElementById('obsPhotoList');
+  if (!list) return;
+  list.innerHTML = _pendingObservationPhotos.map(p => `
+    <div style="position:relative;width:64px;height:64px;border-radius:6px;overflow:hidden;border:1px solid #e5e7eb;">
+      <img src="${p.url}" style="width:100%;height:100%;object-fit:cover;">
+      <button type="button" onclick="removePendingObservationPhoto('${p.id}')" 
+              style="position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;background:rgba(0,0,0,0.6);color:white;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;padding:0;">×</button>
+    </div>
+  `).join('');
+}
+
+function removePendingObservationPhoto(id) {
+  const target = _pendingObservationPhotos.find(p => p.id === id);
+  if (target) URL.revokeObjectURL(target.url);
+  _pendingObservationPhotos = _pendingObservationPhotos.filter(p => p.id !== id);
+  renderObservationPhotoList();
+}
+
+async function saveObservation() {
+  const date = document.getElementById('dateInput').value;
+  const notes = document.getElementById('notesInput').value.trim();
+  const isoDate = new Date(date).toISOString();
+  
+  // task記録（写真IDsをdetailsに含める）
+  const taskId = uid();
+  const photoIds = _pendingObservationPhotos.map(p => p.id);
+  await dbPut('tasks', {
+    id: taskId,
+    plantId: currentPlantId,
+    type: 'observation',
+    date: isoDate,
+    details: { photoIds },
+    notes
+  });
+  
+  // 写真をphotos storeに保存（taskIdで紐付け）
+  for (const p of _pendingObservationPhotos) {
+    await dbPut('photos', {
+      id: p.id,
+      plantId: currentPlantId,
+      blob: p.blob,
+      takenAt: p.takenAt,
+      memo: notes,
+      createdAt: new Date().toISOString(),
+      taskId
+    });
+    URL.revokeObjectURL(p.url); // モーダル内のプレビュー用URLは破棄
+  }
+  
+  // 入力日時が今日ならtaskStateを完了に
+  const inputDate = new Date(isoDate);
+  if (inputDate.toDateString() === new Date().toDateString()) {
+    await syncTaskStateOnRecord(currentPlantId, 'observation');
+  }
+  
+  _pendingObservationPhotos = [];
   closeModal();
   await renderPlantDetail(currentPlantId);
 }
@@ -5229,6 +5386,7 @@ async function renderPhotosTab(plant) {
                 <img src="${getPhotoUrl(p)}" alt="" loading="lazy">
                 <div class="day-badge">D${dayN >= 0 ? dayN : 0}</div>
                 ${p.memo ? '<div class="memo-icon">📝</div>' : ''}
+                ${p.taskId ? '<div style="position:absolute;top:4px;left:4px;background:rgba(255,255,255,0.85);border-radius:4px;padding:1px 4px;font-size:11px;">👀</div>' : ''}
               </div>
             `;
           }).join('')}
