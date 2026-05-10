@@ -318,7 +318,7 @@ body {
 .pruning-svg {
   max-width: 100%;
   height: auto;
-  margin: 12px auto;
+  margin: 4px auto;
 }
 .cluster-info {
   background: #f9fafb;
@@ -812,6 +812,127 @@ body {
   color: var(--text);
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
+
+
+/* === Next Season Feedback === */
+.feedback-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.feedback-summary .stat {
+  background: white;
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.feedback-summary .stat .num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  line-height: 1.1;
+}
+.feedback-summary .stat .label {
+  font-size: 10px;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+.feedback-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.feedback-item {
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.feedback-item strong { color: var(--text); }
+.feedback-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  margin: 2px 4px 2px 0;
+}
+.feedback-badge.warn { background:#fef3c7; color:#92400e; }
+.feedback-badge.info { background:#dbeafe; color:#1e40af; }
+.feedback-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.feedback-table th,
+.feedback-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.feedback-table th { color: var(--text-light); font-weight: 600; }
+.feedback-table td:last-child,
+.feedback-table th:last-child { text-align: right; }
+.heat-option-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.heat-option {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.heat-option b { color:#9a3412; }
+
+
+/* === Fertilizer / vigor diagnosis === */
+.fertilizer-guide {
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.fertilizer-guide .guide-title {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.diagnosis-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.diagnosis-card {
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: white;
+}
+.diagnosis-card.over { background:#fff7ed; border-color:#fed7aa; }
+.diagnosis-card.weak { background:#eff6ff; border-color:#bfdbfe; }
+.diagnosis-card.ok { background:#ecfdf5; border-color:#bbf7d0; }
+.diagnosis-card .title { font-weight:700; margin-bottom:4px; }
+.diagnosis-card.over .title { color:#9a3412; }
+.diagnosis-card.weak .title { color:#1d4ed8; }
+.diagnosis-card.ok .title { color:#047857; }
+
 </style>
 </head>
 <body>
@@ -862,15 +983,15 @@ const TRAINING_METHODS = {
     { value: 'two_stem', label: '2本仕立て' }
   ],
   eggplant: [
-    { value: 'two_stem', label: '2本仕立て（基本）' },
-    { value: 'two_stem_one_fruit', label: '2本仕立て + 側枝一果（長期多収）' },
+    { value: 'two_stem', label: '2本仕立て' },
+    { value: 'two_stem_one_fruit', label: '側枝一果' },
     { value: 'three_stem', label: '3本仕立て' },
     { value: 'andon', label: 'あんどん仕立て' }
   ],
   pepper: [
-    { value: 'two_stem', label: '2本仕立て（基本）' },
-    { value: 'two_stem_advanced', label: '2本仕立て + 上級者整枝（親子孫）' },
-    { value: 'three_stem', label: '3又仕立て' },
+    { value: 'two_stem', label: '2本仕立て' },
+    { value: 'two_stem_advanced', label: '親子孫整枝' },
+    { value: 'three_stem', label: '3本仕立て' },
     { value: 'andon', label: 'あんどん仕立て' }
   ],
   passion: [
@@ -1119,6 +1240,8 @@ async function fetchWeather() {
     return {
       tempMax: data.daily.temperature_2m_max[0],
       tempMin: data.daily.temperature_2m_min[0],
+      tomorrowTempMax: data.daily.temperature_2m_max[1] || null,
+      tomorrowTempMin: data.daily.temperature_2m_min[1] || null,
       precip: data.daily.precipitation_probability_max[0],
       windMax: data.daily.wind_speed_10m_max[0],
       tomorrowPrecip: data.daily.precipitation_probability_max[1] || 0,
@@ -1144,6 +1267,19 @@ function weatherIcon(code) {
 function weatherAlerts(weather) {
   const alerts = [];
   if (!weather.success) return alerts;
+  // 高温・猛暑（南向きベランダは床面/鉢への照り返しで実測より厳しくなりやすい）
+  const tMax = Number(weather.tempMax || 0);
+  const tomorrowMax = Number(weather.tomorrowTempMax || 0);
+  if (tMax >= 35) {
+    alerts.push({ type: 'heat', msg: `🔥 今日は猛暑予報（最高${Math.round(tMax)}℃）。遮光・鉢温対策・朝夕の水切れ確認を。夕方の打ち水は補助策。パッションは着果しにくいので記録重視` });
+  } else if (tMax >= 33) {
+    alerts.push({ type: 'heat', msg: `☀️ 今日は高温注意（最高${Math.round(tMax)}℃）。昼の直射・鉢の加熱・夕方のしおれを確認。打ち水は夕方に補助的に` });
+  }
+  if (tomorrowMax >= 35) {
+    alerts.push({ type: 'heat', msg: `🔥 明日は猛暑予報（最高${Math.round(tomorrowMax)}℃）。遮光ネット/すだれ、鉢カバー、マルチングを前日準備。打ち水用の水も夕方用に` });
+  } else if (tomorrowMax >= 33) {
+    alerts.push({ type: 'heat', msg: `☀️ 明日は高温予報（最高${Math.round(tomorrowMax)}℃）。朝の水やりと鉢温対策を準備。打ち水は夕方の補助策` });
+  }
   // 大雨
   if (weather.precip >= 70) alerts.push({ type: 'rain', msg: '🌧️ 今日は雨予報、トマトに雨除けカバーを推奨' });
   if (weather.tomorrowPrecip >= 80) alerts.push({ type: 'rain', msg: '⚠️ 明日は大雨予報、雨除け準備を' });
@@ -1156,12 +1292,35 @@ function weatherAlerts(weather) {
 // =================================================
 // 自動レコメンドタスク生成（今日のタスク用）
 // =================================================
-function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vines = []) {
+function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vines = [], appSettings = {}) {
   const tasks = [];
   const days = dayDiff(plant.plantingDate);
   const displayName = plant.name || SPECIES[plant.species].name;
   const lastWatering = lastTasks.find(t => t.type === 'watering');
   const daysSinceWater = lastWatering ? dayDiff(lastWatering.date) : 999;
+
+  // 高温アラート（南向きベランダ向け）
+  // 天気APIの最高気温が33℃以上なら、実際の鉢・床面はさらに熱くなりやすい前提で確認タスクを出す。
+  if (weather.success) {
+    const tMax = Number(weather.tempMax || 0);
+    const tomorrowMax = Number(weather.tomorrowTempMax || 0);
+    const heatToday = tMax >= 33;
+    const extremeHeat = tMax >= 35;
+    const heatTomorrow = tomorrowMax >= 35;
+    const lastHeat = lastTasks.find(t => t.type === 'heat_protection');
+    const alreadyCheckedToday = lastHeat && dayDiff(lastHeat.date) === 0;
+    if ((heatToday || heatTomorrow) && !alreadyCheckedToday) {
+      const tempText = heatToday ? `今日${Math.round(tMax)}℃` : `明日${Math.round(tomorrowMax)}℃`;
+      const passionNote = plant.species === 'passion' ? '。高温期は着果しにくいので、開花/落蕾/着果の記録も' : '';
+      tasks.push({
+        type: extremeHeat ? 'must' : 'recommended',
+        action: 'heat_protection',
+        title: `☀️ ${displayName}: 暑さ対策チェック`,
+        desc: `${tempText}予報。遮光・鉢カバー・マルチング・夕方の水切れを確認。打ち水は夕方に鉢周りへ${passionNote}`,
+        plantId: plant.id
+      });
+    }
+  }
 
   // 水やり推奨（フェーズと天気で判断）
   // 種別の特性（リサーチ反映）：
@@ -1216,12 +1375,12 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     });
   }
 
-  // 液肥（毎週）— 株種類によって開始タイミングが異なる
+  // 液肥（多くは週1、生姜は2週間に1回）— 株種類によって開始タイミングが異なる
   // 固形肥料を最近やっていれば液肥はレコメンドしない（液肥or固形のうち新しい方の経過日数で判定）
   // 開始タイミング：
   //   トマト：第3花房開花後
   //   ナス・ピーマン・パッション：植え付け21日後（一番花が咲き実がつき始める頃）
-  //   生姜：植え付け14日後（さらに6月中旬以降の固形肥料スケジュールあり）
+  //   生姜：草丈15cm相当/45日頃から。液肥メインでも2週間に1回、8月中旬以降は控えめ
   //   オクラ・三つ葉・小ねぎ：自動レコメンドなし
   const NO_FERTILIZER_AUTO = ['okra', 'mitsuba', 'negi'];
   const FRUIT_DELAY_SPECIES = ['eggplant', 'pepper', 'passion'];
@@ -1242,22 +1401,30 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
       // パッションは植え付け21日後（一番花が咲き実がつき始める頃）
       canFertilize = days >= 21;
     } else if (plant.species === 'ginger') {
-      // 生姜は1回目の固形追肥（6月中旬）が完了するまで液肥アラートを出さない
-      const granularCount = lastTasks.filter(t => t.type === 'fertilize_granular').length;
-      canFertilize = granularCount >= 1;
+      // 生姜は方針で分ける。液肥メイン/併用のみハイポ液肥を自動候補にし、開始は草丈15cm/本葉2〜3枚の記録後。
+      const course = _gingerFertilizerCourse(plant);
+      const now = new Date();
+      const afterMidAugust = (now.getMonth() + 1 > 8) || ((now.getMonth() + 1 === 8) && now.getDate() >= 16);
+      canFertilize = course !== 'solid' && _gingerStartTriggered(plant, lastTasks) && !afterMidAugust;
     } else {
       canFertilize = days >= 14;
     }
     
     if (canFertilize) {
-      const lastLiquid = lastTasks.find(t => t.type === 'fertilize_liquid');
-      const lastGranular = lastTasks.find(t => t.type === 'fertilize_granular');
+      const lastLiquid = lastTasks.find(t => _isActualLiquidFertilizerTask(t));
+      const lastGranular = lastTasks.find(t => _isLiquidIntervalBlockingGranular(t));
       const daysSinceLiquid = lastLiquid ? dayDiff(lastLiquid.date) : 999;
       const daysSinceGranular = lastGranular ? dayDiff(lastGranular.date) : 999;
-      // 液肥 or 固形のうち、より新しい方の経過日数を使う
-      const daysSinceAny = Math.min(daysSinceLiquid, daysSinceGranular);
+      let daysSinceAny = Math.min(daysSinceLiquid, daysSinceGranular);
+      let liquidIntervalDays = plant.species === 'ginger' ? GINGER_LIQUID_INTERVAL_DAYS : 7;
+      if (plant.species === 'ginger') {
+        const course = _gingerFertilizerCourse(plant);
+        // 液肥メインでは固形記録で液肥周期をリセットしない。併用では固形直後7日だけ重ね打ちを避ける。
+        daysSinceAny = daysSinceLiquid;
+        if (course === 'combo' && daysSinceGranular < 7) daysSinceAny = 0;
+      }
       
-      if (daysSinceAny >= 7) {
+      if (_shouldShowLiquidFertilizerTask(daysSinceAny, liquidIntervalDays, plant.species, appSettings)) {
         let descText;
         if (daysSinceAny === 999) {
           descText = '初回';
@@ -1268,8 +1435,13 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
         }
         // なすは肥料食いだがリン酸過多に注意。ハイポネックス原液(6-10-5)でも家庭菜園量なら問題なし
         if (plant.species === 'eggplant') {
-          descText += '（なす：N・K重視。ハイポ原液でOK、量は控えめに）';
+          descText += '（なす：N・K重視。ハイポ原液でOK）';
         }
+        if (plant.species === 'ginger') {
+          descText += '（生姜：液肥メインは2週間に1回。増し土は別作業）';
+        }
+        const weekdayNote = _liquidWeekdayDesc(appSettings);
+        if (weekdayNote) descText += ` ${weekdayNote}`;
         tasks.push({
           type: 'recommended',
           action: 'fertilize_liquid',
@@ -1325,7 +1497,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     
     // 初めての追肥：第3花房に花がついたら（=cluster3 が blooming 以降）
     const cluster3Blooming = cluster3 && ['blooming', 'fruiting', 'harvesting', 'finished'].includes(cluster3.status);
-    const fertilizeHistory = lastTasks.filter(t => t.type === 'fertilize_granular' || t.type === 'fertilize_liquid');
+    const fertilizeHistory = lastTasks.filter(t => _isLiquidIntervalBlockingGranular(t) || _isActualLiquidFertilizerTask(t));
     
     if (cluster3Blooming && fertilizeHistory.length === 0) {
       tasks.push({
@@ -1538,23 +1710,26 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
           type: 'recommended',
           action: 'pollination',
           title: `🐝 ${displayName}: 人工授粉チェック`,
-          desc: '朝10時頃、開花してたら別の花の花粉を',
+          desc: '開花当日なるべく早めに人工授粉。高温期は着果しにくいので記録重視',
           plantId: plant.id
         });
       }
     }
     
-    // リンカリ追肥（着蕾期から）
+    // リンカリ/リン酸資材（着蕾期から）
+    // 固形/顆粒は30日、緩効性は45日、液体リン酸資材は14日を目安にする。
+    // ハイポ＋リキダス液肥とは別枠で、液肥間隔はリセットしない。
     if (days >= 30) {
-      const lastGranular = lastTasks.find(t => t.type === 'fertilize_granular');
-      const daysSinceGranular = lastGranular ? dayDiff(lastGranular.date) : 999;
-      const interval = days >= 50 ? 14 : 30; // 開花期は2週間、それ以前は月1回
-      if (daysSinceGranular >= interval) {
+      const lastPk = lastTasks.find(t => _isPassionPhosphorusTask(t));
+      const daysSincePk = lastPk ? dayDiff(lastPk.date) : 999;
+      const interval = lastPk ? _phosphorusIntervalDays(lastPk.details?.fertilizerKind) : 30;
+      if (daysSincePk >= interval) {
+        const kindText = lastPk ? `${_granularKindLabel(lastPk.details?.fertilizerKind)}の目安${interval}日` : '固形/顆粒は30日、液体資材は14日、緩効性は45日が目安';
         tasks.push({
           type: 'recommended',
           action: 'fertilize_granular',
-          title: `💊 ${displayName}: リンカリ肥料`,
-          desc: lastGranular ? `前回から${daysSinceGranular}日` : '初回',
+          title: `💊 ${displayName}: リンカリ/リン酸資材`,
+          desc: lastPk ? `前回から${daysSincePk}日（${kindText}）` : `初回（${kindText}）`,
           plantId: plant.id
         });
       }
@@ -1591,63 +1766,52 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
       });
     }
     
-    // 増し土（葉が4-5枚展開後、3週間ごと）
-    if (days >= 45) {
+    // 増し土（開始トリガー後、月1回を目安に最大3回）
+    if (_gingerStartTriggered(plant, lastTasks)) {
       const topsoils = lastTasks.filter(t => t.type === 'topsoil');
       const lastTopsoil = topsoils[0];
       const daysSinceTopsoil = lastTopsoil ? dayDiff(lastTopsoil.date) : 999;
-      if (topsoils.length < 3 && daysSinceTopsoil >= 21) {
+      if (topsoils.length < 3 && daysSinceTopsoil >= 30) {
         tasks.push({
           type: 'recommended',
           action: 'topsoil',
           title: `🫚 ${displayName}: 増し土 (${topsoils.length + 1}回目)`,
-          desc: '新しい根茎が地表に出ないように',
+          desc: '月1回を目安に株元へ培養土を足し、根茎が露出しないようにします',
           plantId: plant.id
         });
       }
     }
     
-    // 追肥タイミング（生姜専用：月1回、6月中旬→7月中旬→8月中旬）
-    // 国産高度化成 14-14-14 を 1㎡当たり30〜50g、中耕・土寄せとセット
+    // 生姜の追肥開始トリガー確認（プランター向け）
     {
-      const today = new Date();
-      const month = today.getMonth() + 1;
-      const date = today.getDate();
-      const fertilizeHistory = lastTasks.filter(t => 
-        t.type === 'fertilize_granular' || t.type === 'fertilize_liquid'
-      );
-      const fertilizeCount = fertilizeHistory.length;
-      const lastFert = fertilizeHistory[0];
-      const daysSinceFert = lastFert ? dayDiff(lastFert.date) : 999;
-      
-      // 1回目：6月中旬（6/10〜6/25、本葉2-3枚の頃）
-      const inJun = month === 6 && date >= 10 && date <= 25;
-      // 2回目：7月中旬（7/10〜7/25、草丈30cmの頃）
-      const inJul = month === 7 && date >= 10 && date <= 25;
-      // 3回目：8月中旬まで（8/1〜8/15）
-      const inAug = month === 8 && date <= 15;
-      
-      let windowName = null;
-      let phaseDesc = null;
-      if (inJun && fertilizeCount === 0) {
-        windowName = '1回目（6月中旬）';
-        phaseDesc = '本葉2-3枚の頃。中耕・土寄せもセットで';
-      } else if (inJul && fertilizeCount === 1 && daysSinceFert >= 21) {
-        windowName = '2回目（7月中旬）';
-        phaseDesc = '草丈30cm生長時。中耕・土寄せもセットで';
-      } else if (inAug && fertilizeCount === 2 && daysSinceFert >= 21) {
-        windowName = '3回目（8月中旬まで）';
-        phaseDesc = '最後の追肥。中耕・土寄せもセットで';
-      }
-      
-      if (windowName) {
+      const course = _gingerFertilizerCourse(plant);
+      const triggered = _gingerStartTriggered(plant, lastTasks);
+      const now = new Date();
+      const afterMidAugust = (now.getMonth() + 1 > 8) || ((now.getMonth() + 1 === 8) && now.getDate() >= 16);
+      if (!triggered && days >= 25 && !afterMidAugust) {
         tasks.push({
-          type: 'must',
-          action: 'fertilize_granular',
-          title: `🫚 ${displayName}: 追肥 ${windowName}`,
-          desc: `${phaseDesc}（高度化成14-14-14を30-50g/㎡）`,
+          type: 'recommended',
+          action: 'observation',
+          title: `🫚 ${displayName}: 追肥開始トリガー確認`,
+          desc: '草丈15cm前後、または本葉2〜3枚が見えたら概要タブで記録。記録後に方針別の追肥予定を出します',
           plantId: plant.id
         });
+      }
+      if (triggered && course !== 'liquid' && !afterMidAugust) {
+        const granularHistory = lastTasks.filter(t => t.type === 'fertilize_granular');
+        const granularCount = granularHistory.length;
+        const lastGranular = granularHistory[0];
+        const daysSinceGranular = lastGranular ? dayDiff(lastGranular.date) : 999;
+        if (granularCount === 0 || (granularCount < 3 && daysSinceGranular >= 30)) {
+          const nth = granularCount + 1;
+          tasks.push({
+            type: 'recommended',
+            action: 'fertilize_granular',
+            title: `🫚 ${displayName}: ${nth}回目の固形追肥＋増し土`,
+            desc: 'プランターでは商品規定量の少なめから。株元に培養土を足して、根茎が露出しないようにします',
+            plantId: plant.id
+          });
+        }
       }
     }
   }
@@ -1714,8 +1878,8 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
   }
 
   // やさお酢散布（食酢ベース・回数制限なし・3日サイクル予防）
-  // 対象：トマト・ナス・ピーマン・パッション・オクラ（虫がつく実野菜）
-  if (['tomato', 'eggplant', 'pepper', 'passion', 'okra'].includes(plant.species)) {
+  // 対象：全作物（野菜・果樹・葉物など）。弱っている株や傷のある株は避ける。
+  {
     const vinegarHistory = lastTasks.filter(t => t.type === 'vinegar_spray');
     const lastVinegar = vinegarHistory[0];
     const daysSinceVinegar = lastVinegar ? dayDiff(lastVinegar.date) : 999;
@@ -1749,7 +1913,7 @@ function generateUpcomingTasks(plant, lastTasks, vines = []) {
   // 液肥開始タイミング（株別）
   // トマト：第3花房開花時 → 花房依存
   // ナス・ピーマン・パッション：21日後
-  // 生姜：1回目の固形追肥後（6月中旬以降）
+  // 生姜：草丈15cm相当/45日頃から。液肥メインでも2週間に1回
   // オクラ・三つ葉・小ねぎ：自動アラートなし
   if (sp === 'passion') {
     // パッション：植え付け21日後（実装は days >= 21 の純粋な日数判定）
@@ -1761,11 +1925,10 @@ function generateUpcomingTasks(plant, lastTasks, vines = []) {
       tasks.push({ daysOffset: '随時', label: '🧪 液肥開始（一番果の着果後 / 35日後フォールバック）', urgent: false });
     }
   } else if (sp === 'ginger') {
-    // 生姜の液肥は1回目の固形追肥（6月中旬）後から
-    const today = new Date();
-    const yr = today.getFullYear();
-    const dToJun15 = Math.floor((new Date(yr, 5, 15) - today) / (1000*60*60*24));
-    if (dToJun15 >= 0) tasks.push({ daysOffset: dToJun15, label: '🧪 液肥開始（1回目の追肥後から）', urgent: false });
+    // 生姜の液肥は草丈15cm相当/45日頃から。液肥メインでも2週間に1回
+    if (days < 45) {
+      tasks.push({ daysOffset: 45 - days, label: '🧪 液肥開始（45日頃から・2週間に1回）', urgent: false });
+    }
   }
   // トマトは下で個別処理、オクラ等は表示なし
   
@@ -1828,7 +1991,7 @@ function generateUpcomingTasks(plant, lastTasks, vines = []) {
       tasks.push({ daysOffset: Math.max(0, 30 - days), label: `✂️ 子づる摘心（残${remaining}本／リング1周＝約50cmで）`, urgent: false });
     }
     if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🐝 開花・人工授粉開始', urgent: false });
-    if (days < 30) tasks.push({ daysOffset: 30 - days, label: '💊 リンカリ肥料開始', urgent: false });
+    if (days < 30) tasks.push({ daysOffset: 30 - days, label: '💊 リンカリ/リン酸資材開始', urgent: false });
     if (days < 90) tasks.push({ daysOffset: 90 - days, label: '🧺 収穫開始', urgent: false });
     
     const month = new Date().getMonth() + 1;
@@ -1839,20 +2002,39 @@ function generateUpcomingTasks(plant, lastTasks, vines = []) {
   }
   
   if (sp === 'ginger') {
-    if (days < 30) tasks.push({ daysOffset: 30 - days, label: '🌱 発芽チェック・水やり頻度UP', urgent: false });
-    if (days < 45) tasks.push({ daysOffset: 45 - days, label: '🪴 1回目の増し土', urgent: false });
-    
-    // 追肥タイミング（月日ベースで計算）
+    const course = _gingerFertilizerCourse(plant);
+    const triggered = _gingerStartTriggered(plant, lastTasks);
+    const startDate = _gingerStartDate(plant, lastTasks);
+    const lastLiquidDays = _daysSinceLastActualLiquidForPlant(plant.id, lastTasks);
+    const solidHistory = lastTasks.filter(t => t.type === 'fertilize_granular');
+    const solidCount = solidHistory.length;
+    const lastSolidDays = solidHistory[0] ? dayDiff(solidHistory[0].date) : 999;
     const today = new Date();
-    const yr = today.getFullYear();
-    const dToJun15 = Math.floor((new Date(yr, 5, 15) - today) / (1000*60*60*24));
-    const dToJul15 = Math.floor((new Date(yr, 6, 15) - today) / (1000*60*60*24));
-    const dToAug10 = Math.floor((new Date(yr, 7, 10) - today) / (1000*60*60*24));
-    if (dToJun15 >= 0) tasks.push({ daysOffset: dToJun15, label: '🧪 1回目追肥（高度化成）+中耕・土寄せ', urgent: false });
-    if (dToJul15 >= 0) tasks.push({ daysOffset: dToJul15, label: '🧪 2回目追肥（草丈30cm時）+中耕・土寄せ', urgent: false });
-    if (dToAug10 >= 0) tasks.push({ daysOffset: dToAug10, label: '🧪 3回目追肥（8月中旬まで）+中耕・土寄せ', urgent: false });
-    
-    if (days < 60) tasks.push({ daysOffset: 60 - days, label: '☀️ 真夏モード（毎日たっぷり）', urgent: false });
+    const afterMidAug = (today.getMonth() + 1 > 8) || ((today.getMonth() + 1 === 8) && today.getDate() >= 16);
+    if (days < 30) tasks.push({ daysOffset: 30 - days, label: '🌱 発芽チェック・水やり頻度UP', urgent: false });
+
+    if (!triggered) {
+      tasks.push({ daysOffset: '随時', label: '🌱 草丈15cm/本葉2〜3枚を記録（追肥開始トリガー）', urgent: false });
+    } else {
+      if (course !== 'solid' && !afterMidAug) {
+        const nextLiquid = lastLiquidDays === 999 ? 0 : Math.max(0, GINGER_LIQUID_INTERVAL_DAYS - lastLiquidDays);
+        tasks.push({ daysOffset: nextLiquid, label: '🧪 液肥メイン：ハイポ入り液肥（2週間に1回）', urgent: nextLiquid === 0 });
+      }
+      if (course !== 'liquid' && !afterMidAug) {
+        const nextSolid = solidCount === 0 ? 0 : Math.max(0, 30 - lastSolidDays);
+        if (solidCount < 3) {
+          tasks.push({ daysOffset: nextSolid, label: `🪴 固形＋増し土：${solidCount + 1}回目（商品規定量の少なめから）`, urgent: nextSolid === 0 });
+        }
+      }
+      const topsoilHistory = lastTasks.filter(t => t.type === 'topsoil');
+      const lastTopsoilDays = topsoilHistory[0] ? dayDiff(topsoilHistory[0].date) : 999;
+      if (topsoilHistory.length < 3) {
+        const nextTopsoil = topsoilHistory.length === 0 ? 0 : Math.max(0, 30 - lastTopsoilDays);
+        tasks.push({ daysOffset: nextTopsoil, label: `🪴 増し土確認：${topsoilHistory.length + 1}回目（月1目安・最大3回）`, urgent: nextTopsoil === 0 });
+      }
+    }
+
+    if (days < 60) tasks.push({ daysOffset: 60 - days, label: '☀️ 真夏モード（水切れ注意）', urgent: false });
     if (days < 90) tasks.push({ daysOffset: 90 - days, label: '🥬 葉生姜収穫可能', urgent: false });
     if (days < 150) tasks.push({ daysOffset: 150 - days, label: '💧 水やり減らし開始', urgent: false });
     if (days < 180) tasks.push({ daysOffset: 180 - days, label: '🧺 根生姜収穫', urgent: false });
@@ -1869,6 +2051,44 @@ function generateUpcomingTasks(plant, lastTasks, vines = []) {
   });
 }
 
+
+const WEEKDAY_LABELS = ['日','月','火','水','木','金','土'];
+async function getAppPreferences() {
+  const pref = await dbGet('settings', 'appPreferences');
+  return { liquidFertilizerWeekday: '', ...(pref?.value || {}) };
+}
+async function saveLiquidFertilizerWeekday() {
+  const value = document.getElementById('liquidFertilizerWeekdayInput')?.value ?? '';
+  const pref = await getAppPreferences();
+  pref.liquidFertilizerWeekday = value;
+  await dbPut('settings', { key: 'appPreferences', value: pref });
+  alert(value === '' ? '液肥曜日を指定なしにしました' : `液肥曜日を${WEEKDAY_LABELS[Number(value)]}曜にしました`);
+  await renderSettings();
+}
+function _liquidWeekdayText(settings) {
+  const v = settings?.liquidFertilizerWeekday;
+  return v === '' || v === undefined || v === null ? '未設定' : `${WEEKDAY_LABELS[Number(v)]}曜`;
+}
+function _shouldShowLiquidFertilizerTask(daysSinceAny, intervalDays, species, settings) {
+  const v = settings?.liquidFertilizerWeekday;
+  if (v === '' || v === undefined || v === null) return daysSinceAny >= intervalDays;
+  const preferred = Number(v);
+  const todayDay = new Date().getDay();
+  const daysUntilPreferred = (preferred - todayDay + 7) % 7;
+  const isPreferredToday = daysUntilPreferred === 0;
+  const earlyAllowance = species === 'ginger' ? 0 : 3;
+  if (isPreferredToday) return daysSinceAny >= intervalDays - earlyAllowance;
+  if (daysSinceAny < intervalDays) return false;
+  // 次の指定曜日が近いなら待つ。遠い場合は遅れすぎ防止で今日も出す。
+  return daysUntilPreferred > 3;
+}
+function _liquidWeekdayDesc(settings) {
+  const v = settings?.liquidFertilizerWeekday;
+  if (v === '' || v === undefined || v === null) return '';
+  const label = WEEKDAY_LABELS[Number(v)];
+  return `液肥曜日：${label}曜。±3日程度ならまとめて調整。生姜は14日未満のハイポを避けます。`;
+}
+
 // =================================================
 // 画面レンダリング
 // =================================================
@@ -1878,11 +2098,99 @@ let currentTab = 'overview';
 let cachedWeather = null;
 let cachedTasksState = {}; // taskKey -> {status: 'done'|'skip'|'carryover', date}
 
+
+function renderWeatherActionCard(weather, activePlants = []) {
+  if (!weather?.success) return '';
+
+  const tMax = Number(weather.tempMax || 0);
+  const tomorrowMax = Number(weather.tomorrowTempMax || 0);
+  const precip = Number(weather.precip || 0);
+  const tomorrowPrecip = Number(weather.tomorrowPrecip || 0);
+  const windMax = Number(weather.windMax || 0);
+  const tomorrowWind = Number(weather.tomorrowWind || 0);
+
+  const sections = [];
+
+  if (tMax >= 33 || tomorrowMax >= 33) {
+    const title = tMax >= 35 ? `🔥 猛暑対策（今日 ${Math.round(tMax)}℃）`
+      : tMax >= 33 ? `☀️ 高温対策（今日 ${Math.round(tMax)}℃）`
+      : tomorrowMax >= 35 ? `🔥 明日の猛暑準備（${Math.round(tomorrowMax)}℃）`
+      : `☀️ 明日の高温準備（${Math.round(tomorrowMax)}℃）`;
+    sections.push(`
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px;">
+        <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:4px;">${title}</div>
+        <div style="font-size:12px;line-height:1.7;">
+          遮光・鉢を床から浮かせる・鉢カバー/二重鉢・夕方補水を確認。打ち水は夕方に鉢周りへ。<br>
+          夕方に戻らない萎れ、花落ち、未熟果落下、実の日焼けがあれば記録。
+        </div>
+      </div>
+    `);
+  }
+
+  if (windMax >= 30 || tomorrowWind >= 40) {
+    const title = windMax >= 40 ? `💨 強風対策（今日 ${Math.round(windMax)}km/h）`
+      : windMax >= 30 ? `💨 風対策（今日 ${Math.round(windMax)}km/h）`
+      : `💨 明日の強風準備（${Math.round(tomorrowWind)}km/h）`;
+    sections.push(`
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px;">
+        <div style="font-size:13px;font-weight:700;color:#1d4ed8;margin-bottom:4px;">${title}</div>
+        <div style="font-size:12px;line-height:1.7;">
+          支柱・誘引ひもを確認。背の高い株は壁側/低い位置へ寄せ、軽い鉢は倒れにくくする。<br>
+          パッションのネット、トマト支柱、ナス・ピーマンの枝折れを重点確認。
+        </div>
+      </div>
+    `);
+  }
+
+  if (precip >= 70 || tomorrowPrecip >= 80) {
+    const title = precip >= 80 ? `🌧️ 大雨対策（今日 降水${Math.round(precip)}%）`
+      : precip >= 70 ? `🌧️ 雨対策（今日 降水${Math.round(precip)}%）`
+      : `🌧️ 明日の大雨準備（降水${Math.round(tomorrowPrecip)}%）`;
+    sections.push(`
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:10px;">
+        <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:4px;">${title}</div>
+        <div style="font-size:12px;line-height:1.7;">
+          雨が当たりすぎる株は軒下/壁側へ。受け皿の水は捨て、強雨後は倒れ・土跳ね・病気の兆候を確認。<br>
+          トマトは裂果と葉の濡れ、パッションはつるの絡みと落蕾をチェック。
+        </div>
+      </div>
+    `);
+  }
+
+  if (!sections.length) return '';
+
+  return `
+    <div class="card">
+      <div class="card-title">⚠️ 今日の天気対策</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${sections.join('')}
+      </div>
+    </div>
+  `;
+}
+
+
+function renderFertilizerMixerCard(activePlants = []) {
+  const activeCount = activePlants.length;
+  return `
+    <div class="card" style="border-left:4px solid var(--primary-dark);">
+      <div class="card-title">🧪 液肥調合ツール</div>
+      <div style="font-size:13px;line-height:1.7;color:var(--text);">
+        全株を診断し、同じ希釈パターンごとに調合量をまとめます。
+      </div>
+      <button class="btn" style="margin-top:10px;" ${activeCount ? 'onclick="showFertilizerMixerModal()"' : 'disabled'}>
+        診断して調合する${activeCount ? `（${activeCount}株）` : ''}
+      </button>
+    </div>
+  `;
+}
+
 async function renderHome() {
   const plants = await dbGetAll('plants');
   const allTasks = await dbGetAll('tasks');
   const taskState = await dbGet('settings', 'taskState') || { key: 'taskState', value: {} };
   cachedTasksState = taskState.value || {};
+  const appSettings = await getAppPreferences();
   
   if (!cachedWeather) cachedWeather = await fetchWeather();
   
@@ -1893,7 +2201,7 @@ async function renderHome() {
   for (const plant of plants.filter(p => p.status === 'active')) {
     const plantTasks = allTasks.filter(t => t.plantId === plant.id);
     const plantVines = allVinesData.filter(v => v.plantId === plant.id);
-    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines);
+    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines, appSettings);
     allRecommended = allRecommended.concat(recommended);
   }
   
@@ -1976,6 +2284,10 @@ async function renderHome() {
       `}
     </div>
     
+    ${renderWeatherActionCard(cachedWeather, activePlants)}
+    
+    ${renderFertilizerMixerCard(activePlants)}
+    
     ${highlights.length > 0 ? `
       <div class="card highlight-card">
         <div class="card-title">✨ 今週の見どころ</div>
@@ -1997,47 +2309,31 @@ async function renderHome() {
       </div>
     ` : ''}
     
-    ${totalHarvest > 0 ? `
-      <div class="card" onclick="navigate('harvest')" style="cursor:pointer;">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>📊 今シーズンの収穫</span>
-          <span style="font-size:11px;color:var(--text-light);">詳細 ›</span>
-        </div>
-        <div style="display:flex;align-items:baseline;gap:8px;">
-          <div style="font-size:32px;font-weight:700;color:var(--primary-dark);">${totalHarvest}</div>
-          <div style="font-size:13px;color:var(--text-light);">個 収穫</div>
-        </div>
+    <div class="card" onclick="navigate('harvest')" style="cursor:pointer;">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>📊 今シーズンの収穫</span>
+        <span style="font-size:11px;color:var(--text-light);">詳細 ›</span>
       </div>
-    ` : ''}
-    
-    <div class="card">
-      <div class="card-title">🌱 育てている株 (${plants.filter(p => p.status === 'active').length})</div>
-      ${plants.filter(p => p.status === 'active').length === 0 ? `
-        <div class="empty">
-          <div class="icon">🌱</div>
-          <div>まだ株が登録されていません</div>
-          <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
-        </div>
+      <div style="display:flex;align-items:baseline;gap:8px;">
+        <div style="font-size:32px;font-weight:700;color:var(--primary-dark);">${totalHarvest}</div>
+        <div style="font-size:13px;color:var(--text-light);">個 収穫</div>
+      </div>
+      ${totalHarvest > 0 ? `
+        <div style="font-size:12px;color:var(--text-light);margin-top:4px;">タップで収穫推移・株別ランキングを確認できます</div>
+        <button class="btn btn-small btn-secondary" style="width:100%;margin-top:10px;" onclick="event.stopPropagation();navigate('feedback')">来年フィードバックを見る</button>
       ` : `
-        <div class="plant-list">
-          ${plants.filter(p => p.status === 'active').map(p => {
-            const sp = SPECIES[p.species];
-            const phase = getPhase(p);
-            return `
-              <div class="plant-card" onclick="openPlant('${p.id}')">
-                <div class="plant-icon" style="background:${sp.color}22">${sp.icon}</div>
-                <div class="info">
-                  <div class="name">${p.name || sp.name}</div>
-                  <div class="meta">Day ${dayDiff(p.plantingDate)} ・ ${phase.name}</div>
-                </div>
-                <div class="arrow">›</div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-        <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
+        <div style="font-size:12px;color:var(--text-light);margin-top:4px;">まだ収穫記録はありません。タップすると収穫統計画面を確認できます。</div>
       `}
     </div>
+    
+    ${activePlants.length === 0 ? `
+      <div class="card empty">
+        <div class="icon">🌱</div>
+        <div>まだ株が登録されていません</div>
+        <div style="font-size:12px;color:var(--text-light);margin-top:4px;">株の一覧と追加は、下部メニューの「株一覧」から確認できます。</div>
+        <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
+      </div>
+    ` : ''}
   `;
   document.getElementById('app').innerHTML = html;
 }
@@ -2120,6 +2416,36 @@ async function renderPlantDetail(plantId) {
   document.getElementById('app').innerHTML = html;
 }
 
+
+function renderGingerCourseCard(plant, tasks) {
+  const course = _gingerFertilizerCourse(plant);
+  const trigger = _gingerStartTriggerTask(tasks);
+  const triggerDate = _gingerStartDate(plant, tasks);
+  const triggered = !!triggerDate;
+  const lastLiquidDays = _daysSinceLastActualLiquidForPlant(plant.id, tasks);
+  return `
+    <div class="card">
+      <div class="card-title">🫚 生姜の追肥方針</div>
+      <div style="font-size:12px;color:#6b7280;line-height:1.7;margin-bottom:10px;">
+        増し土は月1回を目安に最大3回。液肥とは別に確認します。
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label>方針</label>
+        <select id="gingerCourseQuickInput" onchange="updateGingerCourse('${plant.id}', this.value)">
+          <option value="liquid" ${course === 'liquid' ? 'selected' : ''}>液肥メイン（2週間に1回・増し土は別）</option>
+          <option value="solid" ${course === 'solid' ? 'selected' : ''}>固形＋増し土（液肥は補助）</option>
+          <option value="combo" ${course === 'combo' ? 'selected' : ''}>併用（固形と液肥を両方記録）</option>
+        </select>
+      </div>
+      <div style="background:${triggered ? '#ecfdf5' : '#fef3c7'};border-radius:10px;padding:10px;font-size:12px;line-height:1.7;">
+        <b>${triggered ? '✅ 追肥開始トリガー記録済み' : '⏳ 追肥開始前'}</b><br>
+        目安：草丈15cm前後、または本葉2〜3枚が見えてから。<br>
+        ${triggered ? `記録日：${dateStr(triggerDate)}。生姜のハイポ入り液肥は前回から14日以上空けます。${lastLiquidDays !== 999 ? ` 前回ハイポ：${lastLiquidDays}日前。` : ''}` : `<button class="btn btn-small" style="width:100%;margin-top:8px;" onclick="recordGingerGrowthTrigger('${plant.id}')">🌱 草丈15cm/本葉2〜3枚を記録</button>`}
+      </div>
+    </div>
+  `;
+}
+
 function renderOverviewTab(plant, tasks, vines = []) {
   const sp = SPECIES[plant.species];
   const days = dayDiff(plant.plantingDate);
@@ -2157,7 +2483,9 @@ function renderOverviewTab(plant, tasks, vines = []) {
       </div>
       <button class="btn btn-small" style="width:100%;margin-top:8px;" onclick="recordWater()">💧 水やりを記録</button>
     </div>
-    
+
+    ${plant.species === 'ginger' ? renderGingerCourseCard(plant, tasks) : ''}
+
     <div class="card">
       <div class="card-title">⚡ クイック作業記録</div>
       <div class="quick-actions">
@@ -2168,7 +2496,7 @@ function renderOverviewTab(plant, tasks, vines = []) {
         `).join('')}
       </div>
     </div>
-    
+
     <div class="card">
       <div class="card-title">📅 今後の予定</div>
       ${(() => {
@@ -2299,8 +2627,7 @@ function renderOverviewTab(plant, tasks, vines = []) {
     
     ${(() => {
       // やさお酢（食酢ベース・回数制限なし・3日サイクル予防）
-      // 対象：トマト・ナス・ピーマン・パッション・オクラ
-      if (!['tomato', 'eggplant', 'pepper', 'passion', 'okra'].includes(plant.species)) return '';
+      // 対象：全作物（野菜・果樹・葉物など）。弱っている株や傷のある株は避ける。
       const vinegarHistory = tasks.filter(t => t.type === 'vinegar_spray');
       const lastVinegar = vinegarHistory[0];
       const vUsed = vinegarHistory.length;
@@ -2333,8 +2660,7 @@ function renderOverviewTab(plant, tasks, vines = []) {
           ${vUsed > 0 ? `<div style="font-size:11px;color:${statusText};margin-top:6px;">これまでに${vUsed}回散布${lastVinegar ? `（最終: ${dateStr(lastVinegar.date)}）` : ''}</div>` : ''}
         </div>
         <div style="font-size:12px;color:var(--text-light);line-height:1.6;">
-          📌 食酢ベースで<b>使用回数制限なし</b>。2〜3日おきの予防散布で害虫の増殖を1ヶ月程度抑制。<br>
-          葉の表裏にたっぷり、早朝か夕方に散布。雨後は再散布。
+          📌 薄めず葉の表裏と茎へ。高温時を避け、早朝か夕方に散布。弱っている株・傷のある株は避ける。雨後は再散布。
         </div>
       </div>
       `;
@@ -2396,8 +2722,10 @@ function getWaterGuide(plant) {
 function getQuickActions(plant) {
   // 水やりは概要タブの「💧 水やりを記録」ボタンで記録するためここから除外
   const common = [
-    { action: 'fertilize_liquid', icon: '🧪', label: '液肥' },
+    { action: 'fertilize_liquid', icon: '🧪', label: '個別液肥' },
     { action: 'fertilize_granular', icon: '💊', label: '固形肥料' },
+    { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
+    { action: 'heat_protection', icon: '☀️', label: '暑さ対策' },
     { action: 'observation', icon: '👀', label: '観察' }
   ];
   const specific = {
@@ -2408,7 +2736,6 @@ function getQuickActions(plant) {
       { action: 'pinching', icon: '✂️', label: '摘心' },
       { action: 'defoliation', icon: '🍃', label: '下葉かき' },
       { action: 'pest_spray', icon: '🛡️', label: '防虫散布' },
-      { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ],
     eggplant: [
@@ -2416,20 +2743,17 @@ function getQuickActions(plant) {
       { action: 'pinching', icon: '✂️', label: '摘心' },
       { action: 'renewal_pruning', icon: '🌿', label: '更新剪定' },
       { action: 'pest_spray', icon: '🛡️', label: '防虫散布' },
-      { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ],
     pepper: [
       { action: 'side_shoot_removal', icon: '✂️', label: '脇芽かき' },
       { action: 'pinching', icon: '✂️', label: '摘心' },
       { action: 'pest_spray', icon: '🛡️', label: '防虫散布' },
-      { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ],
     passion: [
       // 摘心は剪定ガイドの「摘心する」ボタン（つる①〜④ごと）から記録
       { action: 'training', icon: '🌿', label: '誘引' },
-      { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ],
     ginger: [
@@ -2439,7 +2763,6 @@ function getQuickActions(plant) {
     ],
     okra: [
       { action: 'defoliation', icon: '🍃', label: '下葉かき' },
-      { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
       { action: 'harvest', icon: '🧺', label: '収穫' }
     ]
   };
@@ -2456,10 +2779,11 @@ function renderPruningTab(plant, clusters, tasks, vines) {
 }
 
 function renderGingerGuide(plant, tasks) {
-  const days = dayDiff(plant.plantingDate);
-  const fertilizeHistory = tasks.filter(t => 
-    t.type === 'fertilize_granular' || t.type === 'fertilize_liquid'
-  );
+  const course = _gingerFertilizerCourse(plant);
+  const courseLabel = _gingerFertilizerCourseLabel(course);
+  const triggerDate = _gingerStartDate(plant, tasks);
+  const triggered = !!triggerDate;
+  const lastLiquidDays = _daysSinceLastActualLiquidForPlant(plant.id, tasks);
   const granularHistory = tasks.filter(t => t.type === 'fertilize_granular');
   const granularCount = granularHistory.length;
   
@@ -2467,65 +2791,65 @@ function renderGingerGuide(plant, tasks) {
     <div class="card">
       <div class="card-title">🫚 生姜の管理ガイド</div>
       <div style="font-size:13px;line-height:1.7;color:var(--text-light);margin-bottom:8px;">
-        生姜は剪定不要ですが、追肥・中耕・土寄せ・水やりの管理が大切です。
+        生姜は剪定不要です。プランターでは、追肥・増し土・水やりを分けて管理します。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧭 追肥方針と開始トリガー</div>
+      <div style="background:#f9fafb;border-radius:10px;padding:12px;margin-bottom:10px;font-size:12px;line-height:1.7;">
+        <b>現在の方針：</b>${courseLabel}<br>
+        <b>開始トリガー：</b>${triggered ? `記録済み（${dateStr(triggerDate)}）` : '未記録'}<br>
+        <span style="color:#6b7280;">草丈15cm前後、または本葉2〜3枚が見えたら記録します。</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-small" style="flex:1;min-width:160px;" onclick="recordGingerGrowthTrigger('${plant.id}')">🌱 草丈15cm/本葉2〜3枚を記録</button>
+        <button class="btn btn-secondary btn-small" style="flex:1;min-width:160px;" onclick="editPlant('${plant.id}')">⚙️ 追肥方針を変更</button>
+      </div>
+      <div style="font-size:11px;color:#6b7280;line-height:1.6;margin-top:8px;">
+        方針は「概要」タブまたは株情報編集で変更できます。既定は液肥メインです。
       </div>
     </div>
     
     <div class="card">
-      <div class="card-title">🧪 追肥のタイミング（高度化成）</div>
-      
-      <div style="background:#f0fdf4;border-radius:10px;padding:12px;margin-bottom:10px;">
-        <div style="font-weight:600;font-size:13px;color:#15803d;margin-bottom:6px;">
-          ${granularCount >= 1 ? '✅' : '⏳'} 1回目の追肥（6月中旬）
-        </div>
+      <div class="card-title">🧪 プランター生姜の追肥</div>
+      <div style="background:#ecfdf5;border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div style="font-weight:600;font-size:13px;color:#047857;margin-bottom:6px;">液肥メイン</div>
         <div style="font-size:12px;line-height:1.7;">
-          <b>本葉が2〜3枚出たら</b>、<b>国産高度化成(14-14-14)を1㎡当たり30〜50g</b>まいて、<b>中耕・土寄せ</b>を行います。<br>
-          <span style="color:#6b7280;font-size:11px;">※だいたい6月中旬にアラートが出ます</span>
+          開始トリガー記録後から、<b>ハイポ入り液肥は2週間に1回</b>が目安です。<br>
+          前回ハイポから14日未満なら、調合ツールがハイポを避けてリキダス100倍のみへ寄せます。${lastLiquidDays !== 999 ? `<br><span style="color:#6b7280;">前回ハイポ：${lastLiquidDays}日前</span>` : ''}
         </div>
       </div>
-      
-      <div style="background:#fef3c7;border-radius:10px;padding:12px;margin-bottom:10px;">
-        <div style="font-weight:600;font-size:13px;color:#92400e;margin-bottom:6px;">
-          ${granularCount >= 2 ? '✅' : '⏳'} 2回目の追肥（1か月後＝7月中旬）
-        </div>
+      <div style="background:#fff7ed;border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div style="font-weight:600;font-size:13px;color:#9a3412;margin-bottom:6px;">固形＋増し土</div>
         <div style="font-size:12px;line-height:1.7;">
-          1回目から<b>1か月後（草丈が30㎝生長時）</b>に2回目の追肥。<br>
-          同様に<b>中耕・土寄せ</b>もセットで行います。
+          固形派は、開始トリガー後に<b>月1回程度</b>、商品規定量の少なめから。8Lプランターでは入れすぎ注意。<br>
+          固形肥料の記録：${granularCount}回。固形を使った場合も、株元を覆う増し土をセットで確認します。
         </div>
       </div>
-      
-      <div style="background:#dbeafe;border-radius:10px;padding:12px;margin-bottom:10px;">
-        <div style="font-weight:600;font-size:13px;color:#1e40af;margin-bottom:6px;">
-          ${granularCount >= 3 ? '✅' : '⏳'} 3回目の追肥（任意・8月中旬まで）
-        </div>
-        <div style="font-size:12px;line-height:1.7;">
-          3回目の追肥をする場合は<b>8月中旬までにまき終える</b>ようにしましょう。<br>
-          いずれも追肥時に中耕・土寄せします。
-        </div>
-      </div>
-      
       <div style="background:#f3f4f6;border-radius:8px;padding:10px;font-size:11px;color:#6b7280;line-height:1.6;">
-        💡 <b>液肥との併用</b>：液肥（毎週ペース）も組み合わせて使えます。固形肥料を使った週は液肥アラートが自動でスキップされます。
+        💡 固形肥料は商品の鉢・プランター用量を少なめから。
       </div>
     </div>
     
     <div class="card">
       <div class="card-title">💧 水やりの段階別ポイント</div>
       <div style="font-size:13px;line-height:1.8;">
-        <b>植え付け〜発芽（〜30日）</b>：控えめに。乾いてからたっぷり<br>
-        <b>発芽後（30〜60日）</b>：水やり頻度UP<br>
-        <b>真夏（60〜150日）</b>：毎日たっぷり、葉水もOK<br>
-        <b>収穫前（150日〜）</b>：水やり減らして甘み凝縮
+        <b>植え付け〜発芽</b>：過湿に注意。土が乾いてからたっぷり<br>
+        <b>発芽後〜生育期</b>：乾燥に弱いので水切れ注意。表面が乾いたらしっかり<br>
+        <b>真夏</b>：朝の水やりを基本に、乾きが強い日は夕方も確認<br>
+        <b>収穫前</b>：徐々に水やりを減らし、過湿を避ける
       </div>
     </div>
     
     <div class="card">
-      <div class="card-title">🪴 増し土・土寄せのポイント</div>
+      <div class="card-title">🪴 増し土のポイント</div>
       <div style="font-size:13px;line-height:1.8;">
-        生姜は<b>新しい根茎が地表近くにできる</b>ため、増し土・土寄せが必須。<br><br>
-        ・追肥のタイミングと合わせると効率的<br>
-        ・葉が4〜5枚展開後、<b>3週間ごとに3回</b>を目安に<br>
-        ・新しい根茎が地表に出ないよう、株元に土を寄せる
+        <b>株元に培養土を足し、根茎の露出を防ぎます。</b><br><br>
+        ・新しい根茎が地表近くにできるので、露出しないようにする<br>
+        ・液肥メインでも、月1回を目安に最大3回確認<br>
+        ・土が減った、株元が浅い、根茎が見えそうな時にも追加<br>
+        ・一度に大量ではなく、数cmずつ足す
       </div>
     </div>
   `;
@@ -2630,6 +2954,15 @@ function renderTomatoPruning(plant, clusters) {
         ✂️ 摘心 = 第5花房の上で先端カット
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-title">🍅 トマトトーンの注意</div>
+      <div style="background:#fff7ed;border-radius:10px;padding:12px;font-size:12px;line-height:1.75;">
+        花房のつぼみが<b>3〜5花くらい開花した時</b>に、植物成長調整剤を花房全体へ<b>さっと1〜2回</b>吹きかける。<br>
+        幼葉（若い葉）や生長点など、花房以外にかからないように<b>手で遮ってから噴霧</b>する。<br>
+        <span style="color:#6b7280;font-size:11px;">※同じ花へのかけ過ぎは避ける。葉や生長点にかかると薬害・生育乱れの原因になることがあります。</span>
+      </div>
+    </div>
     
     <div class="card">
       <div class="card-title">💡 トマト管理のコツ</div>
@@ -2646,7 +2979,18 @@ function renderTomatoPruning(plant, clusters) {
         <div style="font-size:12px;line-height:1.7;">
           初めての追肥は<b>第3花房の花がついてから</b>。<br>
           それまでは元肥だけで充分。早すぎる追肥は茎葉ばかりが茂る原因に。<br>
-          <span style="color:#6b7280;font-size:11px;">※液肥なら毎週、固形肥料なら月1回が目安。状態を見て液肥を追加することも◎</span>
+          <span style="color:#6b7280;font-size:11px;">※液肥なら毎週、固形肥料なら月1回が目安。ただし草勢を見て、ツルボケ寄りなら見送り。</span>
+        </div>
+      </div>
+
+      <div style="background:#fff7ed;border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div style="font-weight:600;font-size:13px;color:#9a3412;margin-bottom:6px;">🔎 ツルボケ診断：追肥する前に見る</div>
+        <div style="font-size:12px;line-height:1.7;">
+          <b>測る位置：</b>成長点から10〜15cm下の茎。節の膨らみを避けて見る。<br>
+          <b>強すぎ：</b>12mm以上＋葉が下向きに巻く → 追肥見送り。水・窒素を控えめに。<br>
+          <b>適正：</b>10〜12mm＋葉が水平 → タイミングが来ていれば薄め〜通常で追肥。<br>
+          <b>弱い：</b>10mm以下＋葉が上向きで弱々しい → 肥料不足/根傷み/乾燥を疑う。<br>
+          <span style="color:#6b7280;font-size:11px;">数字は目安。花落ちは高温・受粉不良でも起きるので、葉色・花・水切れもセットで判断。</span>
         </div>
       </div>
       
@@ -2724,9 +3068,9 @@ function renderEggplantPepperPruning(plant, tasks) {
     svgInner += `<line x1="150" y1="280" x2="100" y2="180" stroke="#16a34a" stroke-width="5"/>`;
     svgInner += `<line x1="150" y1="280" x2="200" y2="180" stroke="#16a34a" stroke-width="5"/>`;
     svgInner += `<text x="100" y="170" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心</text>`;
-    svgInner += `<text x="100" y="158" text-anchor="middle" font-size="9" fill="#6b7280">20花後</text>`;
+    svgInner += `<text x="100" y="158" text-anchor="middle" font-size="9" fill="#6b7280">手が届く高さ</text>`;
     svgInner += `<text x="200" y="170" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心</text>`;
-    svgInner += `<text x="200" y="158" text-anchor="middle" font-size="9" fill="#6b7280">20花後</text>`;
+    svgInner += `<text x="200" y="158" text-anchor="middle" font-size="9" fill="#6b7280">手が届く高さ</text>`;
     [100, 200].forEach(x => {
       svgInner += `<circle cx="${x-15}" cy="220" r="8" fill="${sp === 'eggplant' ? '#a78bfa' : '#10b981'}"/>`;
       svgInner += `<circle cx="${x+15}" cy="240" r="8" fill="${sp === 'eggplant' ? '#a78bfa' : '#10b981'}"/>`;
@@ -2739,7 +3083,7 @@ function renderEggplantPepperPruning(plant, tasks) {
     svgInner += `<text x="185" y="305" font-size="10" fill="#dc2626">✂️かく</text>`;
   }
   
-  const svg = `<svg viewBox="0 0 300 420" class="pruning-svg">${svgInner}</svg>`;
+  const svg = `<svg viewBox="0 135 300 285" class="pruning-svg">${svgInner}</svg>`;
   
   const lastSideShoot = tasks.find(t => t.type === 'side_shoot_removal');
   const lastRenewal = tasks.find(t => t.type === 'renewal_pruning');
@@ -2757,7 +3101,7 @@ function renderEggplantPepperPruning(plant, tasks) {
   let advancedPepperSvg = '';
   if (isAdvancedPepper) {
     advancedPepperSvg = `
-      <svg viewBox="0 0 360 540" class="pruning-svg">
+      <svg viewBox="0 10 360 530" class="pruning-svg">
         <rect x="20" y="500" width="320" height="30" fill="#92400e" rx="4"/>
         <line x1="180" y1="500" x2="180" y2="320" stroke="#eab308" stroke-width="9" stroke-linecap="round"/>
         <line x1="180" y1="320" x2="80" y2="200" stroke="#eab308" stroke-width="8" stroke-linecap="round"/>
@@ -2777,9 +3121,9 @@ function renderEggplantPepperPruning(plant, tasks) {
         <circle cx="108" cy="265" r="9" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
         <text x="108" y="269" text-anchor="middle" font-size="10" fill="#1e3a8a" font-weight="bold">孫</text>
         <circle cx="118" cy="288" r="5" fill="#15803d"/>
-        <line x1="92" y1="240" x2="98" y2="244" stroke="#dc2626" stroke-width="4"/>
-        <text x="120" y="320" font-size="10" fill="#dc2626" font-weight="bold">最後は子の根本で摘心</text>
-        <line x1="120" y1="315" x2="100" y2="245" stroke="#dc2626" stroke-width="0.7" stroke-dasharray="2,2"/>
+        <line x1="112" y1="244" x2="124" y2="252" stroke="#ec4899" stroke-width="5" stroke-linecap="round"/>
+        <text x="110" y="320" font-size="10" fill="#dc2626" font-weight="bold">最後は子の付け根で切り戻し</text>
+        <line x1="120" y1="315" x2="120" y2="248" stroke="#dc2626" stroke-width="0.7" stroke-dasharray="2,2"/>
         <line x1="240" y1="248" x2="310" y2="220" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
         <circle cx="280" cy="232" r="11" fill="#bbf7d0" stroke="#16a34a" stroke-width="2"/>
         <text x="280" y="236" text-anchor="middle" font-size="11" fill="#14532d" font-weight="bold">子</text>
@@ -2792,7 +3136,7 @@ function renderEggplantPepperPruning(plant, tasks) {
         <circle cx="252" cy="265" r="9" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
         <text x="252" y="269" text-anchor="middle" font-size="10" fill="#1e3a8a" font-weight="bold">孫</text>
         <circle cx="242" cy="288" r="5" fill="#15803d"/>
-        <line x1="262" y1="240" x2="268" y2="244" stroke="#dc2626" stroke-width="4"/>
+        <line x1="236" y1="244" x2="248" y2="252" stroke="#ec4899" stroke-width="5" stroke-linecap="round"/>
         <rect x="20" y="20" width="320" height="120" fill="#fef3c7" stroke="#f59e0b" rx="6"/>
         <text x="180" y="42" text-anchor="middle" font-size="13" fill="#92400e" font-weight="bold">枝の関係</text>
         <line x1="35" y1="62" x2="55" y2="62" stroke="#eab308" stroke-width="6" stroke-linecap="round"/>
@@ -2806,7 +3150,7 @@ function renderEggplantPepperPruning(plant, tasks) {
         <line x1="35" y1="115" x2="55" y2="115" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
         <circle cx="45" cy="115" r="8" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
         <text x="45" y="118" text-anchor="middle" font-size="9" fill="#1e3a8a" font-weight="bold">孫</text>
-        <text x="65" y="118" font-size="11" fill="#374151">子から出る脇芽（青、1果収穫→子の根本で摘心）</text>
+        <text x="65" y="118" font-size="11" fill="#374151">子から出る脇芽（青、1果収穫→子の付け根で切り戻し）</text>
       </svg>
     `;
   }
@@ -2815,7 +3159,7 @@ function renderEggplantPepperPruning(plant, tasks) {
   let renewalSvg = '';
   if (sp === 'eggplant') {
     renewalSvg = `
-      <svg viewBox="0 0 320 240" class="pruning-svg">
+      <svg viewBox="0 20 320 220" class="pruning-svg">
         <rect x="20" y="200" width="280" height="30" fill="#92400e" rx="4"/>
         <text x="80" y="20" text-anchor="middle" font-size="13" fill="#374151" font-weight="bold">剪定前</text>
         <line x1="80" y1="200" x2="80" y2="80" stroke="#16a34a" stroke-width="5"/>
@@ -2847,6 +3191,23 @@ function renderEggplantPepperPruning(plant, tasks) {
   }
   
   const trainingLabel = (TRAINING_METHODS[sp] || []).find(t => t.value === plant.trainingMethod)?.label || '';
+  const trainingCompareNote = isOneFruit ? `
+    <div class="card">
+      <div class="card-title">🧭 普通の2本仕立てとの違い</div>
+      <div style="font-size:13px;line-height:1.75;">
+        <b>2本仕立て</b>：主枝2本を伸ばして、不要な脇芽を整理する基本形。<br>
+        <b>側枝一果</b>：主枝2本は残したまま、脇芽を「1枝1果」で収穫して切り戻す更新型。後半まで株を疲れにくくする狙い。
+      </div>
+    </div>
+  ` : (isAdvancedPepper ? `
+    <div class="card">
+      <div class="card-title">🧭 普通の2本仕立てとの違い</div>
+      <div style="font-size:13px;line-height:1.75;">
+        <b>2本仕立て</b>：主枝2本を伸ばして、込み合う枝を整理する基本形。<br>
+        <b>親子孫整枝</b>：主枝を親、親から出る脇芽を子、子から出る脇芽を孫として管理。子は3花で摘心、孫は1果収穫後に子の付け根で切り戻す更新型。
+      </div>
+    </div>
+  ` : '');
   
   return `
     <div class="card">
@@ -2858,13 +3219,16 @@ function renderEggplantPepperPruning(plant, tasks) {
         □ 一番花の下の脇芽1本を残す（2本仕立て）<br>
         □ それより下の脇芽は全部かき取る<br>
         ${sp === 'eggplant' ? '□ 一番果は5〜6cmで早採り<br>' : ''}
-        ${!isOneFruit && !isAdvancedPepper ? '□ 8〜10花房後にそれぞれ摘心<br>' : ''}
+        ${!isOneFruit && !isAdvancedPepper ? `□ 取りやすい高さで摘心（${sp === 'eggplant' ? '目安100〜120cm' : '目安80〜100cm'}）<br>` : ''}
       </div>
+      ${!isOneFruit && !isAdvancedPepper ? `<div style="background:#f9fafb;border-radius:8px;padding:8px;margin-top:10px;font-size:12px;line-height:1.7;color:var(--text-light);">花数を厳密に数えなくてOK。支柱で支えやすく、手が届く高さで先端を止めます。</div>` : ''}
     </div>
+    
+    ${trainingCompareNote}
     
     ${isOneFruit ? `
     <div class="card">
-      <div class="card-title">🔁 側枝一果（一枝一果法）</div>
+      <div class="card-title">🔁 側枝一果</div>
       <div style="background:#fef3c7;border-radius:10px;padding:10px;margin-bottom:12px;">
         <div style="font-size:12px;line-height:1.7;">
           <b>💡 メリット</b>：着果負担が少ないので株が疲れにくく、栽培後半まで草勢が安定して品質のよいナスが穫れます
@@ -2895,7 +3259,8 @@ function renderEggplantPepperPruning(plant, tasks) {
         <div style="background:#dbeafe;border-radius:8px;padding:10px;margin-top:8px;">
           <b style="font-size:13px;">💪 ポイント</b>
           <div style="font-size:12px;line-height:1.7;margin-top:4px;">
-            ・<b>主枝は絶対に切らない</b>、脇芽（側枝）だけを切る<br>
+            ・<b>基本は脇芽（側枝）を更新</b>し、主枝は残して育てる<br>
+            ・主枝が高くなりすぎたら、<b>管理しやすい高さ（目安100〜120cm）で摘心してOK</b><br>
             ・摘心位置は<b>花の上1葉残し</b>（葉を1枚だけ残してその先をカット）<br>
             ・収穫時の切り戻し位置は<b>主枝に近い2次側枝の上</b><br>
             ・暑い地域なら、これでも更新剪定はやった方が秋ナス豊作
@@ -2907,10 +3272,10 @@ function renderEggplantPepperPruning(plant, tasks) {
     
     ${isAdvancedPepper ? `
     <div class="card">
-      <div class="card-title">🎯 上級者整枝（親→子→孫の管理）</div>
+      <div class="card-title">🎯 親子孫整枝</div>
       <div style="background:#fef3c7;border-radius:10px;padding:10px;margin-bottom:12px;">
         <div style="font-size:12px;line-height:1.7;">
-          <b>💡 やり方</b>：親（主枝）から出る子（脇芽）と、子から出る孫（脇芽）を計画的に摘心して、長く収穫を続けます
+          <b>💡 やり方</b>：子は3花で摘心、孫は1果後に切り戻し。親（主枝）は管理しやすい高さ（目安80〜100cm）で摘心します
         </div>
       </div>
       <div class="pruning-guide" style="background:#f9fafb;padding:8px;border-radius:12px;">
@@ -2922,7 +3287,7 @@ function renderEggplantPepperPruning(plant, tasks) {
           <b>1️⃣ 親（主枝2本）を作る</b><br>
           <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
             ・一番花の下の脇芽1本を残してY字に<br>
-            ・20花後摘芯
+            ・親（主枝）は管理しやすい高さで摘心（目安80〜100cm）
           </div>
         </div>
         <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;">
@@ -2938,7 +3303,7 @@ function renderEggplantPepperPruning(plant, tasks) {
           <div style="font-size:12px;color:var(--text-light);margin:4px 0 4px 12px;">
             ・子からまた脇芽（孫）が出てくる<br>
             ・孫には<b>1つだけ実をつけさせる</b><br>
-            ・実が収穫できたら、最後は<b>子の根本で摘心</b><br>
+            ・実が収穫できたら、最後は<b>子の付け根で切り戻し</b><br>
             ・これでまたスペースができて新しい子が出てくる
           </div>
         </div>
@@ -2947,6 +3312,7 @@ function renderEggplantPepperPruning(plant, tasks) {
           <div style="font-size:12px;line-height:1.7;margin-top:4px;">
             ・着果負担が少ないので<b>株が疲れにくい</b><br>
             ・サイクルを回すことで<b>長期間安定して収穫</b>できる<br>
+            ・親（主枝）が高くなりすぎたら、<b>管理しやすい高さで摘心</b><br>
             ・ふところ枝（株中央に伸びる枝）は早めに除去<br>
             ・ピーマンは枝が折れやすいので、各主枝に支柱必須
           </div>
@@ -2963,7 +3329,7 @@ function renderEggplantPepperPruning(plant, tasks) {
       <div class="pruning-guide" style="background:#f9fafb;padding:12px;border-radius:12px;">
         <svg viewBox="0 0 320 280" class="pruning-svg">
           <text x="55" y="20" text-anchor="middle" font-size="12" fill="#16a34a" font-weight="bold">✓ 健全</text>
-          <text x="55" y="35" text-anchor="middle" font-size="9" fill="#374151">${sp === 'eggplant' ? '長花柱花' : '大きく濃い花'}</text>
+          <text x="55" y="35" text-anchor="middle" font-size="9" fill="#374151">${sp === 'eggplant' ? '長花柱花' : '長花柱花'}</text>
           <ellipse cx="55" cy="80" rx="35" ry="20" fill="#a78bfa"/>
           <line x1="55" y1="60" x2="55" y2="40" stroke="#fbbf24" stroke-width="3"/>
           <text x="55" y="115" text-anchor="middle" font-size="9" fill="#16a34a">柱頭が花弁から出る</text>
@@ -2973,7 +3339,7 @@ function renderEggplantPepperPruning(plant, tasks) {
           <ellipse cx="40" cy="195" rx="10" ry="5" fill="#22c55e"/>
           <ellipse cx="70" cy="200" rx="10" ry="5" fill="#22c55e"/>
           <text x="160" y="20" text-anchor="middle" font-size="12" fill="#f59e0b" font-weight="bold">⚠ 栄養不足ぎみ</text>
-          <text x="160" y="35" text-anchor="middle" font-size="9" fill="#374151">${sp === 'eggplant' ? '中花柱花' : '中サイズの花'}</text>
+          <text x="160" y="35" text-anchor="middle" font-size="9" fill="#374151">${sp === 'eggplant' ? '中花柱花' : '中花柱花'}</text>
           <ellipse cx="160" cy="80" rx="28" ry="16" fill="#a78bfa"/>
           <line x1="160" y1="65" x2="160" y2="55" stroke="#fbbf24" stroke-width="3"/>
           <text x="160" y="115" text-anchor="middle" font-size="9" fill="#f59e0b">柱頭が花弁と同じ高さ</text>
@@ -2982,7 +3348,7 @@ function renderEggplantPepperPruning(plant, tasks) {
           <line x1="160" y1="180" x2="160" y2="220" stroke="#16a34a" stroke-width="2"/>
           <ellipse cx="148" cy="200" rx="8" ry="4" fill="#22c55e"/>
           <text x="265" y="20" text-anchor="middle" font-size="12" fill="#dc2626" font-weight="bold">✗ 栄養不足</text>
-          <text x="265" y="35" text-anchor="middle" font-size="9" fill="#374151">${sp === 'eggplant' ? '短花柱花' : '小さく薄い花'}</text>
+          <text x="265" y="35" text-anchor="middle" font-size="9" fill="#374151">${sp === 'eggplant' ? '短花柱花' : '短花柱花'}</text>
           <ellipse cx="265" cy="80" rx="22" ry="12" fill="#c4b5fd"/>
           <text x="265" y="115" text-anchor="middle" font-size="9" fill="#dc2626">柱頭が花弁の中</text>
           <text x="265" y="160" text-anchor="middle" font-size="9" fill="#374151">下葉は垂れ下がりやすい</text>
@@ -2992,9 +3358,11 @@ function renderEggplantPepperPruning(plant, tasks) {
         </svg>
       </div>
       <div style="background:#fee2e2;border-radius:8px;padding:10px;margin-top:8px;">
-        <b style="font-size:13px;color:#dc2626;">⚠ ${sp === 'eggplant' ? '短花柱花（柱頭が短い花）' : '小さい花'} が増えたら</b>
+        <b style="font-size:13px;color:#dc2626;">⚠ ${sp === 'eggplant' ? '短花柱花（めしべが短い花）' : '短花柱花・花落ち'} が増えたら</b>
         <div style="font-size:12px;line-height:1.7;margin-top:4px;">
-          落花が増えて収量が減ります。<b>速効性の肥料（液肥）</b>で追肥しましょう。同時に水切れ・日照不足もチェック。
+          ${sp === 'eggplant'
+            ? 'ナスは肥料不足・草勢低下寄り。花が小さい/白っぽい場合は、直近追肥と水切れを確認して液肥を検討。'
+            : 'ピーマンは原因を決め打ちしない。葉色が薄い・枝が細いなら追肥候補、葉色が濃い・花がらが残るなら追肥見送り。水切れ・高温も確認。'}
         </div>
       </div>
     </div>
@@ -3135,7 +3503,7 @@ function renderPassionPruning(plant, tasks, vines) {
     <path d="M 250 360 Q 255 343 260 323" stroke="#2563eb" stroke-width="3.5" fill="none" stroke-linecap="round"/>
   `;
   
-  const svg = `<svg viewBox="0 0 300 540" class="pruning-svg">${svgInner}</svg>`;
+  const svg = `<svg viewBox="0 70 300 470" class="pruning-svg">${svgInner}</svg>`;
   
   // 主枝行
   const mainRow = `
@@ -3263,6 +3631,7 @@ async function renderHistoryTab(tasks) {
     first_flower: { icon: '🌸', label: '一番花の処理' },
     first_fruit: { icon: '🍆', label: '一番果の処理' },
     mulching: { icon: '🍂', label: 'マルチング' },
+    heat_protection: { icon: '☀️', label: '暑さ対策' },
     observation: { icon: '👀', label: '観察' }
   };
   
@@ -3299,7 +3668,7 @@ async function renderHistoryTab(tasks) {
               <div class="timeline-icon">${action.icon}</div>
               <div class="timeline-content" style="flex:1;">
                 <div class="timeline-date">${dateStr(t.date)}</div>
-                <div class="timeline-title">${action.label}${t.details?.count ? ` × ${t.details.count}` : ''}${t.details?.cluster ? ` 第${t.details.cluster}花房` : ''}${t.details?.round ? ` ${t.details.round}回目` : ''}</div>
+                <div class="timeline-title">${action.label}${t.details?.count ? ` × ${t.details.count}` : ''}${t.details?.cluster ? ` 第${t.details.cluster}花房` : ''}${t.details?.round ? ` ${t.details.round}回目` : ''}${_fertilizerHistoryTitle(t)}</div>
                 ${t.notes ? `<div class="timeline-note">${t.notes}</div>` : ''}
                 ${photosHtml}
               </div>
@@ -3317,6 +3686,7 @@ async function renderTasks() {
   const allTasks = await dbGetAll('tasks');
   const taskState = await dbGet('settings', 'taskState') || { key: 'taskState', value: {} };
   cachedTasksState = taskState.value || {};
+  const appSettings = await getAppPreferences();
   
   if (!cachedWeather) cachedWeather = await fetchWeather();
   
@@ -3326,7 +3696,7 @@ async function renderTasks() {
   for (const plant of plants) {
     const plantTasks = allTasks.filter(t => t.plantId === plant.id);
     const plantVines = allVinesData.filter(v => v.plantId === plant.id);
-    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines);
+    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines, appSettings);
     allRecommended = allRecommended.concat(recommended);
   }
   
@@ -3432,6 +3802,8 @@ async function renderSettings() {
   const photos = await dbGetAll('photos');
   const totalSize = photos.reduce((sum, p) => sum + (p.blob?.size || 0), 0);
   const sizeMB = (totalSize / 1024 / 1024).toFixed(1);
+  const appSettings = await getAppPreferences();
+  const liquidWeekday = appSettings.liquidFertilizerWeekday ?? '';
   
   const html = `
     <div class="header">
@@ -3459,6 +3831,21 @@ async function renderSettings() {
       <div class="card-title">🌍 天気の地点</div>
       <div style="font-size:13px;color:var(--text-light);">現在は東京固定です</div>
     </div>
+
+    <div class="card">
+      <div class="card-title">🧪 液肥曜日</div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label>まとめて液肥をやる曜日</label>
+        <select id="liquidFertilizerWeekdayInput">
+          <option value="" ${liquidWeekday === '' ? 'selected' : ''}>指定なし（予定日どおり）</option>
+          ${WEEKDAY_LABELS.map((d, i) => `<option value="${i}" ${String(i) === String(liquidWeekday) ? 'selected' : ''}>${d}曜日</option>`).join('')}
+        </select>
+      </div>
+      <div style="font-size:12px;color:var(--text-light);line-height:1.7;">
+        予定が前後3日くらいなら、この曜日にまとめます。生姜は14日未満のハイポを避けます。
+      </div>
+      <button class="btn btn-secondary btn-small" style="width:100%;margin-top:8px;" onclick="saveLiquidFertilizerWeekday()">保存</button>
+    </div>
     
     <div class="card">
       <div class="card-title">🔄 シーズン切り替え</div>
@@ -3471,7 +3858,7 @@ async function renderSettings() {
     <div class="card">
       <div class="card-title">ℹ️ アプリについて</div>
       <div style="font-size:13px;color:var(--text-light);line-height:1.7;">
-        ベランダ菜園マネージャー v1.1<br>
+        ベランダ菜園マネージャー v1.2<br>
         データはこのスマホに保存されます<br>
         天気データ: Open-Meteo
       </div>
@@ -3498,8 +3885,8 @@ async function deleteAllPhotos() {
 async function navigate(screen) {
   currentScreen = screen;
   document.querySelectorAll('.nav-item').forEach(el => {
-    // harvest画面はホーム配下扱い
-    const matchScreen = screen === 'harvest' ? 'home' : screen;
+    // harvest/feedback画面はホーム配下扱い
+    const matchScreen = (screen === 'harvest' || screen === 'feedback') ? 'home' : screen;
     el.classList.toggle('active', el.dataset.screen === matchScreen);
   });
   if (screen === 'home') await renderHome();
@@ -3507,6 +3894,7 @@ async function navigate(screen) {
   else if (screen === 'tasks') await renderTasks();
   else if (screen === 'settings') await renderSettings();
   else if (screen === 'harvest') await renderHarvestStats('week');
+  else if (screen === 'feedback') await renderSeasonFeedback();
   window.scrollTo(0, 0);
 }
 
@@ -3549,9 +3937,33 @@ function showAddPlant() {
         <label>植え付け日 *</label>
         <input id="plantingDateInput" type="date" value="${today()}" required>
       </div>
+      <div class="form-group">
+        <label>鉢・プランター容量（L）</label>
+        <select id="potVolumeInput">
+          <option value="">未設定</option>
+          <option value="3">3L（小鉢・葉物用）</option>
+          <option value="5">5L（中鉢）</option>
+          <option value="8">8L（中〜大鉢／ピーマン・ナスの中型）</option>
+          <option value="10" selected>10L（30型鉢／果菜類の標準）</option>
+          <option value="15">15L</option>
+          <option value="20">20L（大型プランター）</option>
+          <option value="25">25L</option>
+          <option value="30">30L（大型）</option>
+        </select>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px;">液肥の量計算に使います。後から変更できます。</div>
+      </div>
       <div class="form-group" id="trainingGroup" style="display:none;">
         <label>仕立て方</label>
         <select id="trainingInput"></select>
+      </div>
+      <div class="form-group" id="gingerCourseGroup" style="display:none;">
+        <label>生姜の追肥方針</label>
+        <select id="gingerFertilizerCourseInput">
+          <option value="liquid" selected>液肥メイン（2週間に1回・増し土は別）</option>
+          <option value="solid">固形＋増し土（液肥は補助）</option>
+          <option value="combo">併用（固形と液肥を両方記録）</option>
+        </select>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px;line-height:1.6;">株元へ培養土を足す増し土も別で確認します。</div>
       </div>
       <div class="form-group">
         <label>メモ（任意）</label>
@@ -3566,6 +3978,8 @@ function updateTrainingOptions() {
   const species = document.getElementById('speciesInput').value;
   const trainingGroup = document.getElementById('trainingGroup');
   const trainingInput = document.getElementById('trainingInput');
+  const gingerCourseGroup = document.getElementById('gingerCourseGroup');
+  if (gingerCourseGroup) gingerCourseGroup.style.display = species === 'ginger' ? 'block' : 'none';
   if (!species || !TRAINING_METHODS[species] || TRAINING_METHODS[species][0].value === 'none') {
     trainingGroup.style.display = 'none';
     return;
@@ -3580,6 +3994,11 @@ async function savePlant() {
   const plantingDate = document.getElementById('plantingDateInput').value;
   const trainingMethod = document.getElementById('trainingInput')?.value || 'none';
   const notes = document.getElementById('notesInput').value.trim();
+  const potVolumeRaw = document.getElementById('potVolumeInput')?.value;
+  const potVolumeL = potVolumeRaw ? parseFloat(potVolumeRaw) : null;
+  const gingerFertilizerCourse = species === 'ginger'
+    ? (document.getElementById('gingerFertilizerCourseInput')?.value || 'liquid')
+    : undefined;
   
   if (!species || !plantingDate) return;
   
@@ -3590,6 +4009,8 @@ async function savePlant() {
     plantingDate,
     trainingMethod,
     notes,
+    potVolumeL,
+    ...(gingerFertilizerCourse ? { gingerFertilizerCourse } : {}),
     status: 'active',
     season: new Date(plantingDate).getFullYear().toString(),
     createdAt: new Date().toISOString()
@@ -3601,6 +4022,7 @@ async function savePlant() {
 
 async function editPlant(plantId) {
   const plant = await dbGet('plants', plantId);
+  const currentPot = plant.potVolumeL ?? '';
   showModal(`
     <h2 class="modal-title">✏️ 株を編集</h2>
     <button class="modal-close" onclick="closeModal()">×</button>
@@ -3614,13 +4036,41 @@ async function editPlant(plantId) {
         <input id="plantingDateInput" type="date" value="${plant.plantingDate}">
       </div>
       <div class="form-group">
+        <label>鉢・プランター容量（L）</label>
+        <select id="potVolumeInput">
+          <option value="" ${currentPot === '' ? 'selected' : ''}>未設定</option>
+          <option value="3" ${currentPot === 3 ? 'selected' : ''}>3L（小鉢・葉物用）</option>
+          <option value="5" ${currentPot === 5 ? 'selected' : ''}>5L（中鉢）</option>
+          <option value="8" ${currentPot === 8 ? 'selected' : ''}>8L（中〜大鉢／ピーマン・ナスの中型）</option>
+          <option value="10" ${currentPot === 10 ? 'selected' : ''}>10L（30型鉢／果菜類の標準）</option>
+          <option value="15" ${currentPot === 15 ? 'selected' : ''}>15L</option>
+          <option value="20" ${currentPot === 20 ? 'selected' : ''}>20L（大型プランター）</option>
+          <option value="25" ${currentPot === 25 ? 'selected' : ''}>25L</option>
+          <option value="30" ${currentPot === 30 ? 'selected' : ''}>30L（大型）</option>
+        </select>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px;">液肥の量計算に使います。</div>
+      </div>
+      <div class="form-group">
         <label>仕立て方</label>
         <select id="trainingInput">
           ${(TRAINING_METHODS[plant.species] || []).map(t => 
             `<option value="${t.value}" ${t.value === plant.trainingMethod ? 'selected' : ''}>${t.label}</option>`
           ).join('')}
         </select>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px;line-height:1.6;">
+          仕立てはあとから変更できます。トマトを2本→1本に戻した場合、B枝側の花房記録は削除せず非表示になります。
+        </div>
       </div>
+      ${plant.species === 'ginger' ? `
+      <div class="form-group">
+        <label>生姜の追肥方針</label>
+        <select id="gingerFertilizerCourseInput">
+          <option value="liquid" ${_gingerFertilizerCourse(plant) === 'liquid' ? 'selected' : ''}>液肥メイン（2週間に1回・増し土は別）</option>
+          <option value="solid" ${_gingerFertilizerCourse(plant) === 'solid' ? 'selected' : ''}>固形＋増し土（液肥は補助）</option>
+          <option value="combo" ${_gingerFertilizerCourse(plant) === 'combo' ? 'selected' : ''}>併用（固形と液肥を両方記録）</option>
+        </select>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px;line-height:1.6;">後から変更できます。今後の予定と液肥調合ツールの初期おすすめに反映します。</div>
+      </div>` : ''}
       <div class="form-group">
         <label>メモ</label>
         <textarea id="notesInput">${plant.notes || ''}</textarea>
@@ -3636,8 +4086,38 @@ async function updatePlant(plantId) {
   plant.plantingDate = document.getElementById('plantingDateInput').value;
   plant.trainingMethod = document.getElementById('trainingInput')?.value || plant.trainingMethod;
   plant.notes = document.getElementById('notesInput').value.trim();
+  const potVolumeRaw = document.getElementById('potVolumeInput')?.value;
+  plant.potVolumeL = potVolumeRaw ? parseFloat(potVolumeRaw) : null;
+  if (plant.species === 'ginger') {
+    plant.gingerFertilizerCourse = document.getElementById('gingerFertilizerCourseInput')?.value || 'liquid';
+  }
   await dbPut('plants', plant);
   closeModal();
+  await renderPlantDetail(plantId);
+}
+
+
+async function updateGingerCourse(plantId, course) {
+  const plant = await dbGet('plants', plantId);
+  if (!plant || plant.species !== 'ginger') return;
+  plant.gingerFertilizerCourse = course || 'liquid';
+  await dbPut('plants', plant);
+  await renderPlantDetail(plantId);
+}
+
+async function recordGingerGrowthTrigger(plantId) {
+  const plant = await dbGet('plants', plantId);
+  if (!plant || plant.species !== 'ginger') return;
+  const now = new Date().toISOString();
+  plant.gingerFertilizerStartDate = now;
+  await dbPut('plants', plant);
+  await recordTask({
+    plantId,
+    type: 'ginger_growth_trigger',
+    date: now,
+    details: { trigger: 'height15_or_true_leaves_2_3' },
+    notes: '草丈15cm前後、または本葉2〜3枚を確認。追肥開始トリガー。'
+  });
   await renderPlantDetail(plantId);
 }
 
@@ -3747,7 +4227,7 @@ async function recordAction(action, actionData) {
     return;
   }
   if (action === 'harvest') {
-    showHarvestModal();
+    await showHarvestModal();
     return;
   }
   if (action === 'side_shoot_removal') {
@@ -3762,6 +4242,18 @@ async function recordAction(action, actionData) {
     showObservationModal();
     return;
   }
+  if (action === 'heat_protection') {
+    showHeatProtectionModal();
+    return;
+  }
+  if (action === 'fertilize_liquid') {
+    showLiquidFertilizerModal();
+    return;
+  }
+  if (action === 'fertilize_granular') {
+    showGranularFertilizerModal();
+    return;
+  }
   // その他は即座に記録
   showQuickRecordModal(action, actionData);
 }
@@ -3772,6 +4264,98 @@ function showQuickRecord() {
     return;
   }
   showQuickRecordModal('observation', { icon: '👀', label: '観察' });
+}
+
+function showGranularFertilizerModal() {
+  (async () => {
+    const plant = currentPlantId ? await dbGet('plants', currentPlantId) : null;
+    const species = plant?.species || 'other';
+    const defaultKind = species === 'passion' ? 'pk' : (species === 'ginger' ? 'balanced' : 'balanced');
+    const defaultStage = species === 'passion' ? 'passion_bud_visible' : (species === 'ginger' ? 'ginger_topsoil' : 'general_growth');
+    showModal(`
+      <h2 class="modal-title">💊 固形肥料/リン酸資材を記録</h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+      <form onsubmit="event.preventDefault();saveGranularFertilizer();">
+        <div class="form-group">
+          <label>日時</label>
+          <input id="granularDateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+        </div>
+        <div class="form-group">
+          <label>種類</label>
+          <select id="granularKindInput">
+            <option value="pk" ${defaultKind === 'pk' ? 'selected' : ''}>リンカリ固形/顆粒（30日目安）</option>
+            <option value="pk_liquid">液体リン酸資材（14日目安）</option>
+            <option value="pk_slow">緩効性リンカリ（45日目安）</option>
+            <option value="balanced" ${defaultKind === 'balanced' ? 'selected' : ''}>通常/バランス固形</option>
+            <option value="slow_release">緩効性固形</option>
+            <option value="other">その他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>状態・目的</label>
+          <select id="granularStageInput">
+            <option value="passion_bud_visible" ${defaultStage === 'passion_bud_visible' ? 'selected' : ''}>パッション：花芽あり</option>
+            <option value="passion_flowering_fruiting">パッション：開花/着果/肥大期</option>
+            <option value="passion_leaf_only">パッション：葉つる優勢・花芽なし</option>
+            <option value="general_growth" ${defaultStage === 'general_growth' ? 'selected' : ''}>生育期</option>
+            <option value="harvest_phase">収穫期</option>
+            <option value="ginger_topsoil" ${defaultStage === 'ginger_topsoil' ? 'selected' : ''}>生姜：追肥/増し土</option>
+            <option value="other">その他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>量</label>
+          <select id="granularAmountInput">
+            <option value="label_only">記録のみ（量は商品規定量）</option>
+            <option value="small">少なめ</option>
+            <option value="standard" selected>規定量</option>
+            <option value="large">多め</option>
+          </select>
+        </div>
+        <details style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.7;margin-bottom:12px;">
+          <summary style="font-weight:600;cursor:pointer;">リンカリ/リン酸資材メモ</summary>
+          <div style="margin-top:8px;">
+            パッションのリンカリ/リン酸資材は、花芽・開花・着果を支えるP/K補助として液肥とは別枠で記録します。<br>
+            頻度目安：固形/顆粒は30日ごと、液体リン酸資材は14日ごと、緩効性タイプは45日ごと。<br>
+            記録してもハイポ＋リキダス液肥の週1回ペースは自動リセットしません。<br>
+            同日に併用する場合は、液肥側を1000倍混合に落とす選択肢もあります。
+          </div>
+        </details>
+        <div class="form-group">
+          <label>メモ（任意）</label>
+          <textarea id="granularNotesInput" placeholder="例：花芽が見えたのでリンカリ固形を規定量 / 液体リン酸資材を散布"></textarea>
+        </div>
+        <button type="submit" class="btn">記録</button>
+      </form>
+    `);
+  })();
+}
+
+async function saveGranularFertilizer() {
+  const date = document.getElementById('granularDateInput').value;
+  const fertilizerKind = document.getElementById('granularKindInput').value;
+  const stageSignal = document.getElementById('granularStageInput').value;
+  const amountLevel = document.getElementById('granularAmountInput').value;
+  const notes = document.getElementById('granularNotesInput').value.trim();
+  const kindLabel = _granularKindLabel(fertilizerKind);
+  const stageLabel = _granularStageLabel(stageSignal);
+  const amountLabel = { label_only: '商品規定量', small: '少なめ', standard: '規定量', large: '多め' }[amountLevel] || '未記録';
+  const autoNote = `${kindLabel} / ${stageLabel} / ${amountLabel}`;
+  const isoDate = new Date(date).toISOString();
+  await recordTask({
+    plantId: currentPlantId,
+    type: 'fertilize_granular',
+    date: isoDate,
+    details: { fertilizerKind, fertilizerKindLabel: kindLabel, stageSignal, stageLabel, amountLevel, amountLabel },
+    notes: notes ? `${autoNote}
+${notes}` : autoNote
+  });
+  const inputDate = new Date(isoDate);
+  if (inputDate.toDateString() === new Date().toDateString()) {
+    await syncTaskStateOnRecord(currentPlantId, 'fertilize_granular');
+  }
+  closeModal();
+  await renderPlantDetail(currentPlantId);
 }
 
 function showQuickRecordModal(action, actionData) {
@@ -3860,6 +4444,9 @@ function showTomatoToneModal() {
             }).join('')}
           </select>
         </div>
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px;margin-bottom:14px;font-size:12px;line-height:1.7;">
+          <b>注意：</b>3〜5花くらい開花した花房全体に、さっと1〜2回。幼葉・生長点にかからないよう、手で遮ってから噴霧。
+        </div>
         <div class="form-group">
           <label>日時</label>
           <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
@@ -3900,7 +4487,9 @@ async function saveTomatoTone() {
   await renderPlantDetail(currentPlantId);
 }
 
-function showHarvestModal() {
+async function showHarvestModal() {
+  const plant = currentPlantId ? await dbGet('plants', currentPlantId) : null;
+  const isPassion = plant?.species === 'passion';
   showModal(`
     <h2 class="modal-title">🧺 収穫を記録</h2>
     <button class="modal-close" onclick="closeModal()">×</button>
@@ -3913,9 +4502,45 @@ function showHarvestModal() {
         <label>収穫個数</label>
         <input id="countInput" type="number" min="1" value="1" required>
       </div>
+      ${isPassion ? `
+        <div class="form-group">
+          <label>パッションフルーツの収穫状態</label>
+          <select id="passionHarvestStatusInput" required>
+            <option value="natural_drop">自然落果（完熟収穫）</option>
+            <option value="detached_touch">軽く触って外れた</option>
+            <option value="early_pick">早採り</option>
+            <option value="immature_drop">未熟/途中落果</option>
+            <option value="damaged_drop">落下傷あり</option>
+            <option value="unknown">不明</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>果皮色</label>
+          <select id="passionPeelColorInput" required>
+            <option value="green">緑</option>
+            <option value="turning">色づき途中</option>
+            <option value="purple">赤紫・紫</option>
+            <option value="yellow">黄色</option>
+            <option value="unknown">不明</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>追熟状態</label>
+          <select id="passionRipeningInput" required>
+            <option value="start">収穫直後・追熟開始</option>
+            <option value="ripening">追熟中</option>
+            <option value="wrinkled_ready">シワあり・食べごろ</option>
+            <option value="ate">食べた</option>
+            <option value="unknown">未記録</option>
+          </select>
+        </div>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px;font-size:12px;line-height:1.7;margin-bottom:12px;">
+          <b>収穫目安：</b>基本は自然落果まで待つ。落ちたら数日〜1週間ほど常温追熟し、皮にシワと香りが出たら食べごろ。緑のまま落ちる場合は水切れ・高温・着果負担も記録。
+        </div>
+      ` : ''}
       <div class="form-group">
         <label>メモ（任意）</label>
-        <textarea id="notesInput" placeholder="味の感想など"></textarea>
+        <textarea id="notesInput" placeholder="味の感想、サイズ、傷、香りなど"></textarea>
       </div>
       <button type="submit" class="btn">記録</button>
     </form>
@@ -3926,12 +4551,27 @@ async function saveHarvest() {
   const date = document.getElementById('dateInput').value;
   const count = parseInt(document.getElementById('countInput').value) || 1;
   const notes = document.getElementById('notesInput').value.trim();
+  const details = { count };
+  const passionStatus = document.getElementById('passionHarvestStatusInput')?.value || null;
+  const passionPeelColor = document.getElementById('passionPeelColorInput')?.value || null;
+  const passionRipening = document.getElementById('passionRipeningInput')?.value || null;
+  let autoNote = '';
+  if (passionStatus) {
+    details.passionHarvestStatus = passionStatus;
+    details.passionHarvestStatusLabel = _passionHarvestStatusLabel(passionStatus);
+    details.passionPeelColor = passionPeelColor;
+    details.passionPeelColorLabel = _passionPeelColorLabel(passionPeelColor);
+    details.passionRipening = passionRipening;
+    details.passionRipeningLabel = _passionRipeningLabel(passionRipening);
+    autoNote = `${details.passionHarvestStatusLabel} / ${details.passionPeelColorLabel} / ${details.passionRipeningLabel}`;
+  }
   await recordTask({
     plantId: currentPlantId,
     type: 'harvest',
     date: new Date(date).toISOString(),
-    details: { count },
-    notes
+    details,
+    notes: autoNote ? (notes ? `${autoNote}
+${notes}` : autoNote) : notes
   });
   await syncTaskStateOnRecord(currentPlantId, 'harvest');
   closeModal();
@@ -3974,6 +4614,876 @@ async function saveSideShoot() {
     notes
   });
   await syncTaskStateOnRecord(currentPlantId, 'side_shoot_removal');
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+
+
+
+// =================================================
+// 液肥調合ツール（一括診断・一括記録）
+// =================================================
+const GINGER_LIQUID_INTERVAL_DAYS = 14;
+
+function _gingerFertilizerCourse(plant) {
+  return plant?.gingerFertilizerCourse || 'liquid';
+}
+
+function _gingerFertilizerCourseLabel(course) {
+  const labels = {
+    liquid: '液肥メイン',
+    solid: '固形＋増し土',
+    combo: '併用'
+  };
+  return labels[course] || '液肥メイン';
+}
+
+function _gingerStartTriggerTask(tasks) {
+  return (tasks || [])
+    .filter(t => t.type === 'ginger_growth_trigger')
+    .sort((a, b) => new Date(b.date) - new Date(a.date))[0] || null;
+}
+
+function _gingerStartTriggered(plant, tasks) {
+  return !!(plant?.gingerFertilizerStartDate || _gingerStartTriggerTask(tasks));
+}
+
+function _gingerStartDate(plant, tasks) {
+  return plant?.gingerFertilizerStartDate || _gingerStartTriggerTask(tasks)?.date || null;
+}
+
+function _daysSinceLastGingerSolid(tasks, plantId) {
+  const history = (tasks || [])
+    .filter(t => t.plantId === plantId && t.type === 'fertilize_granular')
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  return history[0] ? dayDiff(history[0].date) : 999;
+}
+
+function _daysSinceLastActualLiquidForPlant(plantId, tasks) {
+  const history = (tasks || [])
+    .filter(t => t.plantId === plantId && _isActualLiquidFertilizerTask(t))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  return history[0] ? dayDiff(history[0].date) : 999;
+}
+
+function _isActualFertilizerActionValue(actionValue) {
+  const parsed = _parseFertilizerAction(actionValue);
+  return parsed.product !== 'rikidas' && parsed.product !== 'none';
+}
+
+function _applyGingerIntervalGuardToAction(rec, isGingerRecentLiquid, daysSinceLastLiquid) {
+  if (!isGingerRecentLiquid) return rec;
+  if (rec.action === 'mixed_standard' || rec.action === 'mixed_careful') {
+    return {
+      action: 'rikidas_100',
+      reason: `【生姜の連続投与防止】前回のハイポ液肥から${daysSinceLastLiquid}日。生姜は液肥メインでも2週間に1回が基本なので、今回はハイポを入れずリキダス100倍のみ/水だけで記録。`
+    };
+  }
+  if (rec.action === 'rikidas_100') {
+    return {
+      action: 'rikidas_100',
+      reason: `【生姜の連続投与防止】前回のハイポ液肥から${daysSinceLastLiquid}日。ハイポは14日以上空け、今回はリキダス100倍のみ。`
+    };
+  }
+  return rec;
+}
+
+function _defaultFertilizerDecisionForPlant(plant) {
+  if (plant?.species === 'ginger') {
+    const days = dayDiff(plant.plantingDate);
+    // 生姜は発芽前〜本葉が少ない時期、収穫準備期は液肥を控えめにする
+    if (days < 45 || days >= 150) return 'ginger_careful_period';
+    return 'ginger_ok';
+  }
+  const map = {
+    tomato: 'tomato_stem_ok',
+    eggplant: 'eggplant_long_style',
+    pepper: 'pepper_balanced',
+    okra: 'okra_above_3',
+    passion: 'passion_bud_visible',
+    mitsuba: 'mitsuba_balanced',
+    negi: 'negi_balanced'
+  };
+  return map[plant?.species] || 'balanced_visual';
+}
+
+// 株種ごとのデフォルト係数（鉢容量に対する%）。本格期の「標準」量に相当。
+// 根拠：
+// - トマト：タキイ「液肥は1L/1株を各段開花期に」（10L鉢で10%）。ツルボケ予防で控えめ。
+// - ナス・ピーマン：肥料食い。サカタ「追肥1株化成肥料50g」相当を液肥換算で1段上。
+// - パッション：「肥料を多く必要」だが鉢栽培ではツルボケ予防で15%程度。
+// - オクラ：果菜類で中間。
+// - 生姜：乾燥に弱いが肥料はそこまで多くない。
+// - 三つ葉・小ねぎ：葉物・小鉢前提で控えめ。
+function _defaultPotRatioForSpecies(species) {
+  const map = {
+    tomato: 0.10,     // 10L鉢で1L目安（追肥開始後）
+    eggplant: 0.125,  // 8L鉢で1L目安。肥料食いだが液肥量は上限で抑える
+    pepper: 0.09,     // 8L鉢で約700mL。ナスより控えめ
+    passion: 0.10,    // 10L鉢で1L目安。花芽〜着果期は多め候補
+    okra: 0.10,       // 中間
+    ginger: 0.06,     // 8L鉢で約500mL。水は別管理、ハイポは控えめ期あり
+    mitsuba: 0.03,    // 葉物・小鉢前提で控えめ
+    negi: 0.03        // 葉物・小鉢前提で控えめ
+  };
+  return map[species] || 0.10;
+}
+
+function _fertilizerVolumeBoundsForSpecies(species) {
+  const map = {
+    tomato:   { min: 500, standardMax: 1000, max: 1500 },
+    eggplant: { min: 500, standardMax: 1000, max: 1500 },
+    pepper:   { min: 300, standardMax: 700,  max: 1000 },
+    passion:  { min: 700, standardMax: 1000, max: 2000 },
+    okra:     { min: 300, standardMax: 700,  max: 1200 },
+    ginger:   { min: 300, standardMax: 500,  max: 700 },
+    mitsuba:  { min: 100, standardMax: 300,  max: 500 },
+    negi:     { min: 100, standardMax: 300,  max: 500 }
+  };
+  return map[species] || { min: 300, standardMax: 1000, max: 1500 };
+}
+
+function _clampFertilizerVolume(species, ml, level = 'standard') {
+  if (!ml || ml <= 0) return ml;
+  const bounds = _fertilizerVolumeBoundsForSpecies(species);
+  const upper = ['verylow', 'low', 'standard'].includes(level) ? (bounds.standardMax || bounds.max) : bounds.max;
+  return Math.min(upper, Math.max(bounds.min, ml));
+}
+
+// 鉢容量(L) と 株種から、相対スケール5段階の量を返す。
+// level: 'verylow'(×0.5) / 'low'(×0.75) / 'standard'(×1.0) / 'high'(×1.5) / 'veryhigh'(×2.0)
+// standard = 鉢容量 × 株種ごとのデフォルト係数（本格期の標準）
+function _estimateVolumeForPot(potVolumeL, level, species) {
+  if (!potVolumeL || potVolumeL <= 0) return null;
+  const baseRatio = _defaultPotRatioForSpecies(species);
+  const scaleMap = { verylow: 0.5, low: 0.75, standard: 1.0, high: 1.5, veryhigh: 2.0 };
+  const scale = scaleMap[level] !== undefined ? scaleMap[level] : 1.0;
+  const rawMl = potVolumeL * 1000 * baseRatio * scale;
+  const rounded = Math.max(50, Math.round(rawMl / 50) * 50);
+  return _clampFertilizerVolume(species, rounded, level);
+}
+
+// 株の現在のステージから「初期=控えめ」スケールを決定。
+// トマト：第3花房開花前は0.6、それ以降は1.0
+// ナス・ピーマン：一番果未着果は0.7、それ以降は1.0
+// パッション：植え付け21日未満は0.7、それ以降は1.0
+// その他：1.0
+function _stageScaleForPlant(plant, clusters) {
+  if (!plant) return 1;
+  const days = dayDiff(plant.plantingDate);
+  if (plant.species === 'tomato') {
+    const myClusters = (clusters || []).filter(c => c.plantId === plant.id);
+    const cluster3 = myClusters.find(c => c.segmentNumber === 3);
+    const cluster3Reached = cluster3 && ['blooming', 'fruiting', 'harvesting', 'finished'].includes(cluster3.status);
+    return cluster3Reached ? 1.0 : 0.6;
+  }
+  if (plant.species === 'eggplant' || plant.species === 'pepper') {
+    return plant.firstFruit?.date ? 1.0 : 0.7;
+  }
+  if (plant.species === 'passion') {
+    return days >= 21 ? 1.0 : 0.7;
+  }
+  return 1.0;
+}
+
+function _stageLabelForPlant(plant, clusters) {
+  if (!plant) return '';
+  if (plant.species === 'tomato') {
+    const myClusters = (clusters || []).filter(c => c.plantId === plant.id);
+    const cluster3 = myClusters.find(c => c.segmentNumber === 3);
+    const cluster3Reached = cluster3 && ['blooming', 'fruiting', 'harvesting', 'finished'].includes(cluster3.status);
+    return cluster3Reached ? '本格期（ハイポOK）' : '初期（ハイポなし・第3花房開花まで）';
+  }
+  if (plant.species === 'eggplant' || plant.species === 'pepper') {
+    return plant.firstFruit?.date ? '本格期（ハイポOK）' : '初期（ハイポなし・一番果着果まで）';
+  }
+  if (plant.species === 'passion') {
+    return dayDiff(plant.plantingDate) >= 21 ? '本格期（ハイポOK）' : '初期（ハイポなし・植え付け21日まで）';
+  }
+  return '';
+}
+
+function _defaultFertilizerVolumeMl(species, potVolumeL, plant, clusters) {
+  // 鉢容量があれば、株種ごとのデフォルト係数 × 相対スケールで計算。
+  // 本格期：「標準（standard）」=株種デフォルト × 1.0
+  // 初期ステージ：「ごく少なめ（verylow）」=株種デフォルト × 0.5
+  if (potVolumeL && potVolumeL > 0) {
+    const scale = _stageScaleForPlant(plant, clusters);
+    const isInitial = scale < 1.0;
+    return _estimateVolumeForPot(potVolumeL, isInitial ? 'verylow' : 'standard', species);
+  }
+  // 鉢容量未設定時のフォールバック（種ごとの控えめ目安）
+  const map = {
+    tomato: 1000, eggplant: 1000, pepper: 700,
+    passion: 1000, okra: 700, ginger: 500,
+    mitsuba: 300, negi: 300
+  };
+  return map[species] || 800;
+}
+
+function _fertilizerVolumeOptionsBySpecies(species, potVolumeL, plant, clusters) {
+  // 鉢容量があれば、株種ごとのデフォルトを基準に相対スケール5段階で生成。
+  if (potVolumeL && potVolumeL > 0) {
+    const v1 = _estimateVolumeForPot(potVolumeL, 'verylow', species);
+    const v2 = _estimateVolumeForPot(potVolumeL, 'low', species);
+    const v3 = _estimateVolumeForPot(potVolumeL, 'standard', species);
+    const v4 = _estimateVolumeForPot(potVolumeL, 'high', species);
+    const v5 = _estimateVolumeForPot(potVolumeL, 'veryhigh', species);
+    const baseRatio = _defaultPotRatioForSpecies(species);
+    const pct = (mult) => Math.round(baseRatio * mult * 100);
+    const opts = [];
+    const add = (v, label) => {
+      if (!v) return;
+      const existing = opts.find(o => o[0] === v);
+      if (!existing) {
+        opts.push([v, label]);
+        return;
+      }
+      // 目安量と控えめ量などが同じ値になった場合は、「この株の目安」を優先表示する。
+      if (label.startsWith('★')) existing[1] = label;
+    };
+    add(v1, `ごく少なめ ${_formatL(v1)}（初期/湿っている時）`);
+    add(v2, `控えめ ${_formatL(v2)}`);
+    add(v3, `★この株の目安 ${_formatL(v3)}（追肥開始後の標準）`);
+    add(v4, `多め ${_formatL(v4)}（収穫期/乾き気味）`);
+    add(v5, `しっかり ${_formatL(v5)}（乾き強め・上限内）`);
+    return opts;
+  }
+  // フォールバック：従来の固定選択肢（鉢容量未設定時）
+  const common = [
+    [500, '500mL（小鉢・控えめ）'],
+    [1000, '1L'],
+    [1500, '1.5L'],
+    [2000, '2L'],
+    [3000, '3L（しっかり）']
+  ];
+  const map = {
+    tomato: [
+      [1000, '少なめ 1L'],
+      [1500, '標準 1.5L'],
+      [2000, '乾き強め 2L'],
+      [3000, '猛暑・カラカラ 3L']
+    ],
+    eggplant: [
+      [1000, '少なめ 1L'],
+      [1500, '標準 1.5L'],
+      [2000, '収穫期・乾き強め 2L'],
+      [3000, '猛暑・カラカラ 3L']
+    ],
+    pepper: [
+      [700, '小鉢・控えめ 700mL'],
+      [1000, '中鉢の標準 1L'],
+      [1500, '大株 1.5L'],
+      [2000, '乾き強め 2L']
+    ],
+    passion: [
+      [1500, '少なめ 1.5L'],
+      [2000, '標準 2L'],
+      [3000, '夏・乾き強め 3L']
+    ],
+    okra: [
+      [700, '控えめ 700mL'],
+      [1000, '標準 1L'],
+      [1500, '大株 1.5L'],
+      [2000, '乾き強め 2L']
+    ],
+    ginger: [
+      [500, '控えめ 500mL'],
+      [1000, '標準 1L'],
+      [1500, '大株 1.5L']
+    ],
+    mitsuba: [
+      [200, 'ごく少量 200mL'],
+      [300, '少なめ 300mL'],
+      [500, '小鉢の標準 500mL'],
+      [1000, '中鉢 1L']
+    ],
+    negi: [
+      [200, 'ごく少量 200mL'],
+      [300, '少なめ 300mL'],
+      [500, '小鉢の標準 500mL'],
+      [1000, '中鉢 1L']
+    ]
+  };
+  return map[species] || common;
+}
+
+function renderFertilizerVolumeOptions(defaultMl, species, potVolumeL, plant, clusters) {
+  const options = _fertilizerVolumeOptionsBySpecies(species, potVolumeL, plant, clusters);
+  // defaultMlがoptionsの中になければ追加（推奨値が選択肢にないケースの保険）
+  if (defaultMl && !options.find(o => o[0] === defaultMl)) {
+    options.push([defaultMl, `推奨 ${_formatL(defaultMl)}`]);
+    options.sort((a, b) => a[0] - b[0]);
+  }
+  return options.map(([value, label]) => `<option value="${value}" ${value === defaultMl ? 'selected' : ''}>${label}</option>`).join('');
+}
+
+function _mixerRoundVolume(totalMl) {
+  if (!totalMl || totalMl <= 0) return 0;
+  return Math.ceil(totalMl / 500) * 500;
+}
+
+function _formatMl(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
+  const n = Number(value);
+  if (Math.abs(n - Math.round(n)) < 0.001) return `${Math.round(n)}mL`;
+  return `${Math.round(n * 10) / 10}mL`;
+}
+
+function _formatL(valueMl) {
+  if (valueMl >= 1000) {
+    const l = valueMl / 1000;
+    return `${Number.isInteger(l) ? l : l.toFixed(1)}L`;
+  }
+  return `${valueMl}mL`;
+}
+
+function _fertilizerFormulaForAction(actionValue, makeMl) {
+  const waterText = _formatL(makeMl);
+  if (actionValue === 'mixed_standard') {
+    return { title: 'ハイポ500倍＋リキダス100倍', waterText, hyponexMl: makeMl / 500, rikidasMl: makeMl / 100, note: '通常・明確な不足向け。本格期の標準。' };
+  }
+  if (actionValue === 'mixed_careful') {
+    return { title: 'ハイポ1000倍＋リキダス100倍', waterText, hyponexMl: makeMl / 1000, rikidasMl: makeMl / 100, note: '悩ましい・暑さも絡む時の慎重案。' };
+  }
+  if (actionValue === 'rikidas_100') {
+    return { title: 'リキダス100倍のみ', waterText, hyponexMl: 0, rikidasMl: makeMl / 100, note: '過多・ツルボケ・弱り気味でハイポを入れない時（活着後の生育旺盛期向け）。' };
+  }
+  if (actionValue === 'rikidas_500') {
+    return { title: 'リキダス500倍のみ', waterText, hyponexMl: 0, rikidasMl: makeMl / 500, note: '過去互換用。新規記録はリキダス100倍または1000倍を推奨。' };
+  }
+  if (actionValue === 'rikidas_1000') {
+    return { title: 'リキダス1000倍のみ', waterText, hyponexMl: 0, rikidasMl: makeMl / 1000, note: '植え付け直後・活着前。公式の植え付け時推奨倍率。根の活力アップに。' };
+  }
+  if (actionValue === 'none') {
+    return { title: '水だけ/完全見送り', waterText, hyponexMl: 0, rikidasMl: 0, note: '強い萎れ・根傷み疑い、または初期の見送り。' };
+  }
+  return { title: 'その他・濃度未記録', waterText, hyponexMl: null, rikidasMl: null, note: '手元の調合内容をメモに残してください。' };
+}
+
+async function showFertilizerMixerModal() {
+  const plants = (await dbGetAll('plants')).filter(p => p.status === 'active');
+  const appSettings = await getAppPreferences();
+  if (plants.length === 0) {
+    alert('活動中の株がありません');
+    return;
+  }
+  const clusters = await dbGetAll('clusters');
+  const allTasks = await dbGetAll('tasks');
+  showModal(`
+    <h2 class="modal-title">🧪 液肥調合ツール</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();saveFertilizerMixerBatch();">
+      <div class="form-group">
+        <label>日時</label>
+        <input id="mixerDateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+      </div>
+      <details style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.7;margin-bottom:12px;">
+        <summary style="font-weight:600;cursor:pointer;">使い方・公式の目安</summary>
+        <div style="margin-top:8px;">
+          ① 株ごとに状態を選ぶ → ② おすすめ対応が自動入力 → ③ 量を確認 → ④ 同じ希釈をまとめて調合<br>
+          <b>量＝株種ごとの「標準」が基準</b>：鉢容量は推奨量の補正に使いますが、液肥量は水やり量ではありません。トマト10L=1L、ナス8L=1L、ピーマン8L=約700mL、パッション10L=1L、生姜8L=約500mLを目安に、作物別の上限で抑えます。<br>
+          <b>初期ステージはハイポなし</b>：トマト第3花房開花前／ナス・ピーマン一番果着果前／パッション植え付け21日未満は、ハイポは入れずリキダスのみ。植え付け14日未満はリキダス1000倍（植え付け時向け）、それ以降で追肥開始前はリキダス100倍のみ。<br>
+          <b>本格期の希釈倍率（公式）</b>：ハイポ500倍＋リキダス100倍。葉面散布はリキダス200倍。<br>
+          <b>液肥曜日</b>：${_liquidWeekdayText(appSettings)}。設定済みなら、予定が前後3日程度のものをその曜日にまとめます。生姜は14日未満のハイポを避けます。<br>
+          <b>生姜だけは2週間に1回</b>：液肥メインでも、ハイポ入り液肥は前回から14日以上空けます。14日未満なら調合ツールがリキダス100倍のみへ自動で寄せます。<br>
+          原液同士は直接混ぜず、水に薄めてから混合。作った液は当日中に使い切ります。通常は土表面が乾いた時に液肥を水やり代わりにし、たっぷり水やり直後は後日に回します。カラカラ/撥水気味なら少量の水で軽く湿らせてから液肥。
+        </div>
+      </details>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px;font-size:12px;line-height:1.7;margin-bottom:12px;color:#1f2937;">
+        <b>💧 液肥タイミング</b><br>
+        通常は<b>土表面が乾いた時</b>に、液肥を水やり代わりに与えます。<br>
+        鉢底から流れるほど水やりした直後は、成分が流れやすいので<b>液肥は後日</b>に。<br>
+        土がカラカラ/撥水気味なら、<b>少量の水で軽く湿らせてから</b>液肥。強くしおれて戻らない時は水管理・暑さ対策を優先します。
+      </div>
+      <div id="mixerRows" style="display:flex;flex-direction:column;gap:10px;">
+        ${plants.map(p => {
+          const sp = SPECIES[p.species];
+          const daysSinceLastLiquid = _daysSinceLastActualLiquidForPlant(p.id, allTasks);
+          const isGingerRecentLiquid = p.species === 'ginger' && daysSinceLastLiquid < GINGER_LIQUID_INTERVAL_DAYS;
+          const gingerCourse = _gingerFertilizerCourse(p);
+          const gingerTriggered = p.species === 'ginger' ? _gingerStartTriggered(p, allTasks) : true;
+          const defaultDecision = isGingerRecentLiquid
+            ? 'ginger_recent_liquid'
+            : (p.species === 'ginger' && (!gingerTriggered || gingerCourse === 'solid')
+              ? 'ginger_careful_period'
+              : _defaultFertilizerDecisionForPlant(p));
+          const potVolumeL = p.potVolumeL || null;
+          const defaultMl = _defaultFertilizerVolumeMl(p.species, potVolumeL, p, clusters);
+          const stageLabel = _stageLabelForPlant(p, clusters);
+          const potBadge = potVolumeL
+            ? `<span style="font-size:10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;padding:2px 6px;">🪴 ${potVolumeL}L鉢</span>`
+            : `<span style="font-size:10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:8px;padding:2px 6px;">⚠️ 鉢容量未設定</span>`;
+          const stageBadge = stageLabel
+            ? `<span style="font-size:10px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:8px;padding:2px 6px;">${stageLabel}</span>`
+            : '';
+          const stageScale = _stageScaleForPlant(p, clusters);
+          const isInitialStage = stageScale < 1.0;
+          const rawRec = getRecommendedFertilizerAction(defaultDecision, p.species);
+          const stageAdjustedRec = _applyStageScaleToAction(rawRec, isInitialStage, p.species, p);
+          const intervalAdjustedRec = _applyGingerIntervalGuardToAction(stageAdjustedRec, isGingerRecentLiquid, daysSinceLastLiquid);
+          const gingerIntervalBadge = isGingerRecentLiquid
+            ? `<span style="font-size:10px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:8px;padding:2px 6px;">🫚 前回ハイポ${daysSinceLastLiquid}日前・今回はハイポ防止</span>`
+            : '';
+          return `
+            <div class="mixer-row" data-plant-id="${p.id}" data-species="${p.species}" data-initial-stage="${isInitialStage ? '1' : '0'}" data-last-liquid-days="${daysSinceLastLiquid}" data-ginger-recent-liquid="${isGingerRecentLiquid ? '1' : '0'}" data-planting-date="${p.plantingDate}" style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+                <span style="font-size:20px;">${sp.icon}</span>
+                <div class="mixer-plant-name" style="font-weight:700;font-size:14px;">${escapeHtml(p.name || sp.name)}</div>
+                <span style="margin-left:auto;font-size:11px;color:var(--text-light);">${sp.name}</span>
+              </div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+                ${potBadge} ${stageBadge} ${gingerIntervalBadge}
+              </div>
+              <div class="form-group" style="margin-bottom:8px;">
+                <label>状態</label>
+                <select class="mixer-decision" onchange="updateMixerRowRecommendation(this)" required>
+                  ${renderFertilizerDecisionOptions(p.species, defaultDecision)}
+                </select>
+              </div>
+              <div style="display:grid;grid-template-columns:1.4fr 0.8fr;gap:8px;">
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>今回の対応</label>
+                  <select class="mixer-action" onchange="recalculateFertilizerMixer()" required>
+                    ${renderFertilizerActionOptions().replace(`value="${intervalAdjustedRec.action}"`, `value="${intervalAdjustedRec.action}" selected`)}
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>液肥量（水やり量ではない）</label>
+                  <select class="mixer-volume" onchange="recalculateFertilizerMixer()">
+                    ${renderFertilizerVolumeOptions(defaultMl, p.species, potVolumeL, p, clusters)}
+                  </select>
+                </div>
+              </div>
+              <div class="mixer-recommend" style="font-size:11px;color:#4b5563;line-height:1.5;background:#f9fafb;border-radius:8px;padding:8px;"></div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div style="margin:12px 0;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);">
+        <input id="mixerRoundInput" type="checkbox" checked onchange="recalculateFertilizerMixer()" style="width:auto;">
+        <label for="mixerRoundInput" style="margin:0;font-weight:500;color:var(--text);">作りやすいように500mL単位で切り上げる</label>
+      </div>
+      <div id="mixerResult" style="margin-bottom:12px;"></div>
+      <div class="form-group">
+        <label>全体メモ（任意）</label>
+        <textarea id="mixerNotesInput" placeholder="例：猛暑予報なので全体的に1000倍寄り / ナスだけ多め"></textarea>
+      </div>
+      <button type="submit" class="btn">この内容で一括記録</button>
+    </form>
+  `);
+  document.querySelectorAll('.mixer-decision').forEach(el => updateMixerRowRecommendation(el, false));
+  recalculateFertilizerMixer();
+}
+
+// ステージ補正でおすすめを上書きする。
+// 初期ステージ（トマト第3花房開花前 / ナス・ピーマン一番果未着果 / パッション植え付け21日未満）の場合、
+// ありさの方針で「ハイポは初期に与えない」ため、リキダスのみ または 水だけ に振り分ける。
+// 植え付け14日未満：リキダス1000倍（公式の植え付け時推奨）
+// 植え付け14日以上で追肥開始前：リキダス100倍のみ（ハイポなし）
+// 「過多寄り」の状態 → 水だけ
+function _applyStageScaleToAction(rec, isInitialStage, species, plant) {
+  if (!isInitialStage) return rec;
+  const days = plant ? dayDiff(plant.plantingDate) : 999;
+  const baseInitialAction = days < 14 ? 'rikidas_1000' : 'rikidas_100';
+  const baseInitialReason = days < 14
+    ? '【初期・活着前】植え付けから14日未満。リキダス1000倍で根の活力アップを優先。'
+    : '【追肥開始前】まだハイポは早い。リキダス100倍のみで活力剤として記録。';
+
+  // 過多寄り・ツルボケ寄りの状態は「水だけ」を強制
+  const overgrowthDecisions = ['tomato_stem_thick', 'eggplant_leaf_over', 'pepper_leaf_over', 'passion_leaf_only', 'okra_above_5'];
+
+  // ハイポを使うアクション → リキダスのみに切替
+  if (rec.action === 'mixed_standard' || rec.action === 'mixed_careful') {
+    return { action: baseInitialAction, reason: baseInitialReason };
+  }
+  // すでにリキダスのみ・水だけならそのまま（ただし状態が過多寄りなら水だけに）
+  if (rec.action === 'rikidas_100') {
+    return { action: baseInitialAction, reason: baseInitialReason + '' };
+  }
+  return rec;
+}
+
+function updateMixerRowRecommendation(selectEl, overwriteAction = true) {
+  const row = selectEl.closest('.mixer-row');
+  if (!row) return;
+  const species = row.dataset.species;
+  const isInitialStage = row.dataset.initialStage === '1';
+  const isGingerRecentLiquid = row.dataset.gingerRecentLiquid === '1';
+  const daysSinceLastLiquid = parseInt(row.dataset.lastLiquidDays || '999', 10);
+  const plantingDate = row.dataset.plantingDate;
+  const fakePlant = plantingDate ? { plantingDate } : null;
+  const rawRec = getRecommendedFertilizerAction(selectEl.value, species);
+  const stageRec = _applyStageScaleToAction(rawRec, isInitialStage, species, fakePlant);
+  const rec = _applyGingerIntervalGuardToAction(stageRec, isGingerRecentLiquid, daysSinceLastLiquid);
+  const actionEl = row.querySelector('.mixer-action');
+  if (overwriteAction && actionEl) actionEl.value = rec.action;
+  const recommendEl = row.querySelector('.mixer-recommend');
+  if (recommendEl) {
+    const actionLabel = _parseFertilizerAction((actionEl && actionEl.value) || rec.action).label;
+    recommendEl.innerHTML = `<b>おすすめ：</b>${actionLabel}<br>${rec.reason}`;
+  }
+  recalculateFertilizerMixer();
+}
+
+function _collectMixerRows() {
+  return Array.from(document.querySelectorAll('.mixer-row')).map(row => {
+    const plantId = row.dataset.plantId;
+    const species = row.dataset.species;
+    const decisionValue = row.querySelector('.mixer-decision')?.value || 'not_checked';
+    const actionValue = row.querySelector('.mixer-action')?.value || 'unknown';
+    const volumeMl = parseInt(row.querySelector('.mixer-volume')?.value || '0', 10) || 0;
+    const name = row.querySelector('.mixer-plant-name')?.textContent || row.querySelector('div[style*="font-weight:700"]')?.textContent || '';
+    const lastLiquidDays = parseInt(row.dataset.lastLiquidDays || '999', 10);
+    const gingerRecentLiquid = row.dataset.gingerRecentLiquid === '1';
+    return { plantId, species, decisionValue, actionValue, volumeMl, name, lastLiquidDays, gingerRecentLiquid };
+  });
+}
+
+function recalculateFertilizerMixer() {
+  const resultEl = document.getElementById('mixerResult');
+  if (!resultEl) return;
+  const rows = _collectMixerRows();
+  const round = document.getElementById('mixerRoundInput')?.checked !== false;
+  const groups = {};
+  for (const r of rows) {
+    if (!groups[r.actionValue]) groups[r.actionValue] = { actionValue: r.actionValue, totalMl: 0, rows: [] };
+    groups[r.actionValue].totalMl += r.volumeMl;
+    groups[r.actionValue].rows.push(r);
+  }
+  const order = ['mixed_standard','mixed_careful','rikidas_100','rikidas_500','rikidas_1000','none','unknown'];
+  const groupList = Object.values(groups).sort((a,b) => order.indexOf(a.actionValue) - order.indexOf(b.actionValue));
+
+  // グループごとに「視認性の高いレシピカード」を生成
+  const cards = groupList.map(g => {
+    const makeMl = round && !['none','unknown'].includes(g.actionValue) ? _mixerRoundVolume(g.totalMl) : g.totalMl;
+    const formula = _fertilizerFormulaForAction(g.actionValue, makeMl);
+    const plantChips = g.rows.map(r => `<span style="display:inline-block;background:#fff;border:1px solid #d1d5db;border-radius:999px;padding:2px 8px;margin:2px;font-size:11px;">${escapeHtml(r.name)} <b>${_formatMl(r.volumeMl)}</b></span>`).join('');
+    const extra = makeMl > g.totalMl ? `<div style="color:#6b7280;font-size:11px;margin-top:4px;">必要 ${_formatL(g.totalMl)} → 作る ${_formatL(makeMl)}（余り ${_formatMl(makeMl - g.totalMl)}）</div>` : '';
+
+    // none / unknownは特別表示
+    if (g.actionValue === 'none') {
+      return `
+        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:10px;background:#fafafa;">
+          <div style="font-weight:700;font-size:13px;color:#6b7280;margin-bottom:6px;">💧 水だけ・見送り</div>
+          <div>${plantChips}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:6px;">${formula.note}</div>
+        </div>
+      `;
+    }
+    if (g.actionValue === 'unknown') {
+      return `
+        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:10px;background:#fafafa;">
+          <div style="font-weight:700;font-size:13px;color:#6b7280;margin-bottom:6px;">❓ その他</div>
+          <div>${plantChips}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:6px;">調合量はメモに残してください。</div>
+        </div>
+      `;
+    }
+
+    // 通常の調合カード：原液◯mL／リキダス◯mLを大きく
+    const hyponexBlock = formula.hyponexMl > 0 ? `
+      <div style="flex:1;text-align:center;background:#fff;border:2px solid #16a34a;border-radius:10px;padding:10px 6px;">
+        <div style="font-size:10px;color:#16a34a;font-weight:600;letter-spacing:0.5px;">ハイポネックス原液</div>
+        <div style="font-size:22px;font-weight:800;color:#15803d;line-height:1.2;margin-top:2px;">${_formatMl(formula.hyponexMl)}</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:2px;">${_capCount(formula.hyponexMl)}</div>
+      </div>
+    ` : '';
+    const rikidasBlock = formula.rikidasMl > 0 ? `
+      <div style="flex:1;text-align:center;background:#fff;border:2px solid #d97706;border-radius:10px;padding:10px 6px;">
+        <div style="font-size:10px;color:#d97706;font-weight:600;letter-spacing:0.5px;">リキダス</div>
+        <div style="font-size:22px;font-weight:800;color:#b45309;line-height:1.2;margin-top:2px;">${_formatMl(formula.rikidasMl)}</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:2px;">${_capCount(formula.rikidasMl)}</div>
+      </div>
+    ` : '';
+    const waterBlock = `
+      <div style="flex:1;text-align:center;background:#fff;border:2px solid #2563eb;border-radius:10px;padding:10px 6px;">
+        <div style="font-size:10px;color:#2563eb;font-weight:600;letter-spacing:0.5px;">水</div>
+        <div style="font-size:22px;font-weight:800;color:#1d4ed8;line-height:1.2;margin-top:2px;">${formula.waterText}</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:2px;">バケツ・ジョウロ</div>
+      </div>
+    `;
+
+    return `
+      <div style="border:1px solid #d1d5db;border-radius:14px;padding:12px;margin-bottom:10px;background:linear-gradient(180deg,#f0fdf4 0%, #ffffff 60%);">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px;">🧪 ${formula.title}</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          ${waterBlock}${hyponexBlock}${rikidasBlock}
+        </div>
+        <div style="font-size:11px;color:#374151;margin-bottom:4px;"><b>対象：</b></div>
+        <div>${plantChips}</div>
+        ${extra}
+        <div style="font-size:11px;color:#6b7280;margin-top:6px;">${formula.note}</div>
+      </div>
+    `;
+  }).join('');
+
+  // 全体合計
+  const totalAllMl = groupList.filter(g => !['none','unknown'].includes(g.actionValue)).reduce((s,g) => {
+    const makeMl = round ? _mixerRoundVolume(g.totalMl) : g.totalMl;
+    return s + makeMl;
+  }, 0);
+  const totalSummary = totalAllMl > 0 ? `
+    <div style="background:#1f2937;color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:12px;opacity:0.85;">今日全体で作る液肥</div>
+      <div style="font-size:20px;font-weight:800;">${_formatL(totalAllMl)}</div>
+    </div>
+  ` : '';
+
+  resultEl.innerHTML = totalSummary + cards;
+}
+
+// ハイポネックス原液キャップ=20mL、リキダスキャップ=20mLでの目安表示
+function _capCount(ml) {
+  if (!ml || ml <= 0) return '';
+  const caps = ml / 20;
+  if (caps >= 1) {
+    const rounded = Math.round(caps * 2) / 2; // 0.5刻み
+    return `≒ キャップ${rounded}杯`;
+  }
+  // 1杯未満
+  if (caps >= 0.5) return '≒ キャップ1/2杯';
+  if (caps >= 0.25) return '≒ キャップ1/4杯';
+  return '少量';
+}
+
+async function saveFertilizerMixerBatch() {
+  const date = document.getElementById('mixerDateInput').value;
+  const notes = document.getElementById('mixerNotesInput').value.trim();
+  const rows = _collectMixerRows();
+  const unsafeGingerRows = rows.filter(r => r.species === 'ginger' && r.gingerRecentLiquid && _isActualFertilizerActionValue(r.actionValue));
+  if (unsafeGingerRows.length > 0) {
+    const msg = unsafeGingerRows.map(r => `・${r.name}: 前回ハイポ液肥から${r.lastLiquidDays}日`).join('\n');
+    const ok = confirm(`生姜は液肥メインでもハイポ入り液肥は2週間に1回が基本です。\n14日未満の生姜にハイポを入れようとしています。\n\n${msg}\n\n本当に記録しますか？`);
+    if (!ok) return;
+  }
+  const batchId = `mix_${uid()}`;
+  const isoDate = new Date(date).toISOString();
+  for (const row of rows) {
+    const action = _parseFertilizerAction(row.actionValue);
+    const decision = _parseFertilizerDecision(row.decisionValue);
+    const product = action.product;
+    const dilutionPattern = action.dilutionPattern;
+    const actionLabel = action.label;
+    const growthSignalLabel = _growthSignalLabel(decision.growthSignal);
+    const vigorLabel = _vigorLabel(decision.vigor);
+    const autoNote = `調合ツール / ${actionLabel} / ${_formatMl(row.volumeMl)} / ${growthSignalLabel}`;
+    await recordTask({
+      plantId: row.plantId,
+      type: 'fertilize_liquid',
+      date: isoDate,
+      details: {
+        source: 'mixer',
+        batchId,
+        action: row.actionValue,
+        actionLabel,
+        product,
+        productLabel: _liquidProductLabel(product),
+        dilutionPattern,
+        dilutionLabel: _dilutionLabel(dilutionPattern),
+        volumeMl: row.volumeMl,
+        volumeLabel: _formatMl(row.volumeMl),
+        vigor: decision.vigor,
+        vigorLabel,
+        growthSignal: decision.growthSignal,
+        growthSignalLabel,
+        actualFertilizer: product !== 'rikidas' && product !== 'none'
+      },
+      notes: notes ? `${autoNote}\n${notes}` : autoNote
+    });
+    // 今日のタスクは「判断して記録した」時点で完了扱いにする。
+    // ただしリキダスのみ/水だけは次回追肥間隔の判定からは除外される。
+    const inputDate = new Date(isoDate);
+    if (inputDate.toDateString() === new Date().toDateString()) {
+      await syncTaskStateOnRecord(row.plantId, 'fertilize_liquid');
+    }
+  }
+  closeModal();
+  await navigate('home');
+}
+
+// =================================================
+// 液肥・リキダス記録（追肥前診断つき）
+// =================================================
+async function showLiquidFertilizerModal() {
+  const plant = currentPlantId ? await dbGet('plants', currentPlantId) : null;
+  const species = plant?.species || 'tomato';
+  window.currentPlantForRecommendationSpecies = species;
+  showModal(`
+    <h2 class="modal-title">🧪 液肥・リキダスを記録</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();saveLiquidFertilizer();">
+      <div class="form-group">
+        <label>日時</label>
+        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+      </div>
+      <div class="form-group">
+        <label>追肥判断（状態）</label>
+        <select id="fertilizerDecisionInput" required onchange="updateFertilizerRecommendation()">
+          ${renderFertilizerDecisionOptions(species)}
+        </select>
+      </div>
+      <div id="fertilizerRecommendBox" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px;margin:-4px 0 12px;font-size:12px;line-height:1.7;"></div>
+      <div class="form-group">
+        <label>今回の対応</label>
+        <select id="fertilizerActionInput" required>
+          ${renderFertilizerActionOptions()}
+        </select>
+      </div>
+      <details class="fertilizer-guide" style="margin-top:8px;">
+        <summary class="guide-title" style="cursor:pointer;">判断の目安を見る</summary>
+        <div style="margin-top:8px;">${renderFertilizerDiagnosisGuide(species)}</div>
+      </details>
+      <div class="form-group" style="margin-top:12px;">
+        <label>メモ（任意）</label>
+        <textarea id="notesInput" placeholder="例：直近で固形肥料あり / 夕方しおれ / 花は良いので見送り"></textarea>
+      </div>
+      <button type="submit" class="btn">記録</button>
+    </form>
+  `);
+  updateFertilizerRecommendation();
+}
+
+async function saveLiquidFertilizer() {
+  const date = document.getElementById('dateInput').value;
+  const actionValue = document.getElementById('fertilizerActionInput').value;
+  const decisionValue = document.getElementById('fertilizerDecisionInput').value;
+  const notes = document.getElementById('notesInput').value.trim();
+  const action = _parseFertilizerAction(actionValue);
+  const decision = _parseFertilizerDecision(decisionValue);
+  const product = action.product;
+  const dilutionPattern = action.dilutionPattern;
+  const vigor = decision.vigor;
+  const growthSignal = decision.growthSignal;
+  const productLabel = _liquidProductLabel(product);
+  const dilutionLabel = _dilutionLabel(dilutionPattern);
+  const actionLabel = action.label;
+  const vigorLabel = _vigorLabel(vigor);
+  const growthSignalLabel = _growthSignalLabel(growthSignal);
+  const autoNote = `${actionLabel} / ${growthSignalLabel}`;
+  const currentPlant = currentPlantId ? await dbGet('plants', currentPlantId) : null;
+  if (currentPlant?.species === 'ginger' && product !== 'rikidas' && product !== 'none') {
+    const allTasks = await dbGetAll('tasks');
+    const daysSinceLastLiquid = _daysSinceLastActualLiquidForPlant(currentPlantId, allTasks);
+    if (daysSinceLastLiquid < GINGER_LIQUID_INTERVAL_DAYS) {
+      const ok = confirm(`生姜は液肥メインでもハイポ入り液肥は2週間に1回が基本です。\n前回ハイポ液肥から${daysSinceLastLiquid}日です。\n本当に記録しますか？`);
+      if (!ok) return;
+    }
+  }
+  await recordTask({
+    plantId: currentPlantId,
+    type: 'fertilize_liquid',
+    date: new Date(date).toISOString(),
+    details: {
+      action: actionValue,
+      actionLabel,
+      product,
+      productLabel,
+      dilutionPattern,
+      dilutionLabel,
+      vigor,
+      vigorLabel,
+      growthSignal,
+      growthSignalLabel,
+      actualFertilizer: product !== 'rikidas' && product !== 'none'
+    },
+    notes: notes ? `${autoNote}\n${notes}` : autoNote
+  });
+  const inputDate = new Date(date);
+  if (inputDate.toDateString() === new Date().toDateString() && product !== 'rikidas' && product !== 'none') {
+    await syncTaskStateOnRecord(currentPlantId, 'fertilize_liquid');
+  }
+  closeModal();
+  await renderPlantDetail(currentPlantId);
+}
+
+// =================================================
+// 暑さ対策記録
+// =================================================
+function showHeatProtectionModal() {
+  showModal(`
+    <h2 class="modal-title">☀️ 暑さ対策を記録</h2>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <form onsubmit="event.preventDefault();saveHeatProtection();">
+      <div class="form-group">
+        <label>日時</label>
+        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+      </div>
+      <div class="form-group">
+        <label>対策内容</label>
+        <select id="heatMethodInput" required>
+          <option value="shade_net">遮光ネット・すだれ</option>
+          <option value="pot_cover">鉢カバー・二重鉢</option>
+          <option value="raise_pot">鉢を床から浮かせる</option>
+          <option value="mulching">土表面のマルチング</option>
+          <option value="uchimizu">打ち水（鉢周り・床面）</option>
+          <option value="evening_water">猛暑日の夕方補水</option>
+          <option value="move_position">置き場所を少し調整</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>見えた高温障害サイン（任意）</label>
+        <select id="heatSymptomInput">
+          <option value="none">特になし/予防のみ</option>
+          <option value="wilting">夕方に強くしおれる</option>
+          <option value="leaf_burn">葉焼け・葉先の傷み</option>
+          <option value="flower_drop">花落ち・つぼみ落ち</option>
+          <option value="fruit_set_failure">花は咲くが実にならない</option>
+          <option value="immature_drop">未熟果の落果</option>
+          <option value="sunscald">実の日焼け・変色</option>
+          <option value="growth_stop">生長が止まった感じ</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
+      <div class="fertilizer-guide">
+        <div class="guide-title">打ち水の扱い</div>
+        打ち水は水の蒸発で鉢周りや床面の熱を少し下げる補助策です。朝〜昼の直射中より、夕方に鉢の周り・床面へ行うのがおすすめ。葉や花を濡らし続ける目的ではなく、遮光・鉢を浮かせる・二重鉢・マルチングの補助として記録します。
+      </div>
+      <div class="form-group">
+        <label>メモ（任意）</label>
+        <textarea id="notesInput" placeholder="例：夕方に鉢周りへ打ち水。床面の熱が強く、パッションの花が落ちた"></textarea>
+      </div>
+      <button type="submit" class="btn">記録</button>
+    </form>
+  `);
+}
+
+async function saveHeatProtection() {
+  const date = document.getElementById('dateInput').value;
+  const method = document.getElementById('heatMethodInput').value;
+  const notes = document.getElementById('notesInput').value.trim();
+  const symptom = document.getElementById('heatSymptomInput')?.value || 'none';
+  const symptomLabel = {
+    none: '特になし/予防のみ',
+    wilting: '夕方に強くしおれる',
+    leaf_burn: '葉焼け・葉先の傷み',
+    flower_drop: '花落ち・つぼみ落ち',
+    fruit_set_failure: '花は咲くが実にならない',
+    immature_drop: '未熟果の落果',
+    sunscald: '実の日焼け・変色',
+    growth_stop: '生長が止まった感じ',
+    other: 'その他'
+  }[symptom] || '特になし/予防のみ';
+  const methodLabel = {
+    shade_net: '遮光ネット・すだれ',
+    pot_cover: '鉢カバー・二重鉢',
+    raise_pot: '鉢を床から浮かせる',
+    mulching: '土表面のマルチング',
+    uchimizu: '打ち水（鉢周り・床面）',
+    evening_water: '猛暑日の夕方補水',
+    move_position: '置き場所を少し調整',
+    other: 'その他'
+  }[method] || '暑さ対策';
+  await recordTask({
+    plantId: currentPlantId,
+    type: 'heat_protection',
+    date: new Date(date).toISOString(),
+    details: { method, methodLabel, symptom, symptomLabel },
+    notes: notes || `${methodLabel} / ${symptomLabel}`
+  });
+  await syncTaskStateOnRecord(currentPlantId, 'heat_protection');
   closeModal();
   await renderPlantDetail(currentPlantId);
 }
@@ -4408,7 +5918,7 @@ async function showClusterDetail(plantId, segmentNumber, stem) {
     </div>
     
     <div style="display:flex;flex-direction:column;gap:8px;">
-      ${history.length < 2 ? `<button class="btn" onclick="quickToneRecord('${c.id}')">🍅 トマトトーンを散布</button>` : '<div style="color:var(--text-light);font-size:13px;text-align:center;">トマトトーン2回完了 ✓</div>'}
+      ${history.length < 2 ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px;font-size:12px;line-height:1.7;">3〜5花くらい開花した時に、花房全体へさっと1〜2回。幼葉・生長点は手で遮る。</div><button class="btn" onclick="quickToneRecord('${c.id}')">🍅 トマトトーンを散布</button>` : '<div style="color:var(--text-light);font-size:13px;text-align:center;">トマトトーン2回完了 ✓</div>'}
       <button class="btn btn-secondary" onclick="updateClusterStatus('${c.id}')">📝 状態を変更</button>
       <button class="btn btn-secondary" onclick="deleteCluster('${c.id}')" style="color:var(--danger);border-color:var(--danger);">🗑️ 削除</button>
     </div>
@@ -4510,6 +6020,12 @@ async function markTask(taskKey, taskData, status) {
       if (taskData.title.includes('主枝摘心')) details.target = 'main';
       else if (taskData.title.includes('子づる摘心')) details.target = 'child';
       else if (taskData.title.includes('孫づる')) details.target = 'grandchild';
+    }
+    if (taskData.action === 'heat_protection') {
+      details.method = 'alert_check';
+      details.methodLabel = '暑さアラート対応';
+      details.temperatureMax = cachedWeather?.tempMax || null;
+      details.tomorrowTemperatureMax = cachedWeather?.tomorrowTempMax || null;
     }
     // watering: 10分以内の連打を防止（タスク完了直後に概要タブで再度記録、その逆も）
     if (taskData.action === 'watering' && taskData.plantId) {
@@ -4972,6 +6488,7 @@ async function renderHarvestStats(period = 'week') {
         <div class="period-tab ${period==='month'?'active':''}" onclick="renderHarvestStats('month')">月別</div>
       </div>
       ${chartHtml}
+      <button class="btn btn-secondary" onclick="navigate('feedback')">🧭 来年へのフィードバックを見る</button>
     </div>
     
     ${ranking.length > 0 ? `
@@ -5003,6 +6520,918 @@ async function renderHarvestStats(period = 'week') {
   `;
   document.getElementById('app').innerHTML = html;
   currentScreen = 'harvest';
+}
+
+
+// =================================================
+// 🧭 来年へのフィードバック
+// =================================================
+function _taskCount(tasks, type) {
+  return tasks.filter(t => t.type === type).length;
+}
+function _sumHarvest(harvests) {
+  return harvests.reduce((sum, t) => sum + (t.details?.count || 1), 0);
+}
+function _daysBetween(a, b) {
+  const d1 = new Date(a); d1.setHours(0,0,0,0);
+  const d2 = new Date(b); d2.setHours(0,0,0,0);
+  return Math.floor((d1 - d2) / 86400000);
+}
+function _yearOf(dateStr) {
+  return new Date(dateStr).getFullYear().toString();
+}
+function _trainingLabel(plant) {
+  return (TRAINING_METHODS[plant.species] || []).find(t => t.value === plant.trainingMethod)?.label || '通常';
+}
+function _actionLabel(type) {
+  const labels = {
+    watering: '水やり', fertilize_liquid: '液肥', fertilize_granular: '固形肥料',
+    side_shoot_removal: '脇芽かき', pinching: '摘心', topsoil: '増し土',
+    training: '誘引', defoliation: '下葉かき', tomato_tone: 'トマトトーン',
+    pollination: '人工授粉', renewal_pruning: '更新剪定', pest_spray: '防虫散布',
+    vinegar_spray: 'やさお酢', heat_protection: '暑さ対策', observation: '観察',
+    harvest: '収穫', mulching: 'マルチング', first_flower: '一番花', first_fruit: '一番果', ginger_growth_trigger: '生姜追肥開始'
+  };
+  return labels[type] || type;
+}
+
+function _passionHarvestStatusLabel(value) {
+  const labels = {
+    natural_drop: '自然落果（完熟）',
+    detached_touch: '軽く触って外れた',
+    early_pick: '早採り',
+    immature_drop: '未熟/途中落果',
+    damaged_drop: '落下傷あり',
+    unknown: '収穫状態不明'
+  };
+  return labels[value] || '収穫状態未記録';
+}
+function _passionPeelColorLabel(value) {
+  const labels = {
+    green: '果皮：緑',
+    turning: '果皮：色づき途中',
+    purple: '果皮：赤紫/紫',
+    yellow: '果皮：黄色',
+    unknown: '果皮色不明'
+  };
+  return labels[value] || '果皮色未記録';
+}
+function _passionRipeningLabel(value) {
+  const labels = {
+    start: '追熟開始',
+    ripening: '追熟中',
+    wrinkled_ready: 'シワあり食べごろ',
+    ate: '食べた',
+    unknown: '追熟未記録'
+  };
+  return labels[value] || '追熟未記録';
+}
+function _weekStart(d) {
+  const x = new Date(d);
+  x.setHours(0,0,0,0);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+function _weekLabel(start) {
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  return `${start.getMonth()+1}/${start.getDate()}〜${end.getMonth()+1}/${end.getDate()}`;
+}
+function _monthOf(dateStr) {
+  return new Date(dateStr).getMonth() + 1;
+}
+
+
+function _liquidProductLabel(value) {
+  const labels = {
+    hyponex: 'ハイポネックス',
+    rikidas: 'リキダス',
+    mixed: '混合',
+    none: '見送り',
+    other: 'その他'
+  };
+  return labels[value] || '未記録';
+}
+
+function _dilutionLabel(value) {
+  const labels = {
+    none: 'なし',
+    hyponex_500: 'ハイポ500倍',
+    hyponex_1000: 'ハイポ1000倍',
+    hyponex_2000: 'ハイポ2000倍',
+    rikidas_100: 'リキダス100倍',
+    rikidas_200: 'リキダス200倍',
+    rikidas_500: 'リキダス500倍',
+    rikidas_1000: 'リキダス1000倍',
+    mixed_standard: '混合：ハイポ500倍＋リキダス100倍',
+    mixed_careful: '混合：ハイポ1000倍＋リキダス100倍',
+    mixed_very_careful: '混合：ハイポ2000倍＋リキダス100倍',
+    unknown: '濃度未記録'
+  };
+  return labels[value] || '未記録';
+}
+
+function renderFertilizerActionOptions() {
+  const options = [
+    ['mixed_standard', '混合：ハイポ500倍＋リキダス100倍（通常/明確不足）'],
+    ['mixed_careful', '混合：ハイポ1000倍＋リキダス100倍（迷う/暑い日）'],
+    ['rikidas_100', 'リキダス100倍のみ（過多・ツルボケ・ハイポ前）'],
+    ['rikidas_1000', 'リキダス1000倍のみ（植え付け直後・公式準拠）'],
+    ['none', '水だけ/完全見送り'],
+    ['unknown', 'その他・濃度未記録']
+  ];
+  return options.map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+}
+
+function getRecommendedFertilizerAction(decisionValue, species) {
+  const map = {
+    // 基本方針：リキダス100倍はベース。ハイポは500/1000/なしで調整する。
+    // 通常・明確な不足 → ハイポ500倍＋リキダス100倍
+    // 悩ましい/暑いが株は持ち直す → ハイポ1000倍＋リキダス100倍
+    // 過多・ツルボケ・強い弱り → リキダス100倍のみ or 水だけ
+
+    // トマト：ツルボケ寄りはハイポなし。適正/不足なら混合、迷う暑さは1000倍混合。
+    tomato_stem_thick: ['rikidas_100', 'ツルボケ寄り。ハイポは入れず、リキダス100倍のみ。葉色・脇芽・花つきを観察。'],
+    tomato_stem_ok: ['mixed_standard', '適正。通常追肥としてハイポ500倍＋リキダス100倍で可。昨年ツルボケ気味なら手動で1000倍混合へ。'],
+    tomato_stem_thin: ['mixed_standard', '不足寄り。ハイポ500倍＋リキダス100倍を基本候補。花落ちだけなら高温/受粉不良も確認。'],
+    tomato_heat_wilt: ['mixed_careful', '猛暑でも朝夕に戻る程度ならハイポ1000倍＋リキダス100倍。夕方も戻らない強い萎れならリキダスのみ/水だけへ。'],
+
+    // ナス：肥料食い。通常/不足は500倍混合。暑さ・水切れ絡みは1000倍混合。
+    eggplant_long_style: ['mixed_standard', '適正。ナスは肥料食いなので、収穫期で前回から間隔が空いていれば500倍混合で維持。'],
+    eggplant_short_style: ['mixed_standard', '不足寄り。直近追肥がなければハイポ500倍＋リキダス100倍を基本候補。'],
+    eggplant_short_heat_water: ['mixed_careful', '猛暑/水切れも絡むのでハイポ1000倍＋リキダス100倍。回復後に500倍混合へ。'],
+    eggplant_leaf_over: ['rikidas_100', '過多寄り。ハイポは見送り、リキダス100倍のみ。葉色・花数・水切れを観察。'],
+
+    // ピーマン：短花柱花だけでも不足可能性はあるが断定しない。迷う時は1000倍混合。
+    pepper_balanced: ['mixed_standard', '適正。通常追肥としてハイポ500倍＋リキダス100倍で維持。'],
+    pepper_short_weak: ['mixed_standard', '不足寄り。短花柱花に葉色薄い/枝細い/肥大鈍いが重なるなら500倍混合。'],
+    pepper_short_only: ['mixed_careful', '短花柱花/花落ちだけは原因未確定。肥料不足の可能性もあるので、入れるなら1000倍混合で慎重に。'],
+    pepper_heat_water: ['mixed_careful', '暑さ・水切れも絡むため1000倍混合。夕方も戻らない強い萎れならリキダスのみ/水だけへ。'],
+    pepper_leaf_over: ['rikidas_100', '過多寄り。ハイポは見送り、リキダス100倍のみ。'],
+
+    okra_above_5: ['rikidas_100', '肥料過多寄り。ハイポは見送り、リキダス100倍のみ。'],
+    okra_above_3: ['mixed_standard', '適正。収穫期で間隔が空いていれば500倍混合。'],
+    okra_above_1_2: ['mixed_standard', '不足寄り。500倍混合を候補。'],
+
+    passion_leaf_only: ['rikidas_100', '葉つる優勢。窒素を増やさず、ハイポは見送り。リキダス100倍のみ。'],
+    passion_bud_visible: ['mixed_standard', '花芽あり。株が元気なら着果・肥大に向けて500倍混合。10L鉢は液肥1L目安、乾きが強ければ多め候補。'],
+    passion_flowering_fruiting: ['mixed_standard', '開花・着果・肥大期。エネルギーを使うので500倍混合を基本候補。10L鉢は1L目安、乾きが強ければ1.5L候補。'],
+    passion_bud_yellow_drop: ['mixed_careful', '高温ストレス寄り。暑さ対策を優先しつつ、入れるなら1000倍混合。強い弱りならリキダスのみ。'],
+    passion_flower_no_fruit: ['mixed_careful', '受粉/高温疑い。肥料だけで解決しないが、株が元気なら1000倍混合で支える。人工授粉・暑さ対策も記録。'],
+    passion_late_flush: ['mixed_standard', '暑さ後の本命期。花が増え、株が元気なら500倍混合。'],
+    passion_yellow_leaf: ['mixed_standard', '不足寄り。根傷み/しおれがなければ500倍混合。弱りが強ければ手動で1000倍混合へ。'],
+
+    mitsuba_balanced: ['mixed_standard', '適正。少量の通常追肥として500倍混合で可。'],
+    mitsuba_soft_leggy: ['rikidas_100', '軟弱・徒長寄り。ハイポは見送り、直射/水分を調整。'],
+    mitsuba_pale_slow: ['mixed_standard', '不足寄り。500倍混合を候補。小鉢で迷う時は手動で1000倍混合へ。'],
+    ginger_recent_liquid: ['rikidas_100', '前回ハイポ液肥から14日未満。生姜は液肥メインでも2週間に1回が基本なので、今回はハイポを入れずリキダス100倍のみ/水だけ。'],
+    ginger_ok: ['mixed_standard', '適正。追肥開始トリガー記録後〜8月中旬までなら500倍混合で可。ただし生姜は2週間に1回。前回ハイポから14日未満ならリキダスのみ。'],
+    ginger_yellow_weak: ['mixed_standard', '不足寄り。過湿や根傷みがなく、追肥適期なら500倍混合を候補。ただし生姜は2週間に1回。発芽前/本葉少ない/8月中旬以降なら控えめ期を選ぶ。'],
+    ginger_careful_period: ['rikidas_100', '液肥控えめ期。控えるのはハイポ。発芽前〜本葉2〜3枚前は種生姜の養分もあり、固形肥料を入れた週は重複を避け、8月中旬以降は根茎充実期なので追肥を増やしすぎない。水切れは避け、リキダス100倍のみ/水だけで管理。'],
+    ginger_root_stress: ['rikidas_100', '過湿/根傷み疑い。根は直接見えないので、葉の黄化＋土が湿りがち/地際の軟弱/急なしおれで疑う。ハイポは入れずリキダス100倍のみ。'],
+    ginger_dark_soft: ['rikidas_100', '過多/過湿寄り。ハイポは見送り、リキダス100倍のみ。'],
+    negi_balanced: ['mixed_standard', '適正。少量の通常追肥として500倍混合で可。'],
+    negi_pale_thin: ['mixed_standard', '不足寄り。500倍混合を候補。小鉢で迷う時は手動で1000倍混合へ。'],
+    negi_soft_leggy: ['rikidas_100', '軟弱・水分多め寄り。ハイポは見送り。'],
+
+    balanced_visual: ['mixed_standard', '適正。通常の追肥タイミングならハイポ500倍＋リキダス100倍で可。'],
+    not_checked: ['rikidas_100', '未判断ならハイポは入れず、リキダス100倍のみで記録。まず状態確認。']
+  };
+  const rec = map[decisionValue] || ['rikidas_100', '状態が未確定。ハイポは入れず、リキダス100倍のみで記録し、写真/メモを残す。'];
+  return { action: rec[0], reason: rec[1] };
+}
+
+function updateFertilizerRecommendation() {
+  const decisionEl = document.getElementById('fertilizerDecisionInput');
+  const actionEl = document.getElementById('fertilizerActionInput');
+  const box = document.getElementById('fertilizerRecommendBox');
+  if (!decisionEl || !actionEl || !box) return;
+  const plantSpecies = (currentPlantId && window.currentPlantForRecommendationSpecies) || null;
+  const rec = getRecommendedFertilizerAction(decisionEl.value, plantSpecies);
+  actionEl.value = rec.action;
+  const actionLabel = _parseFertilizerAction(rec.action).label;
+  box.innerHTML = `<b>おすすめ：</b>${actionLabel}<br><span style="color:#4b5563;">${rec.reason}</span>`;
+}
+
+function _parseFertilizerAction(value) {
+  const map = {
+    mixed_standard: { product: 'mixed', dilutionPattern: 'mixed_standard', label: '混合：ハイポ500倍＋リキダス100倍' },
+    mixed_careful: { product: 'mixed', dilutionPattern: 'mixed_careful', label: '混合：ハイポ1000倍＋リキダス100倍' },
+    rikidas_100: { product: 'rikidas', dilutionPattern: 'rikidas_100', label: 'リキダス100倍のみ' },
+    rikidas_500: { product: 'rikidas', dilutionPattern: 'rikidas_500', label: 'リキダス500倍のみ' },
+    rikidas_1000: { product: 'rikidas', dilutionPattern: 'rikidas_1000', label: 'リキダス1000倍のみ' },
+    none: { product: 'none', dilutionPattern: 'none', label: '水だけ/完全見送り' },
+    unknown: { product: 'other', dilutionPattern: 'unknown', label: 'その他・濃度未記録' }
+  };
+  return map[value] || map.unknown;
+}
+
+function renderFertilizerDecisionOptions(species, selectedValue = null) {
+  const genericBase = [
+    ['balanced_visual', '適正：状態よく通常追肥でよさそう'],
+    ['not_checked', '未診断：状態だけ記録']
+  ];
+  const bySpecies = {
+    tomato: [
+      ['tomato_stem_ok', '適正：茎10〜12mm/葉水平'],
+      ['tomato_stem_thin', '不足寄り：茎10mm以下/弱々しい'],
+      ['tomato_heat_wilt', '暑さ・水優先：猛暑/夕方しおれ'],
+      ['tomato_stem_thick', '過多寄り：茎12mm以上/葉巻き']
+    ],
+    eggplant: [
+      ['eggplant_long_style', '適正：長花柱花＋花が大きい'],
+      ['eggplant_short_style', '不足寄り：短花柱花＋小さい/白っぽい花'],
+      ['eggplant_short_heat_water', '暑さ・水優先：短花柱花＋猛暑/水切れ'],
+      ['eggplant_leaf_over', '過多寄り：葉ばかり/花形乱れ']
+    ],
+    pepper: [
+      ['pepper_balanced', '適正：長花柱花＋葉色/枝ぶり良好'],
+      ['pepper_short_weak', '不足寄り：短花柱花＋葉色薄い/枝細い/肥大鈍い'],
+      ['pepper_short_only', '原因未確定：短花柱花/花落ちだけ'],
+      ['pepper_heat_water', '暑さ・水優先：高温/夕方しおれ'],
+      ['pepper_leaf_over', '過多寄り：葉色濃い/茂りすぎ/花がら残り']
+    ],
+    okra: [
+      ['okra_above_3', '適正：花より上の葉3枚程度'],
+      ['okra_above_1_2', '不足寄り：花より上の葉1〜2枚'],
+      ['okra_above_5', '過多寄り：花より上の葉5枚以上']
+    ],
+    passion: [
+      ['passion_bud_visible', '適正：三角形の花芽あり'],
+      ['passion_flowering_fruiting', '着果・肥大期：実がついている/育っている'],
+      ['passion_yellow_leaf', '不足寄り：黄葉/つる弱い'],
+      ['passion_bud_yellow_drop', '高温ストレス：花芽が黄化/落下'],
+      ['passion_flower_no_fruit', '受粉/高温疑い：花は咲くが実にならない'],
+      ['passion_late_flush', '秋口本命：暑さ後に花が増えた'],
+      ['passion_leaf_only', '過多寄り：葉つる優勢/花芽なし']
+    ],
+    mitsuba: [
+      ['mitsuba_balanced', '適正：葉色よく伸びも安定'],
+      ['mitsuba_pale_slow', '不足寄り：葉色薄い/伸び弱い'],
+      ['mitsuba_soft_leggy', '過多/直射負け寄り：軟弱・徒長']
+    ],
+    ginger: [
+      ['ginger_recent_liquid', '前回ハイポから14日未満：今回はハイポ防止'],
+      ['ginger_ok', '適正：葉色/芽数が安定・過湿なし'],
+      ['ginger_yellow_weak', '不足寄り：葉の黄化/生長停滞（過湿なし）'],
+      ['ginger_careful_period', '液肥控えめ期：発芽前/本葉少ない/8月中旬以降'],
+      ['ginger_root_stress', '過湿/根傷み疑い：葉の黄化＋土が湿りがち/地際が軟弱'],
+      ['ginger_dark_soft', '過多/過湿寄り：濃緑/軟弱']
+    ],
+    negi: [
+      ['negi_balanced', '適正：葉色よく太さも安定'],
+      ['negi_pale_thin', '不足寄り：葉色薄い/細い'],
+      ['negi_soft_leggy', '過多/水分多め寄り：軟弱/倒れやすい']
+    ]
+  };
+  const rows = bySpecies[species] || genericBase;
+  return rows.map(([value, label], idx) => {
+    const selected = selectedValue ? value === selectedValue : idx === 0;
+    return `<option value="${value}" ${selected ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+}
+
+
+function _parseFertilizerDecision(value) {
+  const weak = new Set(['tomato_stem_thin','eggplant_short_style','pepper_short_weak','okra_above_1_2','passion_yellow_leaf','mitsuba_pale_slow','ginger_yellow_weak','negi_pale_thin','pale_yellow_lower','poor_flower_fruit']);
+  const over = new Set(['tomato_stem_thick','eggplant_leaf_over','pepper_leaf_over','okra_above_5','passion_leaf_only','mitsuba_soft_leggy','ginger_dark_soft','negi_soft_leggy','dark_soft_leggy']);
+  const ok = new Set(['tomato_stem_ok','eggplant_long_style','pepper_balanced','okra_above_3','passion_bud_visible','passion_flowering_fruiting','passion_late_flush','mitsuba_balanced','ginger_ok','negi_balanced','balanced_visual']);
+  const unsure = new Set(['not_checked','tomato_heat_wilt','eggplant_short_heat_water','pepper_short_only','pepper_heat_water','passion_bud_yellow_drop','passion_flower_no_fruit','ginger_careful_period','ginger_recent_liquid','ginger_root_stress']);
+  let vigor = 'unsure';
+  if (weak.has(value)) vigor = 'weak';
+  else if (over.has(value)) vigor = 'overgrowth';
+  else if (ok.has(value)) vigor = 'balanced';
+  else if (unsure.has(value)) vigor = 'unsure';
+  return { vigor, growthSignal: value || 'not_checked' };
+}
+
+function _fertilizerActionLabel(details) {
+  if (!details) return '未記録';
+  if (details.actionLabel) return details.actionLabel;
+  const dilution = _dilutionLabel(details.dilutionPattern);
+  const product = _liquidProductLabel(details.product);
+  if (details.product === 'none') return '見送り';
+  if (details.dilutionPattern && details.dilutionPattern !== 'unknown') return dilution;
+  return product;
+}
+
+
+function renderHeatDamageGuide(species) {
+  const common = `
+    <div class="fertilizer-guide">
+      <div class="guide-title">高温障害で見るサイン</div>
+      <div class="diagnosis-grid">
+        <div class="diagnosis-card weak"><div class="title">水切れ・鉢温ストレス</div>夕方に強くしおれる、朝に戻りにくい、葉先が傷む。→ 朝の水やり、夕方補水、鉢を床から浮かせる、二重鉢を優先。</div>
+        <div class="diagnosis-card over"><div class="title">直射・照り返しストレス</div>葉焼け、実の日焼け、鉢側面が熱い。→ 昼だけ遮光、鉢カバー、床面から離す。遮光しすぎは徒長に注意。</div>
+        <div class="diagnosis-card ok"><div class="title">打ち水の位置づけ</div>夕方に鉢の周りや床面へ。気化熱で一時的に熱を下げる補助策。葉・花を濡らし続けるより、鉢温対策と水切れ対策を主役に。</div>
+      </div>
+    </div>`;
+  if (species === 'passion') {
+    return common + `
+      <div class="fertilizer-guide">
+        <div class="guide-title">パッションフルーツ特有</div>
+        <div class="diagnosis-grid">
+          <div class="diagnosis-card weak"><div class="title">高温で着果しにくい</div>花は咲くが実にならない、花芽が黄化して落ちる、未熟果が落ちる。→ 追肥を増やすより、暑さが落ち着く時期を本命にして人工授粉と記録を優先。</div>
+          <div class="diagnosis-card ok"><div class="title">涼しくなって花が増える</div>真夏に不調でも、暑さがましになると花が増えることがあります。秋口の花は収穫候補として丁寧に授粉・水切れ対策。</div>
+        </div>
+      </div>`;
+  }
+  if (['tomato','eggplant','pepper'].includes(species)) {
+    return common + `
+      <div class="fertilizer-guide">
+        <div class="guide-title">果菜類でよく見るサイン</div>
+        <div class="diagnosis-grid">
+          <div class="diagnosis-card weak"><div class="title">花落ち・着果不良</div>暑さ、受粉不良、水切れ、肥料バランスの崩れで起こります。すぐ追肥せず、葉色・草勢・水切れ・気温をセットで確認。</div>
+          <div class="diagnosis-card over"><div class="title">実の日焼け</div>強い直射で果実が白っぽく変色/傷む。葉を取りすぎた株は注意。昼だけ軽く遮光。</div>
+        </div>
+      </div>`;
+  }
+  return common;
+}
+
+function renderFertilizerDiagnosisGuide(species) {
+  const commonNote = `<div style="font-size:11px;color:var(--text-light);line-height:1.6;margin-top:8px;">※基本はリキダス100倍をベースにする。通常/明確不足はハイポ500倍＋リキダス100倍、迷う/暑い日はハイポ1000倍＋リキダス100倍。過多・ツルボケ・夕方も戻らない強い萎れはハイポを入れず、リキダス100倍のみ/水だけ。</div>`;
+  if (species === 'tomato') {
+    return `<div style="font-size:12px;line-height:1.75;">
+      <div class="diagnosis-grid">
+        <div class="diagnosis-card over"><div class="title">強すぎ・ツルボケ寄り</div>成長点10〜15cm下の茎が<b>12mm以上</b>、葉が下向きに巻く、葉色が濃い、脇芽が強い。→ ハイポは入れずリキダス100倍のみ。</div>
+        <div class="diagnosis-card ok"><div class="title">適正</div>同じ位置の茎が<b>10〜12mm</b>、葉が水平、花と実が維持できている。→ 通常は500倍混合。昨年ツルボケ気味で迷う時は1000倍混合。</div>
+        <div class="diagnosis-card weak"><div class="title">弱い・肥料不足寄り</div>茎が<b>10mm以下</b>、葉が上向きで弱々しい、下葉が黄色い、実の肥大が鈍い。→ 500倍混合候補。ただし花落ちだけなら高温/受粉不良も確認。</div>
+      </div>${commonNote}</div>`;
+  }
+  if (species === 'eggplant') {
+    return `<div style="font-size:12px;line-height:1.75;">
+      <div class="diagnosis-grid">
+        <div class="diagnosis-card weak"><div class="title">不足寄り：追肥候補</div><b>短花柱花</b>（めしべがおしべより短い）＋花が小さい/白っぽい、花から成長点までの葉が少ない、葉色が薄い。→ 直近追肥がなければ<b>ハイポ500倍＋リキダス100倍</b>を基本候補。水切れも同時に確認。</div>
+        <div class="diagnosis-card ok"><div class="title">適正：維持</div><b>長花柱花</b>（めしべがおしべより長い）、花が大きく開く、実が肥大する。→ 収穫期は肥料切れさせない。間隔が空いていれば500倍混合。</div>
+        <div class="diagnosis-card over"><div class="title">過多寄り：見送り</div>葉ばかり大きい、花/実が少ない、花形が乱れる、葉色が濃すぎる。→ 追肥見送り。乾き・根傷み・暑さも確認。</div>
+      </div>
+      <div style="margin-top:8px;color:#6b7280;">ナスは肥料食いなので、収穫期の維持や不足サインがある時は500倍を基本にする。ただし、猛暑・水切れ・直近追肥ありなら1000倍混合、強い萎れ・根傷み疑いならリキダスのみ/水だけ。</div>${commonNote}</div>`;
+  }
+  if (species === 'pepper') {
+    return `<div style="font-size:12px;line-height:1.75;">
+      <div class="diagnosis-grid">
+        <div class="diagnosis-card weak"><div class="title">不足寄り：追肥候補</div><b>短花柱花</b>＋葉色が薄い、枝が細い/短い、実の肥大が鈍い。→ 不足が明確なら<b>ハイポ500倍＋リキダス100倍</b>候補。迷う時は1000倍混合。</div>
+        <div class="diagnosis-card ok"><div class="title">原因未確定：確認優先</div>短花柱花や花落ちだけ。→ 肥料不足の可能性はあるが断定しない。水切れ・高温・日照・成り疲れ・根傷みを確認してから判断。</div>
+        <div class="diagnosis-card over"><div class="title">過多寄り：見送り</div>葉色が濃い、茎葉が茂る割に花/実が少ない、<b>花がらが落ちにくい</b>。→ 追肥を空ける。</div>
+      </div>
+      <div style="margin-top:8px;color:#6b7280;">ピーマンは「短花柱花＝即追肥」ではなく、葉色・枝の強さ・水切れ・暑さ・花がらをセットで見る。高温でも朝夕に戻る程度なら1000倍混合。夕方も戻らない強い萎れは水管理＋リキダスのみを優先。</div>${commonNote}</div>`;
+  }
+  if (species === 'okra') {
+    return `<div style="font-size:12px;line-height:1.75;">
+      <div class="diagnosis-grid">
+        <div class="diagnosis-card over"><div class="title">過多寄り</div>花より上の葉が<b>5枚以上</b>、葉の切れ込みが浅い、わき芽ばかり。→ 追肥見送り。</div>
+        <div class="diagnosis-card ok"><div class="title">適正</div>花より上の葉が<b>3枚程度</b>。→ 維持。</div>
+        <div class="diagnosis-card weak"><div class="title">不足寄り</div>花より上の葉が<b>1〜2枚</b>、葉が小さく切れ込みが深い。→ 追肥検討。</div>
+      </div>${commonNote}</div>`;
+  }
+  if (species === 'passion') {
+    return `<div style="font-size:12px;line-height:1.75;">
+      <div class="diagnosis-grid">
+        <div class="diagnosis-card over"><div class="title">葉つる優勢・花芽なし</div>新しいつると葉ばかり勢いよく伸び、葉色が濃く、葉の付け根に三角形の花芽が少ない。→ 窒素過多/ツルボケ寄り。ハイポネックスは見送り。花芽が出るまで様子見・誘引・水管理を優先。</div>
+        <div class="diagnosis-card ok"><div class="title">開花準備OK</div>新しい側枝の葉の付け根に小さい三角形の花芽が見える。→ 株が元気なら<b>ハイポ500倍＋リキダス100倍</b>を基本候補。開花当日はなるべく早めに人工授粉。</div>
+        <div class="diagnosis-card ok"><div class="title">着果・肥大期</div>実がついている/育っている。→ エネルギーを使う時期なので、株がしおれていなければ<b>ハイポ500倍＋リキダス100倍</b>を基本候補。10L鉢は液肥1L目安、乾きが強ければ1.5L候補。</div>
+        <div class="diagnosis-card weak"><div class="title">不足/根詰まり寄り</div>葉色が薄い、下葉が黄化、つるの伸びが鈍い。→ 根傷みがなければ<b>ハイポ500倍＋リキダス100倍</b>候補。弱りが強ければ1000倍混合に下げる。</div>
+        <div class="diagnosis-card weak"><div class="title">高温ストレス寄り</div>花芽が黄化して落ちる、花は咲くが実にならない。→ 肥料不足とは限らない。鉢温・直射・水切れ対策と人工授粉を優先。</div>
+        <div class="diagnosis-card ok"><div class="title">暑さが落ち着いた後</div>真夏に着果しにくくても、暑さがましになってから花が増えることがあります。秋口の花は本命として、株が元気なら500倍混合・水切れ・人工授粉を丁寧に記録。</div>
+        <div class="diagnosis-card over"><div class="title">剪定・誘引確認</div>花芽は新しく伸びた側枝の葉の付け根に出やすい。伸びたつるを切りすぎていないか、誘引で日当たりと風通しを確保できているか確認。</div>
+      </div>${commonNote}</div>`;
+  }
+  if (species === 'mitsuba') {
+    return `<div style="font-size:12px;line-height:1.75;">
+      <div class="diagnosis-grid">
+        <div class="diagnosis-card over"><div class="title">過多/日照ミスマッチ寄り</div>軟弱・徒長、葉柄が長く弱い。南向き直射では暑さ/乾きも優先確認。</div>
+        <div class="diagnosis-card weak"><div class="title">不足寄り</div>葉色が薄い、伸びが鈍い。→ 500倍混合を候補。小鉢で迷う時は1000倍混合。</div>
+        <div class="diagnosis-card ok"><div class="title">管理</div>強い直射より半日陰寄りが向くため、肥料より遮光・水切れ対策が効くことがあります。</div>
+      </div>${commonNote}</div>`;
+  }
+  if (species === 'ginger') {
+    return `<div style="font-size:12px;line-height:1.75;">
+      <div class="diagnosis-grid">
+        <div class="diagnosis-card ok"><div class="title">適正</div>葉色と芽数が安定し、土が湿りすぎていない。→ 生育期の追肥タイミングなら500倍混合で維持。</div>
+        <div class="diagnosis-card weak"><div class="title">不足寄り</div>葉の黄化（葉色が薄い・下葉から黄色い）や生長停滞があり、土は過湿ではない。→ 追肥適期なら500倍混合候補。</div>
+        <div class="diagnosis-card ok"><div class="title">液肥控えめ期</div>発芽前〜本葉2〜3枚前、固形肥料を入れた週、前回ハイポ液肥から14日未満、8月中旬以降〜収穫前。→ ハイポは入れず、リキダス100倍のみ/水だけを基本にする。</div>
+        <div class="diagnosis-card over"><div class="title">過湿/根傷み疑い</div>根そのものは見えないので、葉の黄化＋土が湿りがち、地際の茎が軟らかい/水浸状、におい、急なしおれで疑う。→ ハイポは入れずリキダス100倍のみ/水管理。</div>
+        <div class="diagnosis-card over"><div class="title">過多/過湿寄り</div>葉色が濃すぎて軟弱、鉢が常に湿る。→ ハイポ見送り。</div>
+      </div>
+      <div style="margin-top:8px;color:#6b7280;">生姜の「液肥控えめ」はハイポを控える意味。発芽前〜本葉2〜3枚前は種生姜の養分も使うため追肥を急がず、液肥メインでもハイポ入り液肥は2週間に1回。固形肥料を入れた週や前回ハイポ液肥から14日未満は液肥を重ねない。8月中旬以降は生育後半で、窒素を効かせすぎると根茎の充実が悪くなりやすいため追肥を増やしすぎない。水は別で、生姜は乾燥に弱いので発芽後〜夏は水切れ注意。土表面が乾いたら朝夕にたっぷり、ただし鉢が常に湿る・地際が軟らかい場合は過湿を疑う。ここでいう黄化は葉の黄化で、黄化＝即肥料不足とはしない。</div>${commonNote}</div>`;
+  }
+  return `<div style="font-size:12px;line-height:1.75;">
+    <div class="diagnosis-grid">
+      <div class="diagnosis-card over"><div class="title">過多寄り</div>葉色が濃すぎる、軟弱徒長、茎葉ばかり。→ 追肥を空ける。</div>
+      <div class="diagnosis-card weak"><div class="title">不足寄り</div>葉色が薄い、下葉から黄化、生長が止まる。→ 500倍混合を候補。小鉢で迷う時は1000倍混合。</div>
+      <div class="diagnosis-card ok"><div class="title">適正</div>葉色・伸び・花/実が安定。→ タイミングが来ていれば500倍混合。</div>
+    </div>${commonNote}</div>`;
+}
+
+function _growthSignalLabel(value) {
+  const labels = {
+    not_checked: '観察指標：未チェック',
+    balanced_visual: '見た目は適正',
+    dark_soft_leggy: '葉色濃い・徒長/軟弱',
+    pale_yellow_lower: '葉色薄い・下葉黄化',
+    poor_flower_fruit: '花落ち/着果不良/肥大鈍い',
+    tomato_stem_thick: 'トマト茎12mm以上＋葉巻き',
+    tomato_stem_ok: 'トマト茎10〜12mm＋葉水平',
+    tomato_stem_thin: 'トマト茎10mm以下＋弱い',
+    eggplant_long_style: 'ナス長花柱花',
+    eggplant_short_style: 'ナス短花柱花＋不足サイン',
+    eggplant_short_heat_water: 'ナス短花柱花＋暑さ/水切れ',
+    eggplant_leaf_over: 'ナス葉ばかり/花形乱れ',
+    pepper_balanced: 'ピーマン長花柱花＋葉色/枝ぶり良好',
+    pepper_short_style: 'ピーマン短花柱花/花落ち',
+    pepper_branch_weak: 'ピーマン枝細い/肥大鈍い',
+    pepper_short_only: 'ピーマン短花柱花のみ',
+    pepper_short_weak: 'ピーマン短花柱花＋不足サイン',
+    pepper_heat_water: 'ピーマン暑さ/水切れ',
+    pepper_leaf_over: 'ピーマン茎葉茂りすぎ/花がら残り',
+    okra_above_5: 'オクラ上葉5枚以上',
+    okra_above_3: 'オクラ上葉3枚程度',
+    okra_above_1_2: 'オクラ上葉1〜2枚',
+    passion_leaf_only: 'パッション葉つる優勢/花芽なし',
+    passion_bud_visible: 'パッション花芽あり',
+    passion_flowering_fruiting: 'パッション着果/肥大期',
+    passion_bud_yellow_drop: 'パッション花芽黄化/落下',
+    passion_flower_no_fruit: 'パッション開花するが着果せず',
+    tomato_heat_wilt: 'トマト猛暑/しおれ',
+    passion_late_flush: 'パッション涼しくなって花増加',
+    passion_yellow_leaf: 'パッション黄葉/勢い弱い',
+    mitsuba_balanced: '三つ葉適正',
+    mitsuba_soft_leggy: '三つ葉軟弱・徒長',
+    mitsuba_pale_slow: '三つ葉葉色薄い/伸び弱い',
+    ginger_recent_liquid: '生姜 前回ハイポ14日未満',
+    ginger_ok: '生姜適正',
+    ginger_yellow_weak: '生姜黄化/生長停滞（過湿なし）',
+    ginger_careful_period: '生姜液肥控えめ期',
+    ginger_root_stress: '生姜根傷み/過湿疑い',
+    ginger_dark_soft: '生姜濃緑/軟弱',
+    negi_balanced: '小ねぎ適正',
+    negi_pale_thin: '小ねぎ葉色薄い/細い',
+    negi_soft_leggy: '小ねぎ軟弱/倒れやすい'
+  };
+  return labels[value] || '観察指標：未記録';
+}
+
+function _vigorLabel(value) {
+  const labels = {
+    balanced: '適正：500倍混合候補',
+    overgrowth: '過多/ツルボケ：ハイポなし',
+    weak: '肥料不足：500倍混合候補',
+    unsure: '判断保留'
+  };
+  return labels[value] || '未記録';
+}
+function _isActualLiquidFertilizerTask(t) {
+  // リキダス単独は活力剤で、肥料ではないため、追肥間隔の判定からは除外する
+  return t?.type === 'fertilize_liquid' && !['rikidas','none'].includes(t.details?.product);
+}
+function _isPassionPhosphorusTask(t) {
+  if (t?.type !== 'fertilize_granular') return false;
+  return ['pk', 'pk_liquid', 'pk_slow'].includes(t.details?.fertilizerKind);
+}
+function _phosphorusIntervalDays(kind) {
+  if (kind === 'pk_liquid') return 14;
+  if (kind === 'pk_slow') return 45;
+  return 30;
+}
+function _isLiquidIntervalBlockingGranular(t) {
+  // 通常/バランス固形は液肥間隔にも影響させる。
+  // パッションのリンカリ/リン酸資材は花芽・着果用のP/K補助なので、ハイポ液肥の間隔リセットには使わず別枠でふりかえる。
+  if (t?.type !== 'fertilize_granular') return false;
+  return !_isPassionPhosphorusTask(t);
+}
+function _granularKindLabel(value) {
+  const labels = {
+    pk: 'リンカリ固形/顆粒',
+    pk_liquid: '液体リン酸資材',
+    pk_slow: '緩効性リンカリ',
+    balanced: '通常/バランス固形',
+    slow_release: '緩効性固形',
+    other: 'その他固形'
+  };
+  return labels[value] || '固形肥料';
+}
+function _granularStageLabel(value) {
+  const labels = {
+    passion_bud_visible: 'パッション花芽あり',
+    passion_flowering_fruiting: 'パッション開花/着果期',
+    passion_leaf_only: 'パッション葉つる優勢',
+    general_growth: '生育期',
+    harvest_phase: '収穫期',
+    ginger_topsoil: '生姜追肥/増し土',
+    other: 'その他'
+  };
+  return labels[value] || '未記録';
+}
+function _fertilizerHistoryTitle(t) {
+  if (t?.type !== 'fertilize_liquid') return '';
+  const action = _fertilizerActionLabel(t.details);
+  const signal = t.details?.growthSignal ? ` / ${_growthSignalLabel(t.details.growthSignal)}` : '';
+  return `（${action}${signal}）`;
+}
+
+async function renderSeasonFeedback(selectedSeason = null) {
+  const plants = await dbGetAll('plants');
+  const allTasks = await dbGetAll('tasks');
+  const clusters = await dbGetAll('clusters');
+  const harvestsAll = allTasks.filter(t => t.type === 'harvest');
+  const seasons = Array.from(new Set([
+    ...plants.map(p => p.season || (p.plantingDate ? String(new Date(p.plantingDate).getFullYear()) : null)),
+    ...harvestsAll.map(h => _yearOf(h.date))
+  ].filter(Boolean))).sort((a,b) => Number(b) - Number(a));
+  const season = selectedSeason || seasons[0] || new Date().getFullYear().toString();
+  const seasonPlants = plants.filter(p => (p.season || String(new Date(p.plantingDate).getFullYear())) === season);
+  const seasonTasks = allTasks.filter(t => _yearOf(t.date) === season);
+  const harvests = seasonTasks.filter(t => t.type === 'harvest');
+  const total = _sumHarvest(harvests);
+  const heatTasks = seasonTasks.filter(t => t.type === 'heat_protection');
+  const liquidTasks = seasonTasks.filter(t => t.type === 'fertilize_liquid');
+  const actualLiquidTasks = liquidTasks.filter(t => _isActualLiquidFertilizerTask(t));
+  const rikidasOnlyTasks = liquidTasks.filter(t => t.details?.product === 'rikidas');
+  const granularTasks = seasonTasks.filter(t => t.type === 'fertilize_granular');
+  const passionPkGranularTasks = granularTasks.filter(t => {
+    const p = plants.find(pl => pl.id === t.plantId);
+    return p?.species === 'passion' && t.details?.fertilizerKind === 'pk';
+  });
+  const plantStats = seasonPlants.map(p => {
+    const myTasks = seasonTasks.filter(t => t.plantId === p.id);
+    const myHarvests = harvests.filter(t => t.plantId === p.id).sort((a,b) => new Date(a.date) - new Date(b.date));
+    const count = _sumHarvest(myHarvests);
+    const first = myHarvests[0]?.date || null;
+    const last = myHarvests[myHarvests.length - 1]?.date || null;
+    const harvestSpan = first && last ? Math.max(1, _daysBetween(last, first) + 1) : 0;
+    const daysToFirst = first ? _daysBetween(first, p.plantingDate) : null;
+    return {
+      plant: p,
+      count,
+      first,
+      last,
+      harvestSpan,
+      daysToFirst,
+      taskCount: myTasks.length,
+      watering: _taskCount(myTasks, 'watering'),
+      liquid: _taskCount(myTasks, 'fertilize_liquid'),
+      actualLiquid: myTasks.filter(t => _isActualLiquidFertilizerTask(t)).length,
+      rikidasOnly: myTasks.filter(t => t.type === 'fertilize_liquid' && t.details?.product === 'rikidas').length,
+      granular: _taskCount(myTasks, 'fertilize_granular'),
+      heat: _taskCount(myTasks, 'heat_protection'),
+      observations: _taskCount(myTasks, 'observation'),
+      trainingLabel: _trainingLabel(p)
+    };
+  });
+  const harvestedStats = plantStats.filter(s => s.count > 0).sort((a,b) => b.count - a.count);
+  const top = harvestedStats[0] || null;
+  const longest = [...harvestedStats].sort((a,b) => b.harvestSpan - a.harvestSpan)[0] || null;
+  const fastest = [...harvestedStats].filter(s => s.daysToFirst != null).sort((a,b) => a.daysToFirst - b.daysToFirst)[0] || null;
+  const avgPerHarvestedPlant = harvestedStats.length ? (total / harvestedStats.length) : 0;
+  const reviewPlants = plantStats
+    .filter(s => s.count > 0 && s.count < avgPerHarvestedPlant * 0.55)
+    .sort((a,b) => a.count - b.count)
+    .slice(0, 3);
+  const noHarvestPlants = plantStats.filter(s => s.count === 0 && s.plant.status !== 'finished').slice(0, 3);
+
+  // 種類別集計
+  const bySpecies = {};
+  for (const s of plantStats) {
+    const key = s.plant.species;
+    if (!bySpecies[key]) bySpecies[key] = { species: key, plantCount: 0, harvestedPlants: 0, count: 0 };
+    bySpecies[key].plantCount += 1;
+    if (s.count > 0) bySpecies[key].harvestedPlants += 1;
+    bySpecies[key].count += s.count;
+  }
+  const speciesRows = Object.values(bySpecies)
+    .map(r => ({ ...r, avg: r.plantCount ? r.count / r.plantCount : 0 }))
+    .sort((a,b) => b.avg - a.avg);
+
+  // 仕立て別集計
+  const byTraining = {};
+  for (const s of plantStats) {
+    const key = `${s.plant.species}:${s.plant.trainingMethod || 'none'}`;
+    if (!byTraining[key]) byTraining[key] = {
+      species: s.plant.species,
+      method: s.plant.trainingMethod || 'none',
+      label: s.trainingLabel,
+      plantCount: 0,
+      count: 0
+    };
+    byTraining[key].plantCount += 1;
+    byTraining[key].count += s.count;
+  }
+  const trainingRows = Object.values(byTraining)
+    .filter(r => r.plantCount > 0)
+    .map(r => ({ ...r, avg: r.count / r.plantCount }))
+    .sort((a,b) => b.avg - a.avg)
+    .slice(0, 6);
+
+  // 週別ピークと暑い時期の落ち込みを見る
+  const weekly = {};
+  for (const h of harvests) {
+    const ws = _weekStart(h.date);
+    const key = ws.toISOString().split('T')[0];
+    if (!weekly[key]) weekly[key] = { start: ws, count: 0 };
+    weekly[key].count += h.details?.count || 1;
+  }
+  const weeklyRows = Object.values(weekly).sort((a,b) => a.start - b.start);
+  const peakWeek = weeklyRows.length ? [...weeklyRows].sort((a,b) => b.count - a.count)[0] : null;
+  const earlySummer = harvests.filter(h => _monthOf(h.date) <= 7);
+  const highSummer = harvests.filter(h => [8, 9].includes(_monthOf(h.date)));
+  const earlySummerCount = _sumHarvest(earlySummer);
+  const highSummerCount = _sumHarvest(highSummer);
+  const summerDrop = earlySummerCount >= 5 && highSummerCount < earlySummerCount * 0.5;
+
+  // 作業回数
+  const importantActions = ['watering','fertilize_liquid','fertilize_granular','side_shoot_removal','pinching','defoliation','tomato_tone','pollination','renewal_pruning','pest_spray','vinegar_spray','heat_protection'];
+  const actionRows = importantActions
+    .map(type => ({ type, label: _actionLabel(type), count: _taskCount(seasonTasks, type) }))
+    .filter(r => r.count > 0)
+    .sort((a,b) => b.count - a.count);
+
+  const increaseSpecies = speciesRows.filter(r => r.count > 0).slice(0, 2);
+  const heatMethods = {};
+  for (const t of heatTasks) {
+    const label = t.details?.methodLabel || t.notes || '暑さ対策';
+    heatMethods[label] = (heatMethods[label] || 0) + 1;
+  }
+  const heatMethodRows = Object.entries(heatMethods).sort((a,b) => b[1] - a[1]);
+  const heatSymptoms = {};
+  for (const t of heatTasks) {
+    const symptom = t.details?.symptomLabel;
+    if (symptom && symptom !== '特になし/予防のみ') heatSymptoms[symptom] = (heatSymptoms[symptom] || 0) + 1;
+  }
+  const heatSymptomRows = Object.entries(heatSymptoms).sort((a,b) => b[1] - a[1]);
+
+  const liquidPatternMap = {};
+  for (const t of liquidTasks) {
+    const actionLabel = t.details?.actionLabel || _fertilizerActionLabel(t.details);
+    const decisionLabel = t.details?.growthSignalLabel || _growthSignalLabel(t.details?.growthSignal);
+    const key = `${actionLabel}|${decisionLabel}`;
+    if (!liquidPatternMap[key]) {
+      liquidPatternMap[key] = { actionLabel, decisionLabel, count: 0, next21Harvest: 0 };
+    }
+    liquidPatternMap[key].count += 1;
+    const tDate = new Date(t.date);
+    const nextHarvests = harvests.filter(h => {
+      if (h.plantId !== t.plantId) return false;
+      const diff = _daysBetween(h.date, tDate);
+      return diff >= 0 && diff <= 21;
+    });
+    liquidPatternMap[key].next21Harvest += _sumHarvest(nextHarvests);
+  }
+  const liquidPatternRows = Object.values(liquidPatternMap)
+    .map(r => ({ ...r, avgNext21: r.count ? r.next21Harvest / r.count : 0 }))
+    .sort((a,b) => b.count - a.count)
+    .slice(0, 8);
+
+  const granularPatternMap = {};
+  for (const t of granularTasks) {
+    const kindLabel = t.details?.fertilizerKindLabel || _granularKindLabel(t.details?.fertilizerKind);
+    const stageLabel = t.details?.stageLabel || _granularStageLabel(t.details?.stageSignal);
+    const key = `${kindLabel}|${stageLabel}`;
+    if (!granularPatternMap[key]) granularPatternMap[key] = { kindLabel, stageLabel, count: 0, next30Harvest: 0 };
+    granularPatternMap[key].count += 1;
+    const tDate = new Date(t.date);
+    const nextHarvests = harvests.filter(h => {
+      if (h.plantId !== t.plantId) return false;
+      const diff = _daysBetween(h.date, tDate);
+      return diff >= 0 && diff <= 30;
+    });
+    granularPatternMap[key].next30Harvest += _sumHarvest(nextHarvests);
+  }
+  const granularPatternRows = Object.values(granularPatternMap)
+    .map(r => ({ ...r, avgNext30: r.count ? r.next30Harvest / r.count : 0 }))
+    .sort((a,b) => b.count - a.count)
+    .slice(0, 8);
+
+  const overgrowthLiquidCount = liquidTasks.filter(t => t.details?.vigor === 'overgrowth').length;
+  const weakLiquidCount = liquidTasks.filter(t => t.details?.vigor === 'weak').length;
+  const passionLiquidSignals = liquidTasks.filter(t => {
+    const p = plants.find(pl => pl.id === t.plantId);
+    return p?.species === 'passion' && String(t.details?.growthSignal || '').startsWith('passion_');
+  });
+  const passionHeatStressCount = passionLiquidSignals.filter(t => ['passion_bud_yellow_drop','passion_flower_no_fruit','passion_late_flush'].includes(t.details?.growthSignal)).length;
+  const passionLeafOnlyCount = passionLiquidSignals.filter(t => t.details?.growthSignal === 'passion_leaf_only').length;
+  const passionHarvests = harvests.filter(h => {
+    const p = plants.find(pl => pl.id === h.plantId);
+    return p?.species === 'passion';
+  });
+  const passionNaturalHarvest = passionHarvests.filter(h => ['natural_drop','detached_touch'].includes(h.details?.passionHarvestStatus)).length;
+  const passionImmatureDrop = passionHarvests.filter(h => ['immature_drop','early_pick'].includes(h.details?.passionHarvestStatus)).length;
+  const heatByMonth = {};
+  for (const t of heatTasks) {
+    const m = _monthOf(t.date);
+    heatByMonth[m] = (heatByMonth[m] || 0) + 1;
+  }
+
+  const feedbackItems = [];
+  if (increaseSpecies.length > 0) {
+    feedbackItems.push(`来年増やす候補は <strong>${increaseSpecies.map(r => SPECIES[r.species]?.name || r.species).join('・')}</strong>。1株あたり収穫数が高い種類です。`);
+  }
+  if (reviewPlants.length > 0) {
+    feedbackItems.push(`見直し候補は <strong>${reviewPlants.map(s => escapeHtml(s.plant.name || SPECIES[s.plant.species].name)).join('・')}</strong>。同年の平均より収穫が少なめです。`);
+  }
+  if (summerDrop) {
+    feedbackItems.push(`8〜9月の収穫が7月以前より大きく落ちています。南向きベランダでは、来年は<strong>7月上旬から鉢温・直射対策</strong>を始める価値があります。`);
+  } else if (heatTasks.length === 0) {
+    feedbackItems.push(`暑さ対策の記録はまだありません。来年比較できるよう、遮光・鉢カバー・夕方補水を始めた日だけ記録しておくと判断しやすくなります。`);
+  } else {
+    feedbackItems.push(`暑さ対策は ${heatTasks.length}回記録されています。来年は「対策開始前後で収穫が落ちたか」を比較できます。`);
+    const uchimizuCount = heatTasks.filter(t => t.details?.method === 'uchimizu').length;
+    if (uchimizuCount > 0) feedbackItems.push(`打ち水を <strong>${uchimizuCount}回</strong> 記録しています。打ち水は補助策なので、同じ時期の遮光・鉢温対策・夕方補水とセットで効果を見ます。`);
+  }
+  if (top && top.liquid + top.granular > 0) {
+    feedbackItems.push(`最多収穫株は <strong>${escapeHtml(top.plant.name || SPECIES[top.plant.species].name)}</strong>。追肥記録は液肥/リキダス${top.liquid}回（うち肥料扱い${top.actualLiquid}回）・固形${top.granular}回でした。`);
+  }
+  if (overgrowthLiquidCount > 0) {
+    feedbackItems.push(`液肥記録のうち <strong>${overgrowthLiquidCount}回</strong> は「ツルボケ疑い」で記録されています。来年はこの状態の時はハイポネックスを見送り、リキダスのみ・水やり調整・着果促進を優先します。`);
+  }
+  if (weakLiquidCount > 0) {
+    feedbackItems.push(`液肥記録のうち <strong>${weakLiquidCount}回</strong> は「肥料不足疑い」で記録されています。来年はその直前の葉色・収穫落ち込みを見て、追肥開始を前倒しするか判断できます。`);
+  }
+  if (passionLeafOnlyCount > 0) {
+    feedbackItems.push(`パッションフルーツで <strong>${passionLeafOnlyCount}回</strong>「葉つる優勢・花芽なし」を記録しています。来年はその時期のハイポネックスを控え、リンカリ寄り・誘引・花芽確認を優先します。`);
+  }
+  if (passionPkGranularTasks.length > 0) {
+    feedbackItems.push(`パッションフルーツのリンカリ固形を <strong>${passionPkGranularTasks.length}回</strong> 記録しています。来年は「花芽確認→リンカリ→開花/着果/収穫」の流れを、液肥とは別枠で比較できます。`);
+  }
+  if (passionHeatStressCount > 0) {
+    feedbackItems.push(`パッションフルーツで <strong>${passionHeatStressCount}回</strong>「花芽落下/着果不良/涼しくなって花増加」を記録しています。来年は真夏の着果を追いすぎず、暑さが落ち着く時期を本命として、人工授粉と水切れ対策を継続します。`);
+  }
+
+  const html = `
+    <div class="header">
+      <button class="btn-icon" style="position:absolute;top:16px;left:8px;background:rgba(255,255,255,0.2);border:none;color:white;" onclick="navigate('harvest')">‹</button>
+      <h1 style="text-align:center;">🧭 来年フィードバック</h1>
+      <div class="greeting" style="text-align:center;">収穫を増やすためのふりかえり</div>
+    </div>
+
+    ${seasons.length > 1 ? `
+      <div class="card">
+        <div class="card-title">📅 対象シーズン</div>
+        <select onchange="renderSeasonFeedback(this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;font-size:15px;">
+          ${seasons.map(y => `<option value="${y}" ${y === season ? 'selected' : ''}>${y}年</option>`).join('')}
+        </select>
+      </div>
+    ` : ''}
+
+    ${harvests.length === 0 ? `
+      <div class="card empty">
+        <div class="icon">🧭</div>
+        <div>まだ収穫記録がありません</div>
+        <div style="font-size:12px;color:var(--text-light);margin-top:4px;">収穫を記録すると、株別・種類別・作業別のふりかえりが出ます</div>
+      </div>
+    ` : `
+      <div class="feedback-summary">
+        <div class="stat"><div class="num">${total}</div><div class="label">総収穫数</div></div>
+        <div class="stat"><div class="num">${harvestedStats.length}</div><div class="label">収穫した株</div></div>
+        <div class="stat"><div class="num">${avgPerHarvestedPlant.toFixed(1)}</div><div class="label">収穫株あたり平均</div></div>
+        <div class="stat"><div class="num">${peakWeek ? peakWeek.count : 0}</div><div class="label">ピーク週の収穫</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🏁 今年の結論</div>
+        <div class="feedback-list">
+          <div class="feedback-item"><strong>最多収穫：</strong>${top ? `${SPECIES[top.plant.species].icon} ${escapeHtml(top.plant.name || SPECIES[top.plant.species].name)}（${top.count}個）` : 'なし'}</div>
+          <div class="feedback-item"><strong>長く採れた株：</strong>${longest ? `${escapeHtml(longest.plant.name || SPECIES[longest.plant.species].name)}（${longest.harvestSpan}日間）` : 'なし'}</div>
+          <div class="feedback-item"><strong>初収穫が早い株：</strong>${fastest ? `${escapeHtml(fastest.plant.name || SPECIES[fastest.plant.species].name)}（植え付け後${fastest.daysToFirst}日）` : 'なし'}</div>
+          <div class="feedback-item"><strong>ピーク週：</strong>${peakWeek ? `${_weekLabel(peakWeek.start)} に ${peakWeek.count}個` : 'なし'}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🌱 来年の方針</div>
+        <div class="feedback-list">
+          ${feedbackItems.map(x => `<div class="feedback-item">${x}</div>`).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🥇 種類別の収穫効率</div>
+        <table class="feedback-table">
+          <thead><tr><th>種類</th><th>株数</th><th>合計</th><th>1株平均</th></tr></thead>
+          <tbody>
+            ${speciesRows.map(r => `
+              <tr>
+                <td>${SPECIES[r.species]?.icon || ''} ${SPECIES[r.species]?.name || r.species}</td>
+                <td>${r.plantCount}</td>
+                <td>${r.count}</td>
+                <td>${r.avg.toFixed(1)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🌿 仕立て別の比較</div>
+        ${trainingRows.length > 0 ? `
+          <table class="feedback-table">
+            <thead><tr><th>種類</th><th>仕立て</th><th>株数</th><th>1株平均</th></tr></thead>
+            <tbody>
+              ${trainingRows.map(r => `
+                <tr>
+                  <td>${SPECIES[r.species]?.name || r.species}</td>
+                  <td>${escapeHtml(r.label)}</td>
+                  <td>${r.plantCount}</td>
+                  <td>${r.avg.toFixed(1)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div style="font-size:11px;color:var(--text-light);margin-top:8px;line-height:1.6;">※株数が少ない場合は参考値です。来年以降も同じ指標で比較できます。</div>
+        ` : `<div style="font-size:13px;color:var(--text-light);">比較できるデータがありません</div>`}
+      </div>
+
+      <div class="card">
+        <div class="card-title">🧰 作業量のふりかえり</div>
+        ${actionRows.length > 0 ? `
+          <div style="margin-bottom:10px;">
+            ${actionRows.slice(0, 10).map(r => `<span class="feedback-badge ${r.type === 'heat_protection' ? 'warn' : ''}">${r.label} ${r.count}</span>`).join('')}
+          </div>
+          <div style="font-size:12px;color:var(--text-light);line-height:1.7;">
+            収穫数の高い株と作業回数を並べて見ることで、「追肥を切らさなかった株」「暑さ対策を始めた株」が翌年の判断材料になります。
+          </div>
+        ` : `<div style="font-size:13px;color:var(--text-light);">作業記録がまだ少ないです</div>`}
+      </div>
+
+      <div class="card">
+        <div class="card-title">🧪 液肥・リキダスのふりかえり</div>
+        ${liquidPatternRows.length > 0 ? `
+          <table class="feedback-table">
+            <thead><tr><th>対応</th><th>判断</th><th>回数</th><th>後21日</th></tr></thead>
+            <tbody>
+              ${liquidPatternRows.map(r => `
+                <tr>
+                  <td>${escapeHtml(r.actionLabel)}</td>
+                  <td>${escapeHtml(r.decisionLabel || '未記録')}</td>
+                  <td>${r.count}</td>
+                  <td>${r.avgNext21.toFixed(1)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div style="font-size:11px;color:var(--text-light);margin-top:8px;line-height:1.6;">
+            「後21日」は、その記録後21日以内の同じ株の平均収穫数です。気温や着果状況の影響も大きいため参考値として見ます。観察指標を一緒に残すことで、来年は「追肥した方がよかった状態」と「見送るべき状態」を比較できます。リキダスのみは肥料扱いにせず、追肥間隔の自動判定から除外します。
+          </div>
+        ` : `<div style="font-size:13px;color:var(--text-light);line-height:1.7;">液肥・リキダスの詳細記録はまだありません。次回から「与えたもの・希釈・草勢診断」を選ぶだけで蓄積されます。</div>`}
+      </div>
+
+      <div class="card">
+        <div class="card-title">💊 固形肥料・リンカリのふりかえり</div>
+        ${granularPatternRows.length > 0 ? `
+          <table class="feedback-table">
+            <thead><tr><th>種類</th><th>状態/目的</th><th>回数</th><th>後30日収穫</th></tr></thead>
+            <tbody>
+              ${granularPatternRows.map(r => `
+                <tr>
+                  <td>${escapeHtml(r.kindLabel || '固形肥料')}</td>
+                  <td>${escapeHtml(r.stageLabel || '未記録')}</td>
+                  <td>${r.count}</td>
+                  <td>${r.avgNext30.toFixed(1)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div style="font-size:11px;color:var(--text-light);margin-top:8px;line-height:1.6;">
+            パッションのリンカリ固形は、花芽・着果用の補助として液肥とは別枠で集計します。リンカリを記録してもハイポ液肥の追肥間隔は自動リセットしません。
+          </div>
+        ` : `<div style="font-size:13px;color:var(--text-light);line-height:1.7;">固形肥料の詳細記録はまだありません。リンカリ固形を使う場合は、種類と状態を選ぶと来年比較できます。</div>`}
+      </div>
+
+      ${(reviewPlants.length > 0 || noHarvestPlants.length > 0) ? `
+        <div class="card">
+          <div class="card-title">🔎 見直し候補</div>
+          <div class="feedback-list">
+            ${reviewPlants.map(s => `<div class="feedback-item">${SPECIES[s.plant.species].icon} <strong>${escapeHtml(s.plant.name || SPECIES[s.plant.species].name)}</strong>：${s.count}個。鉢温・水切れ・肥料切れ・仕立てのどれかをメモで確認。</div>`).join('')}
+            ${noHarvestPlants.map(s => `<div class="feedback-item">${SPECIES[s.plant.species].icon} <strong>${escapeHtml(s.plant.name || SPECIES[s.plant.species].name)}</strong>：収穫記録なし。まだ育成中なら問題なし、終了株なら来年は株数や置き場所を再検討。</div>`).join('')}
+          </div>
+        </div>
+      ` : ''}
+    `}
+
+    <div class="card">
+      <div class="card-title">☀️ 南向きベランダの暑さ対策メモ</div>
+      <div style="font-size:13px;color:var(--text-light);line-height:1.7;margin-bottom:10px;">
+        日当たり条件はほぼ固定なので、来年変える余地があるのは「直射の弱め方」「鉢温」「水切れ」「夕方の冷却補助」の4つです。記録は株詳細のクイック作業から「暑さ対策」を押すだけで十分です。
+      </div>
+      <div class="heat-option-grid">
+        <div class="heat-option"><b>直射を弱める：</b>遮光ネット・すだれを昼だけ使う。葉焼けや萎れが出た週と収穫低下を比較。</div>
+        <div class="heat-option"><b>鉢温を下げる：</b>鉢カバー、二重鉢、床から浮かせる。根の暑さ負担を減らす目的。</div>
+        <div class="heat-option"><b>水切れを避ける：</b>朝にたっぷり。猛暑日だけ夕方補水を記録。毎日一律ではなく、萎れ・土の乾きとセットで見る。</div>
+        <div class="heat-option"><b>土表面を守る：</b>マルチングで乾燥をゆるめる。特にナス・ピーマン・生姜で比較しやすい。</div>
+        <div class="heat-option"><b>打ち水：</b>夕方に鉢の周り・床面へ。気化熱で一時的に熱を下げる補助策。直射中の葉水や過湿の代わりにはしない。</div>
+        <div class="heat-option"><b>高温障害サイン：</b>夕方に戻らない萎れ、葉焼け、花落ち、実の日焼け、未熟落果、パッションの「花は咲くが実にならない」。症状も暑さ対策記録に残す。</div>
+      </div>
+      ${heatMethodRows.length > 0 ? `
+        <div style="margin-top:12px;font-size:12px;color:var(--text-light);">今年の暑さ対策：${heatMethodRows.map(([label, count]) => `${escapeHtml(label)} ${count}回`).join(' / ')}</div>
+      ` : ''}
+      ${heatSymptomRows.length > 0 ? `
+        <div style="margin-top:6px;font-size:12px;color:var(--text-light);">記録された高温障害サイン：${heatSymptomRows.map(([label, count]) => `${escapeHtml(label)} ${count}回`).join(' / ')}</div>
+      ` : ''}
+    </div>
+  `;
+  document.getElementById('app').innerHTML = html;
+  currentScreen = 'feedback';
+  window.scrollTo(0, 0);
 }
 
 // 収穫グラフSVG生成（気温オーバーレイ付き）
