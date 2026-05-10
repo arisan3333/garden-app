@@ -1218,6 +1218,16 @@ function dayDiff(date) {
   const d2 = toLocalMidnight(date);
   return Math.floor((d1 - d2) / (1000 * 60 * 60 * 24));
 }
+
+function sortTasksNewestFirst(tasks) {
+  // IndexedDB の getAll() は日付順を保証しないため、履歴判定前に必ず新しい順へ揃える。
+  // これをしないと、古い水やり記録を「前回」と誤認し、今日のタスクと概要表示がズレる。
+  return [...(tasks || [])].sort((a, b) => {
+    const diff = new Date(b.date || 0) - new Date(a.date || 0);
+    if (diff !== 0) return diff;
+    return String(b.id || '').localeCompare(String(a.id || ''));
+  });
+}
 function getPhase(plant) {
   const days = dayDiff(plant.plantingDate);
   if (days < 14) return { name: '活着期', color: '#fef3c7' };
@@ -1293,6 +1303,8 @@ function weatherAlerts(weather) {
 // 自動レコメンドタスク生成（今日のタスク用）
 // =================================================
 function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vines = [], appSettings = {}) {
+  // 今日のタスク生成では「直近の作業」を多用するため、まず履歴を新しい順に正規化する。
+  lastTasks = sortTasksNewestFirst(lastTasks);
   const tasks = [];
   const days = dayDiff(plant.plantingDate);
   const displayName = plant.name || SPECIES[plant.species].name;
@@ -1906,6 +1918,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
 // 今後の予定リスト生成（株詳細用）
 // =================================================
 function generateUpcomingTasks(plant, lastTasks, vines = []) {
+  lastTasks = sortTasksNewestFirst(lastTasks);
   const tasks = [];
   const days = dayDiff(plant.plantingDate);
   const sp = plant.species;
@@ -2382,7 +2395,7 @@ async function renderPlantDetail(plantId) {
   const sp = SPECIES[plant.species];
   const phase = getPhase(plant);
   const days = dayDiff(plant.plantingDate);
-  const tasks = (await dbGetAll('tasks')).filter(t => t.plantId === plantId).sort((a,b) => new Date(b.date) - new Date(a.date));
+  const tasks = sortTasksNewestFirst((await dbGetAll('tasks')).filter(t => t.plantId === plantId));
   const clusters = (await dbGetAll('clusters')).filter(c => c.plantId === plantId).sort((a,b) => a.segmentNumber - b.segmentNumber);
   const vines = (await dbGetAll('vines')).filter(v => v.plantId === plantId);
   
@@ -3694,7 +3707,7 @@ async function renderTasks() {
   const allVinesData = await dbGetAll('vines');
   let allRecommended = [];
   for (const plant of plants) {
-    const plantTasks = allTasks.filter(t => t.plantId === plant.id);
+    const plantTasks = sortTasksNewestFirst(allTasks.filter(t => t.plantId === plant.id));
     const plantVines = allVinesData.filter(v => v.plantId === plant.id);
     const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines, appSettings);
     allRecommended = allRecommended.concat(recommended);
