@@ -1890,24 +1890,27 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
   }
 
   // やさお酢散布（食酢ベース・回数制限なし・3日サイクル予防）
-  // 対象：全作物（野菜・果樹・葉物など）。弱っている株や傷のある株は避ける。
+  // 対象：基本は葉が展開している株。生姜は芽出し中/発芽前は散布対象にしない。
   {
-    const vinegarHistory = lastTasks.filter(t => t.type === 'vinegar_spray');
-    const lastVinegar = vinegarHistory[0];
-    const daysSinceVinegar = lastVinegar ? dayDiff(lastVinegar.date) : 999;
-    
-    // 3日以上経過していれば予防散布をレコメンド（活着以降）
-    if (daysSinceVinegar >= 3 && days >= 3) {
-      const descText = lastVinegar
-        ? `前回から${daysSinceVinegar}日経過。葉の表裏にたっぷり`
-        : '初回。葉の表裏にたっぷり散布';
-      tasks.push({
-        type: 'recommended',
-        action: 'vinegar_spray',
-        title: `🍶 ${displayName}: やさお酢で予防散布`,
-        desc: descText,
-        plantId: plant.id
-      });
+    const gingerLeafStage = plant.species !== 'ginger' || _gingerStartTriggered(plant, lastTasks);
+    if (gingerLeafStage) {
+      const vinegarHistory = lastTasks.filter(t => t.type === 'vinegar_spray');
+      const lastVinegar = vinegarHistory[0];
+      const daysSinceVinegar = lastVinegar ? dayDiff(lastVinegar.date) : 999;
+      
+      // 3日以上経過していれば予防散布をレコメンド（活着以降）
+      if (daysSinceVinegar >= 3 && days >= 3) {
+        const descText = lastVinegar
+          ? `前回から${daysSinceVinegar}日経過。葉の表裏にたっぷり`
+          : '初回。葉の表裏にたっぷり散布';
+        tasks.push({
+          type: 'recommended',
+          action: 'vinegar_spray',
+          title: `🍶 ${displayName}: やさお酢で予防散布`,
+          desc: descText,
+          plantId: plant.id
+        });
+      }
     }
   }
 
@@ -2111,6 +2114,68 @@ let currentTab = 'overview';
 let cachedWeather = null;
 let cachedTasksState = {}; // taskKey -> {status: 'done'|'skip'|'carryover', date}
 
+function localDateKey(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function isTodayRecord(value) {
+  return localDateKey(value) === today();
+}
+
+function taskStateKey(dateKey, plantId, action) {
+  return `${dateKey}:${plantId}:${action}`;
+}
+
+const TODAY_DONE_RECORD_TYPES = new Set([
+  'watering', 'fertilize_liquid', 'fertilize_granular', 'side_shoot_removal', 'pinching',
+  'topsoil', 'training', 'defoliation', 'tomato_tone', 'pollination', 'renewal_pruning',
+  'pest_spray', 'vinegar_spray', 'heat_protection', 'observation', 'harvest', 'mulching',
+  'first_flower', 'first_fruit', 'ginger_growth_trigger'
+]);
+
+function actionIcon(type) {
+  const icons = {
+    watering: '💧', fertilize_liquid: '🧪', fertilize_granular: '💊',
+    side_shoot_removal: '✂️', pinching: '✂️', topsoil: '🪴', training: '🌿',
+    defoliation: '🍃', tomato_tone: '🍅', pollination: '🐝', renewal_pruning: '🌿',
+    harvest: '🧺', pest_spray: '🛡️', vinegar_spray: '🍶', heat_protection: '☀️',
+    observation: '👀', mulching: '🍂', first_flower: '🌸', first_fruit: '🍆',
+    ginger_growth_trigger: '🫚'
+  };
+  return icons[type] || '✅';
+}
+
+function formatTime(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+}
+
+function makeDoneTaskFromRecord(record, plant) {
+  const name = plant?.name || SPECIES[plant?.species]?.name || '株';
+  const label = _actionLabel(record.type);
+  const parts = [];
+  if (record.details?.count) parts.push(`${record.details.count}個`);
+  if (record.details?.cluster) parts.push(`第${record.details.cluster}花房`);
+  if (record.details?.round) parts.push(`${record.details.round}回目`);
+  const time = formatTime(record.date);
+  const note = (record.notes || '').split('\n').map(x => x.trim()).filter(Boolean)[0] || '';
+  const desc = [time ? `${time}に記録` : '今日記録', ...parts, note].filter(Boolean).join(' / ');
+  return {
+    taskKey: `record:${record.id}`,
+    title: `${actionIcon(record.type)} ${name}: ${label}`,
+    desc,
+    doneRecord: true,
+    sortDate: record.date
+  };
+}
+
 
 function renderWeatherActionCard(weather, activePlants = []) {
   if (!weather?.success) return '';
@@ -2212,7 +2277,7 @@ async function renderHome() {
   const allVinesData = await dbGetAll('vines');
   let allRecommended = [];
   for (const plant of plants.filter(p => p.status === 'active')) {
-    const plantTasks = allTasks.filter(t => t.plantId === plant.id);
+    const plantTasks = sortTasksNewestFirst(allTasks.filter(t => t.plantId === plant.id));
     const plantVines = allVinesData.filter(v => v.plantId === plant.id);
     const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines, appSettings);
     allRecommended = allRecommended.concat(recommended);
@@ -2502,7 +2567,7 @@ function renderOverviewTab(plant, tasks, vines = []) {
     <div class="card">
       <div class="card-title">⚡ クイック作業記録</div>
       <div class="quick-actions">
-        ${getQuickActions(plant).map(a => `
+        ${getQuickActions(plant, tasks).map(a => `
           <div class="quick-action" onclick="recordAction('${a.action}', ${JSON.stringify(a).replace(/"/g, '&quot;')})">
             <span class="icon">${a.icon}</span>${a.label}
           </div>
@@ -2640,7 +2705,23 @@ function renderOverviewTab(plant, tasks, vines = []) {
     
     ${(() => {
       // やさお酢（食酢ベース・回数制限なし・3日サイクル予防）
-      // 対象：全作物（野菜・果樹・葉物など）。弱っている株や傷のある株は避ける。
+      // 生姜は芽出し中/発芽前は葉面散布対象外。追肥開始トリガー後に通常表示へ切り替える。
+      if (plant.species === 'ginger' && !_gingerStartTriggered(plant, tasks)) {
+        return `
+        <div class="card">
+          <div class="card-title">🍶 やさお酢（予防散布）</div>
+          <div style="background:#f3f4f6;border-radius:10px;padding:12px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <span style="font-size:14px;color:#374151;font-weight:600;">➖ 現在の扱い</span>
+              <span style="font-size:14px;color:#374151;font-weight:700;">芽出し中は対象外</span>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-light);line-height:1.6;">
+            📌 生姜は発芽して葉が展開してから。芽出し中は葉面散布せず、水やりも控えめに管理。
+          </div>
+        </div>
+        `;
+      }
       const vinegarHistory = tasks.filter(t => t.type === 'vinegar_spray');
       const lastVinegar = vinegarHistory[0];
       const vUsed = vinegarHistory.length;
@@ -2732,15 +2813,18 @@ function getWaterGuide(plant) {
   return { frequency: '土の表面が乾いたらたっぷり', amount: '底から少し流れる程度', tip: '葉の状態を見て調整' };
 }
 
-function getQuickActions(plant) {
+function getQuickActions(plant, tasks = []) {
   // 水やりは概要タブの「💧 水やりを記録」ボタンで記録するためここから除外
   const common = [
     { action: 'fertilize_liquid', icon: '🧪', label: '個別液肥' },
     { action: 'fertilize_granular', icon: '💊', label: '固形肥料' },
-    { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' },
     { action: 'heat_protection', icon: '☀️', label: '暑さ対策' },
     { action: 'observation', icon: '👀', label: '観察' }
   ];
+  // 生姜は芽出し中/発芽前にやさお酢を出さない。葉が展開してから手動記録を表示。
+  if (plant.species !== 'ginger' || _gingerStartTriggered(plant, tasks)) {
+    common.splice(2, 0, { action: 'vinegar_spray', icon: '🍶', label: 'やさお酢' });
+  }
   const specific = {
     tomato: [
       // トマトトーンは剪定ガイドの花房タップから記録（花房と紐付くため、より確実）
@@ -3718,6 +3802,15 @@ async function renderTasks() {
   const recTasks = [];
   const carryoverTasks = [];
   const doneTasks = [];
+  const plantById = new Map(plants.map(p => [p.id, p]));
+  
+  // 今日の実施履歴を完了欄の正とする。
+  // taskStateだけのdoneは、履歴が無い限り「実施済み」として扱わない。
+  const todayDoneRecords = sortTasksNewestFirst(allTasks)
+    .filter(t => plantById.has(t.plantId))
+    .filter(t => TODAY_DONE_RECORD_TYPES.has(t.type))
+    .filter(t => isTodayRecord(t.date));
+  const doneRecordActionKeys = new Set(todayDoneRecords.map(record => `${record.plantId}:${record.type}`));
   
   // 持ち越しを取得
   Object.entries(cachedTasksState).forEach(([key, state]) => {
@@ -3727,10 +3820,10 @@ async function renderTasks() {
   });
   
   for (const t of allRecommended) {
-    const key = `${todayKey}:${t.plantId}:${t.action}`;
+    const key = taskStateKey(todayKey, t.plantId, t.action);
     const state = cachedTasksState[key];
-    if (state && state.status === 'done') {
-      doneTasks.push({ ...t, taskKey: key });
+    if (state && state.status === 'done' && doneRecordActionKeys.has(`${t.plantId}:${t.action}`)) {
+      // 実作業履歴がある完了は、後段の「今日の記録」から表示する。
     } else if (state && state.status === 'skip') {
       // skip skip
     } else {
@@ -3739,6 +3832,14 @@ async function renderTasks() {
       else recTasks.push(taskWithKey);
     }
   }
+  
+  // 今日の実施履歴を完了欄に出す。
+  // 水やり等は記録した瞬間に「推奨条件」から外れるため、tasks履歴そのものを正とする。
+  todayDoneRecords.forEach(record => {
+    doneTasks.push(makeDoneTaskFromRecord(record, plantById.get(record.plantId)));
+  });
+  
+  doneTasks.sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0));
   
   const renderTaskItem = (t) => `
     <div class="task-item ${t.isCarryover ? 'carryover' : t.type}">
@@ -3801,7 +3902,7 @@ async function renderTasks() {
     ` : ''}
     
     ${doneTasks.length > 0 ? `
-      <div class="section-header">✓ 完了 (${doneTasks.length})</div>
+      <div class="section-header">✓ 完了・今日の記録 (${doneTasks.length})</div>
       <div class="task-list">
         ${doneTasks.map(renderDone).join('')}
       </div>
