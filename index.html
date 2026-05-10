@@ -1676,8 +1676,15 @@ function generateUpcomingTasks(plant, lastTasks) {
   // ナス・ピーマン・パッション：21日後
   // 生姜：1回目の固形追肥後（6月中旬以降）
   // オクラ・三つ葉・小ねぎ：自動アラートなし
-  if (['eggplant', 'pepper', 'passion'].includes(sp)) {
-    if (days < 21) tasks.push({ daysOffset: 21 - days, label: '🧪 液肥開始（一番花の頃）', urgent: false });
+  if (sp === 'passion') {
+    // パッション：植え付け21日後（実装は days >= 21 の純粋な日数判定）
+    if (days < 21) tasks.push({ daysOffset: 21 - days, label: '🧪 液肥開始（植え付け21日後）', urgent: false });
+  } else if (['eggplant', 'pepper'].includes(sp)) {
+    // ナス・ピーマン：一番果の着果がトリガー。未着果でも35日後にフォールバック開始
+    //   実装：!!plant.firstFruit?.date || days >= 35
+    if (!plant.firstFruit?.date && days < 35) {
+      tasks.push({ daysOffset: '随時', label: '🧪 液肥開始（一番果の着果後 / 35日後フォールバック）', urgent: false });
+    }
   } else if (sp === 'ginger') {
     // 生姜の液肥は1回目の固形追肥（6月中旬）後から
     const today = new Date();
@@ -3430,6 +3437,19 @@ async function deletePlant(plantId) {
 }
 
 async function recordWater() {
+  // 10分以内の連打防止：直近の watering 記録が600秒以内なら新規作成しない
+  const allTasks = await dbGetAll('tasks');
+  const recentWatering = allTasks
+    .filter(t => t.plantId === currentPlantId && t.type === 'watering')
+    .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+  if (recentWatering) {
+    const elapsedSec = (Date.now() - new Date(recentWatering.date).getTime()) / 1000;
+    if (elapsedSec < 600) {
+      // 連打とみなしてスキップ
+      await renderPlantDetail(currentPlantId);
+      return;
+    }
+  }
   await recordTask({
     plantId: currentPlantId,
     type: 'watering',
@@ -3920,11 +3940,34 @@ async function markTask(taskKey, taskData, status) {
   
   // 完了時、対応する作業も自動記録
   if (status === 'done' && taskData.action) {
+    // pinching: タイトルから対象（main/child/grandchild）を抽出して details に保存
+    //   これがないと「主枝摘心」アラートが繰り返し出続け、子づる摘心カウントも狂い、
+    //   結果として液肥開始タイミングがずれる
+    const details = {};
+    if (taskData.action === 'pinching' && typeof taskData.title === 'string') {
+      if (taskData.title.includes('主枝摘心')) details.target = 'main';
+      else if (taskData.title.includes('子づる摘心')) details.target = 'child';
+      else if (taskData.title.includes('孫づる')) details.target = 'grandchild';
+    }
+    // watering: 10分以内の連打を防止（タスク完了直後に概要タブで再度記録、その逆も）
+    if (taskData.action === 'watering' && taskData.plantId) {
+      const allTasks = await dbGetAll('tasks');
+      const recentWatering = allTasks
+        .filter(t => t.plantId === taskData.plantId && t.type === 'watering')
+        .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+      if (recentWatering) {
+        const elapsedSec = (Date.now() - new Date(recentWatering.date).getTime()) / 1000;
+        if (elapsedSec < 600) {
+          await renderTasks();
+          return;
+        }
+      }
+    }
     await recordTask({
       plantId: taskData.plantId,
       type: taskData.action,
       date: new Date().toISOString(),
-      details: {},
+      details,
       notes: '（タスクから自動記録）'
     });
   }
