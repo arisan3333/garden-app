@@ -2562,8 +2562,6 @@ function renderOverviewTab(plant, tasks, vines = []) {
       <button class="btn btn-small" style="width:100%;margin-top:8px;" onclick="recordWater()">💧 水やりを記録</button>
     </div>
 
-    ${plant.species === 'ginger' ? renderGingerCourseCard(plant, tasks) : ''}
-
     <div class="card">
       <div class="card-title">⚡ クイック作業記録</div>
       <div class="quick-actions">
@@ -2904,7 +2902,7 @@ function renderGingerGuide(plant, tasks) {
         <button class="btn btn-secondary btn-small" style="flex:1;min-width:160px;" onclick="editPlant('${plant.id}')">⚙️ 追肥方針を変更</button>
       </div>
       <div style="font-size:11px;color:#6b7280;line-height:1.6;margin-top:8px;">
-        方針は「概要」タブまたは株情報編集で変更できます。既定は液肥メインです。
+        方針変更と開始トリガー記録は、この剪定ガイドに集約しています。既定は液肥メインです。
       </div>
     </div>
     
@@ -4055,16 +4053,16 @@ function showAddPlant() {
         <label>鉢・プランター容量（L）</label>
         <select id="potVolumeInput">
           <option value="">未設定</option>
-          <option value="3">3L（小鉢・葉物用）</option>
-          <option value="5">5L（中鉢）</option>
-          <option value="8">8L（中〜大鉢／ピーマン・ナスの中型）</option>
-          <option value="10" selected>10L（30型鉢／果菜類の標準）</option>
-          <option value="15">15L</option>
-          <option value="20">20L（大型プランター）</option>
+          <option value="3">3L</option>
+          <option value="5">5L（横長）</option>
+          <option value="8">8L（ゴミ箱リメイク）</option>
+          <option value="10">10L（スリット）</option>
+          <option value="15">15L（特大・土少なめ）</option>
+          <option value="20">20L（特大）</option>
           <option value="25">25L</option>
-          <option value="30">30L（大型）</option>
+
         </select>
-        <div style="font-size:11px;color:#6b7280;margin-top:4px;">液肥の量計算に使います。後から変更できます。</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px;">液肥量の目安計算に使います。実際の鉢の特徴名で選べます。後から変更できます。</div>
       </div>
       <div class="form-group" id="trainingGroup" style="display:none;">
         <label>仕立て方</label>
@@ -4153,16 +4151,16 @@ async function editPlant(plantId) {
         <label>鉢・プランター容量（L）</label>
         <select id="potVolumeInput">
           <option value="" ${currentPot === '' ? 'selected' : ''}>未設定</option>
-          <option value="3" ${currentPot === 3 ? 'selected' : ''}>3L（小鉢・葉物用）</option>
-          <option value="5" ${currentPot === 5 ? 'selected' : ''}>5L（中鉢）</option>
-          <option value="8" ${currentPot === 8 ? 'selected' : ''}>8L（中〜大鉢／ピーマン・ナスの中型）</option>
-          <option value="10" ${currentPot === 10 ? 'selected' : ''}>10L（30型鉢／果菜類の標準）</option>
-          <option value="15" ${currentPot === 15 ? 'selected' : ''}>15L</option>
-          <option value="20" ${currentPot === 20 ? 'selected' : ''}>20L（大型プランター）</option>
+          <option value="3" ${currentPot === 3 ? 'selected' : ''}>3L</option>
+          <option value="5" ${currentPot === 5 ? 'selected' : ''}>5L（横長）</option>
+          <option value="8" ${currentPot === 8 ? 'selected' : ''}>8L（ゴミ箱リメイク）</option>
+          <option value="10" ${currentPot === 10 ? 'selected' : ''}>10L（スリット）</option>
+          <option value="15" ${currentPot === 15 ? 'selected' : ''}>15L（特大・土少なめ）</option>
+          <option value="20" ${currentPot === 20 ? 'selected' : ''}>20L（特大）</option>
           <option value="25" ${currentPot === 25 ? 'selected' : ''}>25L</option>
-          <option value="30" ${currentPot === 30 ? 'selected' : ''}>30L（大型）</option>
+
         </select>
-        <div style="font-size:11px;color:#6b7280;margin-top:4px;">液肥の量計算に使います。</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px;">液肥量の目安計算に使います。</div>
       </div>
       <div class="form-group">
         <label>仕立て方</label>
