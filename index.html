@@ -6463,12 +6463,121 @@ function closeModal() {
   if (modal) modal.remove();
 }
 
+
+// =================================================
+// 既存データの履歴バックフィル
+// 既に入力済みだった花房・つる数・生姜追肥方針を、履歴に1回だけ反映する。
+// 以後の変更は各保存処理で通常履歴として記録される。
+// =================================================
+async function backfillExistingStructuredHistory() {
+  const [plants, clusters, vines, tasks] = await Promise.all([
+    dbGetAll('plants'),
+    dbGetAll('clusters'),
+    dbGetAll('vines'),
+    dbGetAll('tasks')
+  ]);
+
+  const existingClusterHistoryIds = new Set(
+    tasks
+      .filter(t => t.type === 'cluster_update' && t.details?.clusterId)
+      .map(t => String(t.details.clusterId))
+  );
+  const existingBackfillKeys = new Set(
+    tasks
+      .map(t => t.details?.backfillKey)
+      .filter(Boolean)
+      .map(String)
+  );
+
+  // 1) 既存の花房：現在状態を履歴に反映
+  for (const c of clusters || []) {
+    if (!c?.id || !c?.plantId) continue;
+    if (existingClusterHistoryIds.has(String(c.id))) continue;
+
+    const stemLabel = clusterStemLabel(c.stem || 'A');
+    const clusterLabel = `${stemLabel}第${c.segmentNumber}花房`;
+    const statusLabel = clusterStatusLabel(c.status);
+    const bloomText = c.bloomDate ? `（開花日：${dateStr(c.bloomDate)}）` : '';
+    const date = c.createdAt || (c.bloomDate ? localDateToNoonIso(c.bloomDate) : new Date().toISOString());
+
+    await recordTask({
+      plantId: c.plantId,
+      type: 'cluster_update',
+      date,
+      details: {
+        action: 'backfill',
+        cluster: c.segmentNumber,
+        stem: c.stem || 'A',
+        clusterId: c.id,
+        newStatus: c.status || null,
+        backfillKey: `cluster:${c.id}`
+      },
+      notes: `${clusterLabel}：既存データを履歴に反映（現在：${statusLabel}）${bloomText}`
+    });
+  }
+
+  // 2) 既存のパッションつる数：現在値を履歴に反映
+  for (const v of vines || []) {
+    if (!v?.id || !v?.plantId) continue;
+    for (const field of ['grandchildren', 'flowers', 'fruits']) {
+      const value = Number(v[field] || 0);
+      if (value <= 0) continue;
+      const key = `vine:${v.id}:${field}:initial`;
+      if (existingBackfillKeys.has(key)) continue;
+
+      const label = vineIndexLabel(v.vineType, v.vineIndex);
+      const fieldLabel = vineFieldLabel(field);
+      await recordTask({
+        plantId: v.plantId,
+        type: 'vine_update',
+        date: v.updatedAt || v.createdAt || new Date().toISOString(),
+        details: {
+          vineType: v.vineType,
+          vineIndex: v.vineIndex,
+          field,
+          oldValue: null,
+          newValue: value,
+          backfillKey: key
+        },
+        notes: `${label}：${fieldLabel} 現在${value}（既存データを履歴に反映）`
+      });
+    }
+  }
+
+  // 3) 既存の生姜追肥方針：明示設定がある場合だけ現在方針を履歴に反映
+  for (const p of plants || []) {
+    if (p?.species !== 'ginger' || !p?.id || !p.gingerFertilizerCourse) continue;
+    const key = `gingerCourse:${p.id}:initial`;
+    if (existingBackfillKeys.has(key)) continue;
+
+    await recordTask({
+      plantId: p.id,
+      type: 'ginger_fertilizer_course',
+      date: p.updatedAt || p.createdAt || new Date().toISOString(),
+      details: {
+        action: 'backfill',
+        newCourse: _gingerFertilizerCourse(p),
+        backfillKey: key
+      },
+      notes: `既存データを履歴に反映（現在：${_gingerFertilizerCourseLabel(_gingerFertilizerCourse(p))}）`
+    });
+  }
+}
+
+function localDateToNoonIso(value) {
+  if (!value) return new Date().toISOString();
+  const [y, m, d] = String(value).split('-').map(Number);
+  if (!y || !m || !d) return new Date().toISOString();
+  return new Date(y, m - 1, d, 12, 0, 0).toISOString();
+}
+
 // =================================================
 // 初期化
 // =================================================
 (async () => {
   try {
     await openDB();
+    await backfillExistingStructuredHistory();
     await navigate('home');
   } catch (e) {
     console.error(e);
