@@ -1194,6 +1194,17 @@ function today() {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
+function nowLocalDateTimeInput() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+function localDateTimeInputToIso(value) {
+  if (!value) return new Date().toISOString();
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return new Date().toISOString();
+  return d.toISOString();
+}
 function dateStr(d) { return new Date(d).toLocaleDateString('ja-JP', {month: 'numeric', day: 'numeric'}); }
 function dayDiff(date) {
   // ISO datetime ("2026-05-09T00:13:45.123Z") でも日付のみ ("2026-05-09") でも、
@@ -2136,7 +2147,7 @@ const TODAY_DONE_RECORD_TYPES = new Set([
   'watering', 'fertilize_liquid', 'fertilize_granular', 'side_shoot_removal', 'pinching',
   'topsoil', 'training', 'defoliation', 'tomato_tone', 'pollination', 'renewal_pruning',
   'pest_spray', 'vinegar_spray', 'heat_protection', 'observation', 'harvest', 'mulching',
-  'first_flower', 'first_fruit', 'ginger_growth_trigger'
+  'first_flower', 'first_fruit', 'ginger_growth_trigger', 'cluster_update', 'vine_update', 'ginger_fertilizer_course'
 ]);
 
 function actionIcon(type) {
@@ -2146,7 +2157,8 @@ function actionIcon(type) {
     defoliation: '🍃', tomato_tone: '🍅', pollination: '🐝', renewal_pruning: '🌿',
     harvest: '🧺', pest_spray: '🛡️', vinegar_spray: '🍶', heat_protection: '☀️',
     observation: '👀', mulching: '🍂', first_flower: '🌸', first_fruit: '🍆',
-    ginger_growth_trigger: '🫚'
+    ginger_growth_trigger: '🫚',
+    cluster_update: '🌸', vine_update: '🌿', ginger_fertilizer_course: '🫚'
   };
   return icons[type] || '✅';
 }
@@ -3727,7 +3739,10 @@ async function renderHistoryTab(tasks) {
     first_fruit: { icon: '🍆', label: '一番果の処理' },
     mulching: { icon: '🍂', label: 'マルチング' },
     heat_protection: { icon: '☀️', label: '暑さ対策' },
-    observation: { icon: '👀', label: '観察' }
+    observation: { icon: '👀', label: '観察' },
+    cluster_update: { icon: '🌸', label: '花房状態' },
+    vine_update: { icon: '🌿', label: 'つる管理' },
+    ginger_fertilizer_course: { icon: '🫚', label: '生姜の追肥方針' }
   };
   
   // 観察記録に紐付いた写真を取得
@@ -4194,6 +4209,7 @@ async function editPlant(plantId) {
 
 async function updatePlant(plantId) {
   const plant = await dbGet('plants', plantId);
+  const oldGingerCourse = plant.species === 'ginger' ? _gingerFertilizerCourse(plant) : null;
   plant.name = document.getElementById('nameInput').value.trim();
   plant.plantingDate = document.getElementById('plantingDateInput').value;
   plant.trainingMethod = document.getElementById('trainingInput')?.value || plant.trainingMethod;
@@ -4204,6 +4220,9 @@ async function updatePlant(plantId) {
     plant.gingerFertilizerCourse = document.getElementById('gingerFertilizerCourseInput')?.value || 'liquid';
   }
   await dbPut('plants', plant);
+  if (plant.species === 'ginger') {
+    await recordGingerCourseHistory(plant.id, oldGingerCourse, _gingerFertilizerCourse(plant));
+  }
   closeModal();
   await renderPlantDetail(plantId);
 }
@@ -4212,8 +4231,11 @@ async function updatePlant(plantId) {
 async function updateGingerCourse(plantId, course) {
   const plant = await dbGet('plants', plantId);
   if (!plant || plant.species !== 'ginger') return;
-  plant.gingerFertilizerCourse = course || 'liquid';
+  const oldCourse = _gingerFertilizerCourse(plant);
+  const newCourse = course || 'liquid';
+  plant.gingerFertilizerCourse = newCourse;
   await dbPut('plants', plant);
+  await recordGingerCourseHistory(plantId, oldCourse, newCourse);
   await renderPlantDetail(plantId);
 }
 
@@ -4390,7 +4412,7 @@ function showGranularFertilizerModal() {
       <form onsubmit="event.preventDefault();saveGranularFertilizer();">
         <div class="form-group">
           <label>日時</label>
-          <input id="granularDateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+          <input id="granularDateInput" type="datetime-local" value="${nowLocalDateTimeInput()}">
         </div>
         <div class="form-group">
           <label>種類</label>
@@ -4477,7 +4499,7 @@ function showQuickRecordModal(action, actionData) {
     <form onsubmit="event.preventDefault();saveQuickRecord('${action}');">
       <div class="form-group">
         <label>日時</label>
-        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+        <input id="dateInput" type="datetime-local" value="${nowLocalDateTimeInput()}">
       </div>
       <div class="form-group">
         <label>メモ（任意）</label>
@@ -4561,7 +4583,7 @@ function showTomatoToneModal() {
         </div>
         <div class="form-group">
           <label>日時</label>
-          <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+          <input id="dateInput" type="datetime-local" value="${nowLocalDateTimeInput()}">
         </div>
         <div class="form-group">
           <label>メモ</label>
@@ -4608,7 +4630,7 @@ async function showHarvestModal() {
     <form onsubmit="event.preventDefault();saveHarvest();">
       <div class="form-group">
         <label>日時</label>
-        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+        <input id="dateInput" type="datetime-local" value="${nowLocalDateTimeInput()}">
       </div>
       <div class="form-group">
         <label>収穫個数</label>
@@ -4697,7 +4719,7 @@ function showSideShootModal() {
     <form onsubmit="event.preventDefault();saveSideShoot();">
       <div class="form-group">
         <label>日時</label>
-        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+        <input id="dateInput" type="datetime-local" value="${nowLocalDateTimeInput()}">
       </div>
       <div class="form-group">
         <label>本数（任意）</label>
@@ -5089,7 +5111,7 @@ async function showFertilizerMixerModal() {
     <form onsubmit="event.preventDefault();saveFertilizerMixerBatch();">
       <div class="form-group">
         <label>日時</label>
-        <input id="mixerDateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+        <input id="mixerDateInput" type="datetime-local" value="${nowLocalDateTimeInput()}">
       </div>
       <details style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.7;margin-bottom:12px;">
         <summary style="font-weight:600;cursor:pointer;">使い方・公式の目安</summary>
@@ -5428,7 +5450,7 @@ async function showLiquidFertilizerModal() {
     <form onsubmit="event.preventDefault();saveLiquidFertilizer();">
       <div class="form-group">
         <label>日時</label>
-        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+        <input id="dateInput" type="datetime-local" value="${nowLocalDateTimeInput()}">
       </div>
       <div class="form-group">
         <label>追肥判断（状態）</label>
@@ -5520,7 +5542,7 @@ function showHeatProtectionModal() {
     <form onsubmit="event.preventDefault();saveHeatProtection();">
       <div class="form-group">
         <label>日時</label>
-        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+        <input id="dateInput" type="datetime-local" value="${nowLocalDateTimeInput()}">
       </div>
       <div class="form-group">
         <label>対策内容</label>
@@ -5613,7 +5635,7 @@ function showObservationModal() {
     <form onsubmit="event.preventDefault();saveObservation();">
       <div class="form-group">
         <label>日時</label>
-        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+        <input id="dateInput" type="datetime-local" value="${nowLocalDateTimeInput()}">
       </div>
       <div class="form-group">
         <label>メモ</label>
@@ -5751,7 +5773,7 @@ async function showPinchingModal() {
     <form onsubmit="event.preventDefault();savePinching();">
       <div class="form-group">
         <label>日時</label>
-        <input id="dateInput" type="datetime-local" value="${new Date().toISOString().slice(0,16)}">
+        <input id="dateInput" type="datetime-local" value="${nowLocalDateTimeInput()}">
       </div>
       ${targetOptions}
       <div class="form-group">
@@ -5932,8 +5954,15 @@ async function undoVinePinch(plantId, vineType, vineIndex) {
 
 async function adjustVineCount(plantId, vineType, vineIndex, field, delta) {
   const v = await getOrCreateVine(plantId, vineType, vineIndex);
-  v[field] = Math.max(0, (v[field] || 0) + delta);
+  const oldValue = v[field] || 0;
+  const newValue = Math.max(0, oldValue + delta);
+  if (oldValue === newValue) {
+    await renderPlantDetail(plantId);
+    return;
+  }
+  v[field] = newValue;
   await dbPut('vines', v);
+  await recordVineCountHistory(plantId, vineType, vineIndex, field, oldValue, newValue);
   await renderPlantDetail(plantId);
 }
 
@@ -5985,6 +6014,73 @@ async function addCluster(plantId, segmentNumber, stem) {
   `);
 }
 
+
+function clusterStatusLabel(status) {
+  return ({ blooming: '開花中', fruiting: '結実中', harvesting: '収穫中', finished: '終了' })[status] || status || '未設定';
+}
+function clusterStemLabel(stem) {
+  return stem === 'B' ? '[B枝] ' : '';
+}
+async function recordClusterHistory(cluster, action, extra = {}) {
+  if (!cluster?.plantId) return;
+  const stemLabel = clusterStemLabel(cluster.stem || 'A');
+  const clusterLabel = `${stemLabel}第${cluster.segmentNumber}花房`;
+  let notes = '';
+  if (action === 'add') {
+    notes = `${clusterLabel}を追加：${clusterStatusLabel(cluster.status)}（開花日：${dateStr(cluster.bloomDate)}）`;
+    if (cluster.notes) notes += `
+${cluster.notes}`;
+  } else if (action === 'status') {
+    notes = `${clusterLabel}：${clusterStatusLabel(extra.oldStatus)} → ${clusterStatusLabel(extra.newStatus)}`;
+  } else if (action === 'delete') {
+    notes = `${clusterLabel}を削除（削除時の状態：${clusterStatusLabel(cluster.status)}）`;
+  }
+  await recordTask({
+    plantId: cluster.plantId,
+    type: 'cluster_update',
+    date: new Date().toISOString(),
+    details: {
+      action,
+      cluster: cluster.segmentNumber,
+      stem: cluster.stem || 'A',
+      clusterId: cluster.id,
+      oldStatus: extra.oldStatus || null,
+      newStatus: extra.newStatus || cluster.status || null
+    },
+    notes
+  });
+}
+function vineIndexLabel(vineType, vineIndex) {
+  if (vineType === 'main') return '主枝';
+  const nums = ['①', '②', '③', '④'];
+  return `子づる${nums[(vineIndex || 1) - 1] || vineIndex}`;
+}
+function vineFieldLabel(field) {
+  return ({ grandchildren: '孫づる', flowers: '花数', fruits: '着果' })[field] || field;
+}
+async function recordVineCountHistory(plantId, vineType, vineIndex, field, oldValue, newValue) {
+  if (oldValue === newValue) return;
+  const label = vineIndexLabel(vineType, vineIndex);
+  const fieldLabel = vineFieldLabel(field);
+  await recordTask({
+    plantId,
+    type: 'vine_update',
+    date: new Date().toISOString(),
+    details: { vineType, vineIndex, field, oldValue, newValue, delta: newValue - oldValue },
+    notes: `${label}：${fieldLabel} ${oldValue} → ${newValue}`
+  });
+}
+async function recordGingerCourseHistory(plantId, oldCourse, newCourse) {
+  if (!plantId || oldCourse === newCourse) return;
+  await recordTask({
+    plantId,
+    type: 'ginger_fertilizer_course',
+    date: new Date().toISOString(),
+    details: { oldCourse, newCourse },
+    notes: `${_gingerFertilizerCourseLabel(oldCourse)} → ${_gingerFertilizerCourseLabel(newCourse)}`
+  });
+}
+
 async function saveCluster(plantId, segmentNumber, stem) {
   const cluster = {
     id: uid(),
@@ -5998,6 +6094,7 @@ async function saveCluster(plantId, segmentNumber, stem) {
     createdAt: new Date().toISOString()
   };
   await dbPut('clusters', cluster);
+  await recordClusterHistory(cluster, 'add');
   closeModal();
   await renderPlantDetail(plantId);
 }
@@ -6085,14 +6182,21 @@ async function updateClusterStatus(clusterId) {
 
 async function saveClusterStatus(clusterId) {
   const cluster = await dbGet('clusters', clusterId);
-  cluster.status = document.getElementById('statusInput').value;
+  const oldStatus = cluster.status;
+  const newStatus = document.getElementById('statusInput').value;
+  cluster.status = newStatus;
   await dbPut('clusters', cluster);
+  if (oldStatus !== newStatus) {
+    await recordClusterHistory(cluster, 'status', { oldStatus, newStatus });
+  }
   closeModal();
   await renderPlantDetail(currentPlantId);
 }
 
 async function deleteCluster(clusterId) {
   if (!confirm('この花房を削除しますか？')) return;
+  const cluster = await dbGet('clusters', clusterId);
+  if (cluster) await recordClusterHistory(cluster, 'delete');
   await dbDelete('clusters', clusterId);
   closeModal();
   await renderPlantDetail(currentPlantId);
@@ -6662,7 +6766,8 @@ function _actionLabel(type) {
     training: '誘引', defoliation: '下葉かき', tomato_tone: 'トマトトーン',
     pollination: '人工授粉', renewal_pruning: '更新剪定', pest_spray: '防虫散布',
     vinegar_spray: 'やさお酢', heat_protection: '暑さ対策', observation: '観察',
-    harvest: '収穫', mulching: 'マルチング', first_flower: '一番花', first_fruit: '一番果', ginger_growth_trigger: '生姜追肥開始'
+    harvest: '収穫', mulching: 'マルチング', first_flower: '一番花', first_fruit: '一番果', ginger_growth_trigger: '生姜追肥開始',
+    cluster_update: '花房状態', vine_update: 'つる管理', ginger_fertilizer_course: '生姜の追肥方針'
   };
   return labels[type] || type;
 }
