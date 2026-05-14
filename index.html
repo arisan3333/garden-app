@@ -1402,14 +1402,17 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
   // 固形肥料を最近やっていれば液肥はレコメンドしない（液肥or固形のうち新しい方の経過日数で判定）
   // 開始タイミング：
   //   トマト：第3花房開花後
-  //   ナス・ピーマン・パッション：植え付け21日後（一番花が咲き実がつき始める頃）
-  //   生姜：草丈15cm相当/45日頃から。液肥メインでも2週間に1回、8月中旬以降は控えめ
+  //   ナス・ピーマン：結実後は通常液肥。結実前でも、初期花を摘花済みなら薄め液肥で株づくりを開始
+  //     - ピーマン：植え付け14日以上 + 摘花済み → 薄め液肥
+  //     - ナス：植え付け14〜20日 + 摘花済み → 薄め液肥候補、21日以上 → 薄め液肥
+  //   パッション：植え付け21日後
+  //   生姜：草丈15cm/本葉2〜3枚記録後。液肥メインでも2週間に1回、8月中旬以降は控えめ
   //   オクラ・三つ葉・小ねぎ：自動レコメンドなし
   const NO_FERTILIZER_AUTO = ['okra', 'mitsuba', 'negi'];
-  const FRUIT_DELAY_SPECIES = ['eggplant', 'pepper', 'passion'];
   
   if (!NO_FERTILIZER_AUTO.includes(plant.species)) {
     let canFertilize = false;
+    let liquidPlan = _defaultLiquidFertilizerPlan();
     
     if (plant.species === 'tomato') {
       const myClusters = clusters.filter(c => c.plantId === plant.id);
@@ -1417,11 +1420,10 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
       const cluster3Reached = cluster3 && ['blooming', 'fruiting', 'harvesting', 'finished'].includes(cluster3.status);
       canFertilize = cluster3Reached;
     } else if (plant.species === 'eggplant' || plant.species === 'pepper') {
-      // 一番果の着果が確認できたら液肥本格スタート。
-      // 未記録でもDay 35を過ぎたらフォールバック（記録忘れ救済）。
-      canFertilize = !!plant.firstFruit?.date || days >= 35;
+      liquidPlan = _fruitVegLiquidFertilizerPlan(plant, lastTasks);
+      canFertilize = liquidPlan.canFertilize;
     } else if (plant.species === 'passion') {
-      // パッションは植え付け21日後（一番花が咲き実がつき始める頃）
+      // パッションは植え付け21日後。花芽なし・葉つる優勢なら調合側でハイポ控えめに寄せる。
       canFertilize = days >= 21;
     } else if (plant.species === 'ginger') {
       // 生姜は方針で分ける。液肥メイン/併用のみハイポ液肥を自動候補にし、開始は草丈15cm/本葉2〜3枚の記録後。
@@ -1447,6 +1449,8 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
         if (course === 'combo' && daysSinceGranular < 7) daysSinceAny = 0;
       }
       
+      // 薄め液肥も通常液肥も「実肥料」として同じ7日周期でブロックする。
+      // これにより、薄め→通常、通常→薄め、固形→液肥の1週間以内の重複アラートを防ぐ。
       if (_shouldShowLiquidFertilizerTask(daysSinceAny, liquidIntervalDays, plant.species, appSettings)) {
         let descText;
         if (daysSinceAny === 999) {
@@ -1456,8 +1460,8 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
         } else {
           descText = `前回の固形肥料から${daysSinceGranular}日経過`;
         }
-        // なすは肥料食いだがリン酸過多に注意。ハイポネックス原液(6-10-5)でも家庭菜園量なら問題なし
-        if (plant.species === 'eggplant') {
+        if (liquidPlan.desc) descText += `。${liquidPlan.desc}`;
+        if (plant.species === 'eggplant' && liquidPlan.strength === 'normal') {
           descText += '（なす：N・K重視。ハイポ原液でOK）';
         }
         if (plant.species === 'ginger') {
@@ -1466,11 +1470,19 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
         const weekdayNote = _liquidWeekdayDesc(appSettings);
         if (weekdayNote) descText += ` ${weekdayNote}`;
         tasks.push({
-          type: 'recommended',
+          type: liquidPlan.candidate ? 'recommended' : 'recommended',
           action: 'fertilize_liquid',
-          title: `🧪 ${displayName}: 液肥`,
+          title: `🧪 ${displayName}: ${liquidPlan.titleLabel || '液肥'}`,
           desc: descText,
-          plantId: plant.id
+          plantId: plant.id,
+          details: {
+            strength: liquidPlan.strength,
+            strengthLabel: liquidPlan.strengthLabel,
+            dilutionPattern: liquidPlan.dilutionPattern,
+            dilutionLabel: liquidPlan.dilutionLabel,
+            startupReason: liquidPlan.reasonKey || null,
+            candidate: !!liquidPlan.candidate
+          }
         });
       }
     }
@@ -2079,6 +2091,110 @@ function generateUpcomingTasks(plant, lastTasks, vines = []) {
 }
 
 
+
+function _defaultLiquidFertilizerPlan() {
+  return {
+    canFertilize: true,
+    strength: 'normal',
+    strengthLabel: '通常',
+    titleLabel: '液肥',
+    dilutionPattern: 'mixed_standard',
+    dilutionLabel: '500倍',
+    desc: '',
+    reasonKey: 'normal',
+    candidate: false
+  };
+}
+
+function _hasEarlyFlowerRemovedForLiquid(plant, lastTasks = []) {
+  if (!plant || !['eggplant', 'pepper'].includes(plant.species)) return false;
+  if (plant.firstFlower?.handled === 'removed') return true;
+  return (lastTasks || []).some(t =>
+    t.plantId === plant.id &&
+    t.type === 'first_flower' &&
+    (t.details?.handled === 'removed' || t.details?.event === 'early_flower_removed')
+  );
+}
+
+function _fruitVegLiquidFertilizerPlan(plant, lastTasks = []) {
+  const base = _defaultLiquidFertilizerPlan();
+  if (!plant || !['eggplant', 'pepper'].includes(plant.species)) return base;
+  const days = dayDiff(plant.plantingDate);
+  const removedEarlyFlower = _hasEarlyFlowerRemovedForLiquid(plant, lastTasks);
+
+  // 結実確認後は通常液肥へ。ただし直近7日以内の薄め液肥/固形肥料があれば、別ロジックでアラート自体を止める。
+  if (plant.firstFruit?.date) {
+    return {
+      ...base,
+      desc: '結実確認済み。通常の週1液肥へ移行',
+      reasonKey: 'fruiting_normal'
+    };
+  }
+
+  // ピーマン：初期花を摘花済み + 活着後(14日以上)なら、株づくり用の薄め液肥。
+  if (plant.species === 'pepper' && removedEarlyFlower && days >= 14) {
+    return {
+      canFertilize: true,
+      strength: 'light',
+      strengthLabel: '薄め',
+      titleLabel: '薄め液肥',
+      dilutionPattern: 'mixed_careful',
+      dilutionLabel: '1000倍',
+      desc: '初期花を摘花済み。結実前なので株づくり優先で1000倍液肥を少量',
+      reasonKey: 'pepper_removed_flower_day14',
+      candidate: false
+    };
+  }
+
+  // ナス：14〜20日は候補、21日以降は薄め液肥。結実前なので通常濃度にはしない。
+  if (plant.species === 'eggplant' && removedEarlyFlower && days >= 14) {
+    const candidate = days < 21;
+    return {
+      canFertilize: true,
+      strength: 'light',
+      strengthLabel: candidate ? '薄め候補' : '薄め',
+      titleLabel: candidate ? '薄め液肥候補' : '薄め液肥',
+      dilutionPattern: 'mixed_careful',
+      dilutionLabel: '1000倍',
+      desc: candidate
+        ? '初期花を摘花済み。植え付け14〜20日なので、草勢が弱い場合のみ1000倍で様子見'
+        : '初期花を摘花済み。結実前なので株づくり優先で1000倍液肥を少量',
+      reasonKey: candidate ? 'eggplant_removed_flower_day14_candidate' : 'eggplant_removed_flower_day21',
+      candidate
+    };
+  }
+
+  // 記録漏れ救済。35日以上で結実未記録の場合は、通常濃度ではなく薄めで状態確認に寄せる。
+  if (days >= 35) {
+    return {
+      canFertilize: true,
+      strength: 'light',
+      strengthLabel: '薄め',
+      titleLabel: '薄め液肥',
+      dilutionPattern: 'mixed_careful',
+      dilutionLabel: '1000倍',
+      desc: '結実記録がないまま35日以上経過。記録漏れ/草勢を確認し、迷う場合は1000倍で控えめに',
+      reasonKey: 'day35_prefertility_fallback',
+      candidate: false
+    };
+  }
+
+  return { ...base, canFertilize: false, desc: '', reasonKey: 'not_ready' };
+}
+
+function _allowsPreFruitLightHyponex(plant, lastTasks = []) {
+  if (plant?.preFruitLightAllowed) return true;
+  const plan = _fruitVegLiquidFertilizerPlan(plant, lastTasks);
+  return !!(plan.canFertilize && plan.strength === 'light');
+}
+
+function _preFruitLightLiquidReason(plant, lastTasks = []) {
+  if (plant?.preFruitLightReason) return plant.preFruitLightReason;
+  const plan = _fruitVegLiquidFertilizerPlan(plant, lastTasks);
+  if (!plan.canFertilize || plan.strength !== 'light') return '';
+  return `【${plan.titleLabel}】${plan.desc}。ホームの液肥調合ではハイポ1000倍＋リキダス100倍に寄せます。`;
+}
+
 const WEEKDAY_LABELS = ['日','月','火','水','木','金','土'];
 async function getAppPreferences() {
   const pref = await dbGet('settings', 'appPreferences');
@@ -2266,10 +2382,10 @@ function renderFertilizerMixerCard(activePlants = []) {
     <div class="card" style="border-left:4px solid var(--primary-dark);">
       <div class="card-title">🧪 液肥調合ツール</div>
       <div style="font-size:13px;line-height:1.7;color:var(--text);">
-        全株を診断し、同じ希釈パターンごとに調合量をまとめます。
+        今日の液肥タスク対象だけを初期ONにして、同じ希釈パターンごとに調合量をまとめます。対象外の株は任意で追加できます。
       </div>
       <button class="btn" style="margin-top:10px;" ${activeCount ? 'onclick="showFertilizerMixerModal()"' : 'disabled'}>
-        診断して調合する${activeCount ? `（${activeCount}株）` : ''}
+        調合ツールを開く${activeCount ? `（${activeCount}株）` : ''}
       </button>
     </div>
   `;
@@ -2617,6 +2733,14 @@ function renderOverviewTab(plant, tasks, vines = []) {
       // - removed: その花からは実ができないので「初めての着果」を待つ
       // - kept:    その花が結実するのを待つ
       const flowerRemoved = ff?.handled === 'removed';
+      const earlyFlowerRemovedRecords = tasks.filter(t =>
+        t.type === 'first_flower' && t.details?.event === 'early_flower_removed'
+      );
+      const todayEarlyFlowerRemoved = earlyFlowerRemovedRecords.some(t => isTodayRecord(t.date));
+      const lastEarlyFlowerRemoved = earlyFlowerRemovedRecords[0] || null;
+      const earlyFlowerRemovedStatus = flowerRemoved && earlyFlowerRemovedRecords.length > 0
+        ? `<div style="color:#166534;margin-top:8px;font-size:12px;">✓ <b>2番花以降の摘花記録あり</b>（${lastEarlyFlowerRemoved ? dateStr(lastEarlyFlowerRemoved.date) : ''}${todayEarlyFlowerRemoved ? ' / 本日記録済み' : ''}）</div>`
+        : '';
       
       const flowerAction = plant.species === 'pepper'
         ? '株を充実させるため<b>摘み取る</b>のが基本'
@@ -2624,7 +2748,7 @@ function renderOverviewTab(plant, tasks, vines = []) {
       
       // 一番果（または初着果）の処理アドバイス
       const fruitAction = flowerRemoved
-        ? '次の花が咲いて実がついたら記録を。これが液肥の本格スタートのトリガー'
+        ? '次の花が咲いて実がついたら記録を。結実前でも摘花済みなら薄め液肥の対象'
         : (plant.species === 'pepper'
           ? '小さいうちに<b>摘果して株を充実</b>させると後の収量UP'
           : '小さいうちに<b>摘果</b>すると秋まで安定して収穫できる');
@@ -2636,9 +2760,9 @@ function renderOverviewTab(plant, tasks, vines = []) {
       // step2 のラベルも状態に応じて変える
       const step2Label = flowerRemoved ? '初めての着果' : '一番果';
       const step2 = fr?.date
-        ? `<div style="color:#166534;margin-top:8px;">✓ <b>${step2Label} 記録あり</b>（${dateStr(fr.date)}${fr.handled === 'thinned' ? ' / 摘果済み' : fr.handled === 'kept' ? ' / 残した' : ''}）<br><span style="font-size:11px;color:var(--text-light);">→ 液肥の本格スタート時期です</span></div>`
+        ? `<div style="color:#166534;margin-top:8px;">✓ <b>${step2Label} 記録あり</b>（${dateStr(fr.date)}${fr.handled === 'thinned' ? ' / 摘果済み' : fr.handled === 'kept' ? ' / 残した' : ''}）<br><span style="font-size:11px;color:var(--text-light);">→ 通常液肥へ移行する時期です</span></div>`
         : ff?.date
-          ? `<div style="color:#92400e;margin-top:8px;">⏳ <b>${step2Label}を待っています</b><br><span style="font-size:11px;color:var(--text-light);">${fruitAction}</span></div>`
+          ? `<div style="color:#92400e;margin-top:8px;">⏳ <b>${step2Label}を待っています</b><br><span style="font-size:11px;color:var(--text-light);">${fruitAction}</span></div>${earlyFlowerRemovedStatus}`
           : `<div style="color:var(--text-light);margin-top:8px;font-size:12px;">（一番花が咲いてから次へ）</div>`;
       
       let buttons = '';
@@ -2654,7 +2778,12 @@ function renderOverviewTab(plant, tasks, vines = []) {
       } else if (!fr?.date) {
         // ボタンラベルも一番花を摘除したかで変える
         const btnLabel = flowerRemoved ? '🍆 初めての実が着いた' : '🍆 一番果が着いた';
-        buttons = `<button class="btn btn-small" style="width:100%;margin-top:10px;" onclick="recordFirstFruit('${plant.id}')">${btnLabel}</button>`;
+        const extraFlowerButton = flowerRemoved
+          ? (todayEarlyFlowerRemoved
+            ? `<button class="btn btn-small btn-secondary" style="width:100%;margin-top:8px;opacity:0.65;" disabled>✓ 今日の摘花を記録済み</button>`
+            : `<button class="btn btn-small btn-secondary" style="width:100%;margin-top:8px;" onclick="recordEarlyFlowerRemoved('${plant.id}')">🌸 2番花以降も摘花した</button>`)
+          : '';
+        buttons = `<button class="btn btn-small" style="width:100%;margin-top:10px;" onclick="recordFirstFruit('${plant.id}')">${btnLabel}</button>${extraFlowerButton}`;
       } else if (!fr.handled) {
         // 一番花摘除パターンでは「摘果/残す」の判断は不要（株に初めて着いた実をそのまま育てる選択肢が中心）
         // ただし手動で記録したい人もいるので両ボタン残す
@@ -3828,6 +3957,18 @@ async function renderTasks() {
   // 持ち越しを取得
   Object.entries(cachedTasksState).forEach(([key, state]) => {
     if (state.status === 'carryover' && state.targetDate === todayKey) {
+      // 液肥系は直近7日以内に液肥/固形肥料を実施済みなら、持ち越し表示もしない。
+      // これにより、昨日の液肥タスクを持ち越した後にホーム調合で記録した場合などの重複アラートを防ぐ。
+      if (state.task?.action === 'fertilize_liquid') {
+        const plantHistory = sortTasksNewestFirst(allTasks.filter(t => t.plantId === state.task.plantId));
+        const recentLiquid = plantHistory.find(t => _isActualLiquidFertilizerTask(t));
+        const recentGranular = plantHistory.find(t => _isLiquidIntervalBlockingGranular(t));
+        const daysSinceRecent = Math.min(
+          recentLiquid ? dayDiff(recentLiquid.date) : 999,
+          recentGranular ? dayDiff(recentGranular.date) : 999
+        );
+        if (daysSinceRecent < 7) return;
+      }
       carryoverTasks.push({ ...state.task, taskKey: key, isCarryover: true });
     }
   });
@@ -4323,6 +4464,29 @@ async function setFirstFlowerHandled(plantId, handled) {
     details: { event: 'handled', handled },
     notes: handled === 'removed' ? '一番花 摘除' : '一番花 残した'
   });
+  await renderPlantDetail(plantId);
+}
+
+async function recordEarlyFlowerRemoved(plantId) {
+  const existingToday = (await dbGetAll('tasks')).some(t =>
+    t.plantId === plantId &&
+    t.type === 'first_flower' &&
+    t.details?.event === 'early_flower_removed' &&
+    isTodayRecord(t.date)
+  );
+  if (existingToday) {
+    showToast('今日はすでに摘花を記録済みです');
+    await renderPlantDetail(plantId);
+    return;
+  }
+  await recordTask({
+    plantId,
+    type: 'first_flower',
+    date: new Date().toISOString(),
+    details: { event: 'early_flower_removed', handled: 'removed' },
+    notes: '初期花 摘花（2番花以降）'
+  });
+  showToast('2番花以降の摘花を記録しました');
   await renderPlantDetail(plantId);
 }
 
@@ -4930,7 +5094,9 @@ function _stageLabelForPlant(plant, clusters) {
     return cluster3Reached ? '本格期（ハイポOK）' : '初期（ハイポなし・第3花房開花まで）';
   }
   if (plant.species === 'eggplant' || plant.species === 'pepper') {
-    return plant.firstFruit?.date ? '本格期（ハイポOK）' : '初期（ハイポなし・一番果着果まで）';
+    if (plant.firstFruit?.date) return '本格期（ハイポOK）';
+    if (_allowsPreFruitLightHyponex(plant)) return '株づくり期（薄めハイポ1000倍OK）';
+    return '初期（未摘花はハイポなし）';
   }
   if (plant.species === 'passion') {
     return dayDiff(plant.plantingDate) >= 21 ? '本格期（ハイポOK）' : '初期（ハイポなし・植え付け21日まで）';
@@ -5073,6 +5239,42 @@ function _formatL(valueMl) {
   return `${valueMl}mL`;
 }
 
+
+function _taskStateBlocksTodayFertilizer(stateMap, plantId) {
+  const state = stateMap?.[`${today()}:${plantId}:fertilize_liquid`];
+  return !!(state && state.status && state.status !== 'carryover');
+}
+
+function _hasTodayFertilizerCarryover(stateMap, plantId) {
+  return Object.values(stateMap || {}).some(state =>
+    state?.status === 'carryover' &&
+    state?.targetDate === today() &&
+    state?.task?.plantId === plantId &&
+    state?.task?.action === 'fertilize_liquid'
+  );
+}
+
+function _buildTodayFertilizerTargetMap(plants, allTasks, clusters, vines, weather, appSettings, taskStateMap) {
+  const map = {};
+  const weatherForTasks = weather || { success: false };
+  for (const plant of plants || []) {
+    const plantTasks = sortTasksNewestFirst((allTasks || []).filter(t => t.plantId === plant.id));
+    const plantVines = (vines || []).filter(v => v.plantId === plant.id);
+    const recommended = generateRecommendedTasks(plant, plantTasks, weatherForTasks, clusters || [], plantVines, appSettings || {});
+    const liquidTask = recommended.find(t => t.action === 'fertilize_liquid');
+    const carryover = _hasTodayFertilizerCarryover(taskStateMap, plant.id);
+    const blocked = _taskStateBlocksTodayFertilizer(taskStateMap, plant.id);
+    if ((liquidTask && !blocked) || carryover) {
+      map[plant.id] = liquidTask || { action: 'fertilize_liquid', title: '🧪 液肥', desc: '持ち越し液肥タスク', plantId: plant.id };
+    }
+  }
+  return map;
+}
+
+function _renderFertilizerActionOptionsSelected(selectedValue) {
+  return renderFertilizerActionOptions().replace(`value="${selectedValue}"`, `value="${selectedValue}" selected`);
+}
+
 function _fertilizerFormulaForAction(actionValue, makeMl) {
   const waterText = _formatL(makeMl);
   if (actionValue === 'mixed_standard') {
@@ -5105,6 +5307,10 @@ async function showFertilizerMixerModal() {
   }
   const clusters = await dbGetAll('clusters');
   const allTasks = await dbGetAll('tasks');
+  const vines = await dbGetAll('vines');
+  const taskState = await dbGet('settings', 'taskState') || { key: 'taskState', value: {} };
+  const targetMap = _buildTodayFertilizerTargetMap(plants, allTasks, clusters, vines, cachedWeather || { success: false }, appSettings, taskState.value || {});
+  const targetCount = Object.keys(targetMap).length;
   showModal(`
     <h2 class="modal-title">🧪 液肥調合ツール</h2>
     <button class="modal-close" onclick="closeModal()">×</button>
@@ -5116,9 +5322,9 @@ async function showFertilizerMixerModal() {
       <details style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.7;margin-bottom:12px;">
         <summary style="font-weight:600;cursor:pointer;">使い方・公式の目安</summary>
         <div style="margin-top:8px;">
-          ① 株ごとに状態を選ぶ → ② おすすめ対応が自動入力 → ③ 量を確認 → ④ 同じ希釈をまとめて調合<br>
+          ① 今日の液肥タスク対象だけ初期ON → ② 必要なら対象外株を任意追加 → ③ 量を確認 → ④ 同じ希釈をまとめて調合<br>
           <b>量＝株種ごとの「標準」が基準</b>：鉢容量は推奨量の補正に使いますが、液肥量は水やり量ではありません。トマト10L=1L、ナス8L=1L、ピーマン8L=約700mL、パッション10L=1L、生姜8L=約500mLを目安に、作物別の上限で抑えます。<br>
-          <b>初期ステージはハイポなし</b>：トマト第3花房開花前／ナス・ピーマン一番果着果前／パッション植え付け21日未満は、ハイポは入れずリキダスのみ。植え付け14日未満はリキダス1000倍（植え付け時向け）、それ以降で追肥開始前はリキダス100倍のみ。<br>
+          <b>初期ステージの原則</b>：トマト第3花房開花前／パッション植え付け21日未満は、ハイポは入れずリキダスのみ。ナス・ピーマンは一番果着果前でも、初期花を摘花済みで活着後なら株づくり用にハイポ1000倍を候補にします。植え付け14日未満はリキダス1000倍、それ以外の追肥開始前はリキダス100倍のみ。<br>
           <b>本格期の希釈倍率（公式）</b>：ハイポ500倍＋リキダス100倍。葉面散布はリキダス200倍。<br>
           <b>液肥曜日</b>：${_liquidWeekdayText(appSettings)}。設定済みなら、予定が前後3日程度のものをその曜日にまとめます。生姜は14日未満のハイポを避けます。<br>
           <b>生姜だけは2週間に1回</b>：液肥メインでも、ハイポ入り液肥は前回から14日以上空けます。14日未満なら調合ツールがリキダス100倍のみへ自動で寄せます。<br>
@@ -5131,6 +5337,10 @@ async function showFertilizerMixerModal() {
         鉢底から流れるほど水やりした直後は、成分が流れやすいので<b>液肥は後日</b>に。<br>
         土がカラカラ/撥水気味なら、<b>少量の水で軽く湿らせてから</b>液肥。強くしおれて戻らない時は水管理・暑さ対策を優先します。
       </div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:10px;font-size:12px;line-height:1.7;margin-bottom:12px;color:#374151;">
+        <b>今日の初期対象：</b>${targetCount ? `${targetCount}株` : 'なし'}<br>
+        今日の液肥タスク対象だけをONにしています。リキダスを他の株にも使いたい場合は、その株の「今回対象にする」をONにしてください。
+      </div>
       <div id="mixerRows" style="display:flex;flex-direction:column;gap:10px;">
         ${plants.map(p => {
           const sp = SPECIES[p.species];
@@ -5138,6 +5348,13 @@ async function showFertilizerMixerModal() {
           const isGingerRecentLiquid = p.species === 'ginger' && daysSinceLastLiquid < GINGER_LIQUID_INTERVAL_DAYS;
           const gingerCourse = _gingerFertilizerCourse(p);
           const gingerTriggered = p.species === 'ginger' ? _gingerStartTriggered(p, allTasks) : true;
+          const isLiquidTarget = !!targetMap[p.id];
+          const plantTasksForMixer = sortTasksNewestFirst(allTasks.filter(t => t.plantId === p.id));
+          const fruitVegPlanForMixer = _fruitVegLiquidFertilizerPlan(p, plantTasksForMixer);
+          const preFruitLightAllowed = ['eggplant', 'pepper'].includes(p.species) && fruitVegPlanForMixer.canFertilize && fruitVegPlanForMixer.strength === 'light';
+          const preFruitLightReason = preFruitLightAllowed
+            ? `【${fruitVegPlanForMixer.titleLabel}】${fruitVegPlanForMixer.desc}。ホームの液肥調合ではハイポ1000倍＋リキダス100倍に寄せます。`
+            : '';
           const defaultDecision = isGingerRecentLiquid
             ? 'ginger_recent_liquid'
             : (p.species === 'ginger' && (!gingerTriggered || gingerCourse === 'solid')
@@ -5155,37 +5372,50 @@ async function showFertilizerMixerModal() {
           const stageScale = _stageScaleForPlant(p, clusters);
           const isInitialStage = stageScale < 1.0;
           const rawRec = getRecommendedFertilizerAction(defaultDecision, p.species);
-          const stageAdjustedRec = _applyStageScaleToAction(rawRec, isInitialStage, p.species, p);
+          const mixerStagePlant = { ...p, preFruitLightAllowed, preFruitLightReason };
+          const stageAdjustedRec = _applyStageScaleToAction(rawRec, isInitialStage, p.species, mixerStagePlant);
           const intervalAdjustedRec = _applyGingerIntervalGuardToAction(stageAdjustedRec, isGingerRecentLiquid, daysSinceLastLiquid);
+          const initialAction = isLiquidTarget ? intervalAdjustedRec.action : 'none';
+          const includeLabel = isLiquidTarget ? '今日の液肥タスク対象' : '任意追加（今日は対象外）';
+          const rowBg = isLiquidTarget ? '#fff' : '#fafafa';
+          const rowBorder = isLiquidTarget ? '1px solid var(--border)' : '1px dashed #d1d5db';
+          const disabledAttr = isLiquidTarget ? '' : 'disabled';
+          const targetBadge = isLiquidTarget
+            ? `<span style="font-size:10px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:8px;padding:2px 6px;">🧪 今日の液肥対象</span>`
+            : `<span style="font-size:10px;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb;border-radius:8px;padding:2px 6px;">任意追加</span>`;
           const gingerIntervalBadge = isGingerRecentLiquid
             ? `<span style="font-size:10px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:8px;padding:2px 6px;">🫚 前回ハイポ${daysSinceLastLiquid}日前・今回はハイポ防止</span>`
             : '';
           return `
-            <div class="mixer-row" data-plant-id="${p.id}" data-species="${p.species}" data-initial-stage="${isInitialStage ? '1' : '0'}" data-last-liquid-days="${daysSinceLastLiquid}" data-ginger-recent-liquid="${isGingerRecentLiquid ? '1' : '0'}" data-planting-date="${p.plantingDate}" style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff;">
+            <div class="mixer-row" data-plant-id="${p.id}" data-species="${p.species}" data-initial-stage="${isInitialStage ? '1' : '0'}" data-last-liquid-days="${daysSinceLastLiquid}" data-ginger-recent-liquid="${isGingerRecentLiquid ? '1' : '0'}" data-planting-date="${p.plantingDate}" data-prefruit-light-allowed="${preFruitLightAllowed ? '1' : '0'}" data-prefruit-light-reason="${escapeHtml(preFruitLightReason)}" data-included="${isLiquidTarget ? '1' : '0'}" data-recommended-action="${intervalAdjustedRec.action}" style="border:${rowBorder};border-radius:12px;padding:10px;background:${rowBg};">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
                 <span style="font-size:20px;">${sp.icon}</span>
                 <div class="mixer-plant-name" style="font-weight:700;font-size:14px;">${escapeHtml(p.name || sp.name)}</div>
                 <span style="margin-left:auto;font-size:11px;color:var(--text-light);">${sp.name}</span>
               </div>
               <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
-                ${potBadge} ${stageBadge} ${gingerIntervalBadge}
+                ${targetBadge} ${potBadge} ${stageBadge} ${gingerIntervalBadge}
               </div>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;margin-bottom:8px;color:${isLiquidTarget ? '#166534' : '#6b7280'};">
+                <input class="mixer-include" type="checkbox" ${isLiquidTarget ? 'checked' : ''} onchange="toggleMixerRowInclude(this)" style="width:auto;">
+                ${includeLabel}
+              </label>
               <div class="form-group" style="margin-bottom:8px;">
                 <label>状態</label>
-                <select class="mixer-decision" onchange="updateMixerRowRecommendation(this)" required>
+                <select class="mixer-decision" onchange="updateMixerRowRecommendation(this)" ${disabledAttr} required>
                   ${renderFertilizerDecisionOptions(p.species, defaultDecision)}
                 </select>
               </div>
               <div style="display:grid;grid-template-columns:1.4fr 0.8fr;gap:8px;">
                 <div class="form-group" style="margin-bottom:8px;">
                   <label>今回の対応</label>
-                  <select class="mixer-action" onchange="recalculateFertilizerMixer()" required>
-                    ${renderFertilizerActionOptions().replace(`value="${intervalAdjustedRec.action}"`, `value="${intervalAdjustedRec.action}" selected`)}
+                  <select class="mixer-action" onchange="recalculateFertilizerMixer()" ${disabledAttr} required>
+                    ${_renderFertilizerActionOptionsSelected(initialAction)}
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom:8px;">
                   <label>液肥量（水やり量ではない）</label>
-                  <select class="mixer-volume" onchange="recalculateFertilizerMixer()">
+                  <select class="mixer-volume" onchange="recalculateFertilizerMixer()" ${disabledAttr}>
                     ${renderFertilizerVolumeOptions(defaultMl, p.species, potVolumeL, p, clusters)}
                   </select>
                 </div>
@@ -5212,27 +5442,39 @@ async function showFertilizerMixerModal() {
 }
 
 // ステージ補正でおすすめを上書きする。
-// 初期ステージ（トマト第3花房開花前 / ナス・ピーマン一番果未着果 / パッション植え付け21日未満）の場合、
-// ありさの方針で「ハイポは初期に与えない」ため、リキダスのみ または 水だけ に振り分ける。
+// 初期ステージ（トマト第3花房開花前 / ナス・ピーマン一番果未着果 / パッション植え付け21日未満）の補正。
+// 原則はハイポなし。ただしナス・ピーマンは初期花摘花済み + 活着後なら株づくり用に1000倍だけ許可。
 // 植え付け14日未満：リキダス1000倍（公式の植え付け時推奨）
 // 植え付け14日以上で追肥開始前：リキダス100倍のみ（ハイポなし）
 // 「過多寄り」の状態 → 水だけ
 function _applyStageScaleToAction(rec, isInitialStage, species, plant) {
   if (!isInitialStage) return rec;
   const days = plant ? dayDiff(plant.plantingDate) : 999;
+
+  // ナス・ピーマンは、結実前でも「初期花を摘花済み + 活着後」なら株づくり用に薄めハイポを許可。
+  // ただし通常500倍ではなく、必ず1000倍（mixed_careful）へ落とす。
+  if (['eggplant', 'pepper'].includes(species) && _allowsPreFruitLightHyponex(plant)) {
+    const reason = _preFruitLightLiquidReason(plant);
+    if (rec.action === 'mixed_standard' || rec.action === 'mixed_careful') {
+      return { action: 'mixed_careful', reason };
+    }
+    // 過多寄り・未診断でリキダスのみを選んでいる場合は、ハイポへは上げない。
+    if (rec.action === 'rikidas_100') {
+      return { action: 'rikidas_100', reason: reason + ' ただし未診断/過多寄りならハイポは入れずリキダスのみ。' };
+    }
+    return rec;
+  }
+
   const baseInitialAction = days < 14 ? 'rikidas_1000' : 'rikidas_100';
   const baseInitialReason = days < 14
     ? '【初期・活着前】植え付けから14日未満。リキダス1000倍で根の活力アップを優先。'
     : '【追肥開始前】まだハイポは早い。リキダス100倍のみで活力剤として記録。';
 
-  // 過多寄り・ツルボケ寄りの状態は「水だけ」を強制
-  const overgrowthDecisions = ['tomato_stem_thick', 'eggplant_leaf_over', 'pepper_leaf_over', 'passion_leaf_only', 'okra_above_5'];
-
   // ハイポを使うアクション → リキダスのみに切替
   if (rec.action === 'mixed_standard' || rec.action === 'mixed_careful') {
     return { action: baseInitialAction, reason: baseInitialReason };
   }
-  // すでにリキダスのみ・水だけならそのまま（ただし状態が過多寄りなら水だけに）
+  // すでにリキダスのみなら、初期用の倍率に寄せる
   if (rec.action === 'rikidas_100') {
     return { action: baseInitialAction, reason: baseInitialReason + '' };
   }
@@ -5243,43 +5485,87 @@ function updateMixerRowRecommendation(selectEl, overwriteAction = true) {
   const row = selectEl.closest('.mixer-row');
   if (!row) return;
   const species = row.dataset.species;
+  const isIncluded = row.querySelector('.mixer-include')?.checked !== false;
   const isInitialStage = row.dataset.initialStage === '1';
   const isGingerRecentLiquid = row.dataset.gingerRecentLiquid === '1';
   const daysSinceLastLiquid = parseInt(row.dataset.lastLiquidDays || '999', 10);
   const plantingDate = row.dataset.plantingDate;
-  const fakePlant = plantingDate ? { plantingDate } : null;
+  const fakePlant = plantingDate ? {
+    species,
+    plantingDate,
+    preFruitLightAllowed: row.dataset.prefruitLightAllowed === '1',
+    preFruitLightReason: row.dataset.prefruitLightReason || ''
+  } : null;
   const rawRec = getRecommendedFertilizerAction(selectEl.value, species);
   const stageRec = _applyStageScaleToAction(rawRec, isInitialStage, species, fakePlant);
   const rec = _applyGingerIntervalGuardToAction(stageRec, isGingerRecentLiquid, daysSinceLastLiquid);
+  row.dataset.recommendedAction = rec.action;
   const actionEl = row.querySelector('.mixer-action');
-  if (overwriteAction && actionEl) actionEl.value = rec.action;
+  if (overwriteAction && actionEl) actionEl.value = isIncluded ? rec.action : 'none';
   const recommendEl = row.querySelector('.mixer-recommend');
   if (recommendEl) {
-    const actionLabel = _parseFertilizerAction((actionEl && actionEl.value) || rec.action).label;
-    recommendEl.innerHTML = `<b>おすすめ：</b>${actionLabel}<br>${rec.reason}`;
+    if (!isIncluded) {
+      recommendEl.innerHTML = `<b>今回対象外：</b>今日の液肥タスク対象ではないため、調合量・記録には含めません。使う場合だけ「今回対象にする」をONにしてください。`;
+    } else {
+      const actionLabel = _parseFertilizerAction((actionEl && actionEl.value) || rec.action).label;
+      recommendEl.innerHTML = `<b>おすすめ：</b>${actionLabel}<br>${rec.reason}`;
+    }
   }
   recalculateFertilizerMixer();
+}
+
+function toggleMixerRowInclude(checkboxEl) {
+  const row = checkboxEl.closest('.mixer-row');
+  if (!row) return;
+  const checked = checkboxEl.checked;
+  row.dataset.included = checked ? '1' : '0';
+  row.style.background = checked ? '#fff' : '#fafafa';
+  row.style.border = checked ? '1px solid var(--border)' : '1px dashed #d1d5db';
+  row.querySelectorAll('.mixer-decision, .mixer-action, .mixer-volume').forEach(el => {
+    el.disabled = !checked;
+  });
+  const decisionEl = row.querySelector('.mixer-decision');
+  const actionEl = row.querySelector('.mixer-action');
+  if (!checked && actionEl) {
+    actionEl.value = 'none';
+  }
+  if (checked && decisionEl) {
+    updateMixerRowRecommendation(decisionEl, true);
+  } else if (decisionEl) {
+    updateMixerRowRecommendation(decisionEl, false);
+  } else {
+    recalculateFertilizerMixer();
+  }
 }
 
 function _collectMixerRows() {
   return Array.from(document.querySelectorAll('.mixer-row')).map(row => {
     const plantId = row.dataset.plantId;
     const species = row.dataset.species;
+    const included = row.querySelector('.mixer-include')?.checked !== false;
     const decisionValue = row.querySelector('.mixer-decision')?.value || 'not_checked';
     const actionValue = row.querySelector('.mixer-action')?.value || 'unknown';
     const volumeMl = parseInt(row.querySelector('.mixer-volume')?.value || '0', 10) || 0;
     const name = row.querySelector('.mixer-plant-name')?.textContent || row.querySelector('div[style*="font-weight:700"]')?.textContent || '';
     const lastLiquidDays = parseInt(row.dataset.lastLiquidDays || '999', 10);
     const gingerRecentLiquid = row.dataset.gingerRecentLiquid === '1';
-    return { plantId, species, decisionValue, actionValue, volumeMl, name, lastLiquidDays, gingerRecentLiquid };
+    return { plantId, species, included, decisionValue, actionValue, volumeMl, name, lastLiquidDays, gingerRecentLiquid };
   });
 }
 
 function recalculateFertilizerMixer() {
   const resultEl = document.getElementById('mixerResult');
   if (!resultEl) return;
-  const rows = _collectMixerRows();
+  const rows = _collectMixerRows().filter(r => r.included);
   const round = document.getElementById('mixerRoundInput')?.checked !== false;
+  if (rows.length === 0) {
+    resultEl.innerHTML = `
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;font-size:12px;color:#6b7280;line-height:1.7;">
+        今回の調合対象はありません。今日の液肥タスク対象外の株に使う場合は、その株の「今回対象にする」をONにしてください。
+      </div>
+    `;
+    return;
+  }
   const groups = {};
   for (const r of rows) {
     if (!groups[r.actionValue]) groups[r.actionValue] = { actionValue: r.actionValue, totalMl: 0, rows: [] };
@@ -5385,7 +5671,11 @@ function _capCount(ml) {
 async function saveFertilizerMixerBatch() {
   const date = document.getElementById('mixerDateInput').value;
   const notes = document.getElementById('mixerNotesInput').value.trim();
-  const rows = _collectMixerRows();
+  const rows = _collectMixerRows().filter(r => r.included);
+  if (rows.length === 0) {
+    alert('今回の調合対象がありません。記録する株の「今回対象にする」をONにしてください。');
+    return;
+  }
   const unsafeGingerRows = rows.filter(r => r.species === 'ginger' && r.gingerRecentLiquid && _isActualFertilizerActionValue(r.actionValue));
   if (unsafeGingerRows.length > 0) {
     const msg = unsafeGingerRows.map(r => `・${r.name}: 前回ハイポ液肥から${r.lastLiquidDays}日`).join('\n');
@@ -6231,7 +6521,7 @@ async function markTask(taskKey, taskData, status) {
     // pinching: タイトルから対象（main/child/grandchild）を抽出して details に保存
     //   これがないと「主枝摘心」アラートが繰り返し出続け、子づる摘心カウントも狂い、
     //   結果として液肥開始タイミングがずれる
-    const details = {};
+    const details = { ...(taskData.details || {}) };
     if (taskData.action === 'pinching' && typeof taskData.title === 'string') {
       if (taskData.title.includes('主枝摘心')) details.target = 'main';
       else if (taskData.title.includes('子づる摘心')) details.target = 'child';
@@ -6650,8 +6940,8 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
       msg = '🌸 一番花が咲きました！受粉させて結実を待つか、小さいうちに摘果。<b>処理を概要タブで記録</b>。';
     } else if (!fr?.date) {
       msg = removed
-        ? '🍆 一番花は摘除済み。次の花が咲いて<b>初めて実が着いたら概要タブで記録</b>を。これが液肥本格スタートのトリガーです。'
-        : '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これが液肥本格スタートのトリガー。';
+        ? '🍆 一番花は摘除済み。次の花が咲いて<b>初めて実が着いたら概要タブで記録</b>を。これで通常液肥へ移行します。摘花済みなら結実前でも薄め液肥の対象になります。'
+        : '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これで通常液肥へ移行します。摘花済みなら結実前でも薄め液肥の対象になります。';
     } else if (!fr.handled) {
       msg = removed
         ? '🍆 初めての実が着きました！普通に育てて収穫してOK。<b>概要タブで「残した」を記録</b>すると液肥スタート。'
@@ -6672,8 +6962,8 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
       msg = '🌸 一番花が咲きました！<b>株を充実させるため摘み取って、概要タブで記録</b>を。';
     } else if (!fr?.date) {
       msg = removed
-        ? '🫑 一番花は摘除済み。次の花が咲いて<b>初めて実が着いたら概要タブで記録</b>を。これが液肥本格スタートのトリガーです。'
-        : '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これが液肥本格スタートのトリガー。';
+        ? '🫑 一番花は摘除済み。次の花が咲いて<b>初めて実が着いたら概要タブで記録</b>を。これで通常液肥へ移行します。摘花済みなら結実前でも薄め液肥の対象になります。'
+        : '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これで通常液肥へ移行します。摘花済みなら結実前でも薄め液肥の対象になります。';
     } else if (!fr.handled) {
       msg = removed
         ? '🫑 初めての実が着きました！普通に育てて収穫してOK。<b>概要タブで「残した」を記録</b>すると液肥スタート。'
@@ -7134,6 +7424,7 @@ function _parseFertilizerDecision(value) {
 function _fertilizerActionLabel(details) {
   if (!details) return '未記録';
   if (details.actionLabel) return details.actionLabel;
+  if (details.strength === 'light') return details.candidate ? '薄め液肥候補（1000倍）' : '薄め液肥（1000倍）';
   const dilution = _dilutionLabel(details.dilutionPattern);
   const product = _liquidProductLabel(details.product);
   if (details.product === 'none') return '見送り';
