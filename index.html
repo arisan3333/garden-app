@@ -3526,11 +3526,16 @@ function renderEggplantSidebranchManager(plant, clusters = []) {
   });
   const stageText = selected ? `${eggplantStageEmoji(selected.status)} ${eggplantStageLabel(selected.status)}` : '';
   const currentName = selected ? eggplantToneTargetLabel(selected) : '';
+  const nextStageMap = { idle: '🌸 花', blooming: '🍆 実', fruiting: '🧺 収穫', harvesting: '✂️ 剪定', cutback: '次のサイクル開始' };
+  const prevStageMap = { idle: '戻れません', blooming: '未開始', fruiting: '🌸 花', harvesting: '🍆 実', cutback: '🧺 収穫' };
+  const nextStageText = selected ? (nextStageMap[selected.status || 'idle'] || '—') : '—';
+  const prevStageText = selected ? (prevStageMap[selected.status || 'idle'] || '—') : '—';
   const selectedHelp = !selected ? '管理単位をタップしてください。' : `
     <b>${currentName}</b><br>
     現在: <b>${stageText}</b><br>
     トマトトーン: <b>${(selected.tomatoToneHistory?.length || 0) > 0 ? '散布済み' : '未散布'}</b><br>
-    ${selected.kind === 'S' ? `C${selected.cycle || 1} を管理中` : 'C管理なし'}
+    ${selected.kind === 'S' ? `C${selected.cycle || 1} を管理中` : 'C管理なし'}<br>
+    <span style="color:#6b7280;font-size:12px;">次の段階へ → <b>${nextStageText}</b> / 一つ戻る → <b>${prevStageText}</b></span>
   `;
   const listHtml = ['A', 'B'].map(stem => {
     const items = units.filter(u => u.stem === stem).sort((a, b) => {
