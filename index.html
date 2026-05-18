@@ -1230,6 +1230,31 @@ function dayDiff(date) {
   return Math.floor((d1 - d2) / (1000 * 60 * 60 * 24));
 }
 
+function toLocalDateOnly(value) {
+  // 写真バッジ・株一覧・履歴で日数がズレないよう、すべてローカル日付の0時にそろえる。
+  // Date直引きのミリ秒差だと、撮影時刻/保存時刻や YYYY-MM-DD と ISO datetime の混在で D19/D20 のように1日ズレる。
+  if (!value) return new Date();
+  const str = String(value);
+  if (!str.includes('T') && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return new Date();
+  return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+function localDayDiffBetween(laterDate, earlierDate) {
+  const d1 = toLocalDateOnly(laterDate);
+  const d2 = toLocalDateOnly(earlierDate);
+  return Math.floor((d1 - d2) / (1000 * 60 * 60 * 24));
+}
+function photoDateValue(photo) {
+  return photo?.takenAt || photo?.createdAt || new Date().toISOString();
+}
+function photoDayNumber(photo, plant) {
+  return Math.max(0, localDayDiffBetween(photoDateValue(photo), plant?.plantingDate));
+}
+
 function sortTasksNewestFirst(tasks) {
   // IndexedDB の getAll() は日付順を保証しないため、履歴判定前に必ず新しい順へ揃える。
   // これをしないと、古い水やり記録を「前回」と誤認し、今日のタスクと概要表示がズレる。
@@ -1572,26 +1597,21 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
       });
     }
     
-    // トマトトーン（開花中の花房があり、最後の散布から3日以上経過）
+    // トマトトーン：1花房1回で完了（2回目アラートは出さない）
     const bloomingClusters = clusters.filter(c => 
       c.plantId === plant.id && 
       c.status === 'blooming' &&
-      (c.tomatoToneHistory?.length || 0) < 2
+      (c.tomatoToneHistory?.length || 0) < 1
     );
     bloomingClusters.forEach(c => {
-      const lastTone = (c.tomatoToneHistory || []).slice(-1)[0];
-      const daysSinceTone = lastTone ? dayDiff(lastTone.date) : 999;
-      if (!lastTone || daysSinceTone >= 3) {
-        const round = (c.tomatoToneHistory?.length || 0) + 1;
-        tasks.push({
-          type: 'must',
-          action: 'tomato_tone',
-          title: `🍅 ${displayName}: トマトトーン`,
-          desc: `${c.stem === 'B' ? '[B] ' : ''}第${c.segmentNumber}花房 ${round}回目`,
-          plantId: plant.id,
-          clusterId: c.id
-        });
-      }
+      tasks.push({
+        type: 'must',
+        action: 'tomato_tone',
+        title: `🍅 ${displayName}: トマトトーン`,
+        desc: `${c.stem === 'B' ? '[B] ' : ''}第${c.segmentNumber}花房 未散布`,
+        plantId: plant.id,
+        clusterId: c.id
+      });
     });
     
     // 増し土（2週・5週・8週目）
@@ -3131,7 +3151,7 @@ function renderTomatoPruning(plant, clusters) {
       
       // トマトトーン✓マーク
       if (toneCount > 0) {
-        svgInner += `<text x="${x + 22}" y="${y - 5}" font-size="14" fill="#22c55e" font-weight="bold">${'✓'.repeat(toneCount)}</text>`;
+        svgInner += `<text x="${x + 22}" y="${y - 5}" font-size="14" fill="#22c55e" font-weight="bold">${'✓'.repeat(Math.min(toneCount, 1))}</text>`;
       }
       
       // ステータス
@@ -3268,8 +3288,7 @@ function renderTomatoPruning(plant, clusters) {
                 <div class="tone-badges">
                   トマトトーン: 
                   <span class="tone-dot ${toneCount >= 1 ? '' : 'empty'}"></span>
-                  <span class="tone-dot ${toneCount >= 2 ? '' : 'empty'}"></span>
-                  <span>${toneCount}/2</span>
+                  <span>${Math.min(toneCount, 1)}/1</span>
                 </div>
               </div>
             </div>
@@ -4728,6 +4747,11 @@ function showTomatoToneModal() {
       alert('まずは「剪定ガイド」タブから花房を追加してください');
       return;
     }
+    const availableClusters = clusters.filter(c => (c.tomatoToneHistory?.length || 0) < 1);
+    if (availableClusters.length === 0) {
+      alert('トマトトーン未散布の花房はありません（1花房1回で完了です）');
+      return;
+    }
     
     showModal(`
       <h2 class="modal-title">🍅 トマトトーンを記録</h2>
@@ -4736,9 +4760,9 @@ function showTomatoToneModal() {
         <div class="form-group">
           <label>対象花房</label>
           <select id="clusterInput" required>
-            ${clusters.map(c => {
+            ${availableClusters.map(c => {
               const count = c.tomatoToneHistory?.length || 0;
-              return `<option value="${c.id}">${c.stem === 'B' ? '[B] ' : ''}第${c.segmentNumber}花房（${count}/2）</option>`;
+              return `<option value="${c.id}">${c.stem === 'B' ? '[B] ' : ''}第${c.segmentNumber}花房（${Math.min(count, 1)}/1）</option>`;
             }).join('')}
           </select>
         </div>
@@ -4766,6 +4790,10 @@ async function saveTomatoTone() {
   
   const cluster = await dbGet('clusters', clusterId);
   if (!cluster.tomatoToneHistory) cluster.tomatoToneHistory = [];
+  if (cluster.tomatoToneHistory.length >= 1) {
+    alert('この花房は既に散布済みです（1花房1回で完了）');
+    return;
+  }
   const round = cluster.tomatoToneHistory.length + 1;
   cluster.tomatoToneHistory.push({
     date: new Date(date).toISOString(),
@@ -6023,7 +6051,7 @@ async function saveObservation() {
       id: p.id,
       plantId: currentPlantId,
       blob: p.blob,
-      takenAt: p.takenAt,
+      takenAt: isoDate,
       memo: notes,
       createdAt: new Date().toISOString(),
       taskId
@@ -6409,7 +6437,7 @@ async function showClusterDetail(plantId, segmentNumber, stem) {
       <div><b>状態：</b>${({blooming: '開花中', fruiting: '結実中', harvesting: '収穫中', finished: '終了'})[c.status]}</div>
     </div>
     
-    <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;">🍅 トマトトーン履歴 (${history.length}/2)</h3>
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;">🍅 トマトトーン履歴 (${Math.min(history.length, 1)}/1)</h3>
     <div style="background:#f9fafb;border-radius:8px;padding:12px;margin-bottom:16px;">
       ${history.length === 0 ? '<div style="color:var(--text-light);font-size:13px;">まだ記録なし</div>' :
         history.map(h => `<div style="font-size:13px;">${h.round}回目: ${dateStr(h.date)}</div>`).join('')
@@ -6417,7 +6445,7 @@ async function showClusterDetail(plantId, segmentNumber, stem) {
     </div>
     
     <div style="display:flex;flex-direction:column;gap:8px;">
-      ${history.length < 2 ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px;font-size:12px;line-height:1.7;">3〜5花くらい開花した時に、花房全体へさっと1〜2回。幼葉・生長点は手で遮る。</div><button class="btn" onclick="quickToneRecord('${c.id}')">🍅 トマトトーンを散布</button>` : '<div style="color:var(--text-light);font-size:13px;text-align:center;">トマトトーン2回完了 ✓</div>'}
+      ${history.length < 1 ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px;font-size:12px;line-height:1.7;">3〜5花くらい開花した時に、花房全体へさっと1〜2回。幼葉・生長点は手で遮る。</div><button class="btn" onclick="quickToneRecord('${c.id}')">🍅 トマトトーンを散布</button>` : '<div style="color:var(--text-light);font-size:13px;text-align:center;">トマトトーン散布済み ✓</div>'}
       <button class="btn btn-secondary" onclick="updateClusterStatus('${c.id}')">📝 状態を変更</button>
       <button class="btn btn-secondary" onclick="deleteCluster('${c.id}')" style="color:var(--danger);border-color:var(--danger);">🗑️ 削除</button>
     </div>
@@ -6427,8 +6455,8 @@ async function showClusterDetail(plantId, segmentNumber, stem) {
 async function quickToneRecord(clusterId) {
   const cluster = await dbGet('clusters', clusterId);
   if (!cluster.tomatoToneHistory) cluster.tomatoToneHistory = [];
-  if (cluster.tomatoToneHistory.length >= 2) {
-    alert('既に2回散布済みです');
+  if (cluster.tomatoToneHistory.length >= 1) {
+    alert('この花房は既に散布済みです（1花房1回で完了）');
     return;
   }
   const round = cluster.tomatoToneHistory.length + 1;
@@ -8339,7 +8367,7 @@ async function handlePhotoFiles(plantId, files) {
 // メモ入力（任意・スキップ可）
 async function askPhotoMemo(plantId) {
   const photos = await dbGetAll('photos');
-  const plantPhotos = photos.filter(p => p.plantId === plantId).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const plantPhotos = photos.filter(p => p.plantId === plantId).sort((a,b) => new Date(photoDateValue(b)) - new Date(photoDateValue(a)));
   const latest = plantPhotos[0];
   if (!latest) {
     if (currentTab === 'photos') renderPlantDetail(plantId);
@@ -8401,9 +8429,7 @@ async function renderPhotosTab(plant) {
   const allPhotos = await dbGetAll('photos');
   const photos = allPhotos
     .filter(p => p.plantId === plant.id)
-    .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-  
-  const plantingDate = plant.plantingDate;
+    .sort((a,b) => new Date(photoDateValue(b)) - new Date(photoDateValue(a)));
   
   return `
     <div class="card">
@@ -8424,7 +8450,7 @@ async function renderPhotosTab(plant) {
         </div>
         <div class="photo-grid">
           ${photos.map((p, idx) => {
-            const dayN = Math.floor((new Date(p.createdAt) - new Date(plantingDate)) / 86400000);
+            const dayN = photoDayNumber(p, plant);
             return `
               <div class="photo-item" 
                    onclick="openPhotoViewer('${p.id}','${plant.id}')"
@@ -8450,7 +8476,7 @@ async function openPhotoViewer(photoId, plantId) {
   const allPhotos = await dbGetAll('photos');
   currentViewerPhotos = allPhotos
     .filter(p => p.plantId === plantId)
-    .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+    .sort((a,b) => new Date(photoDateValue(b)) - new Date(photoDateValue(a)));
   currentViewerIndex = currentViewerPhotos.findIndex(p => p.id === photoId);
   if (currentViewerIndex < 0) currentViewerIndex = 0;
   
@@ -8462,10 +8488,11 @@ function renderPhotoViewer(plant) {
   const photo = currentViewerPhotos[currentViewerIndex];
   if (!photo) return;
   
-  const dateStr = new Date(photo.createdAt).toLocaleDateString('ja-JP', { 
+  const photoDate = photoDateValue(photo);
+  const dateStr = new Date(photoDate).toLocaleDateString('ja-JP', { 
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' 
   });
-  const dayN = Math.floor((new Date(photo.createdAt) - new Date(plant.plantingDate)) / 86400000);
+  const dayN = photoDayNumber(photo, plant);
   const total = currentViewerPhotos.length;
   
   let viewer = document.getElementById('photoViewer');
