@@ -3578,10 +3578,10 @@ function renderEggplantSidebranchManager(plant, clusters = []) {
       <div class="card-title">🎯 選択中の管理単位</div>
       <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:10px 12px;line-height:1.55;font-size:13px;margin-bottom:10px;">${selectedHelp}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <button class="btn" style="padding:8px 6px;font-size:12px;border-radius:10px;min-height:0;" onclick="eggplantUnitTone('${plant.id}')">🍆 トマトトーン</button>
-        <button class="btn btn-secondary" style="padding:8px 6px;font-size:12px;border-radius:10px;min-height:0;" onclick="eggplantUnitNextStage('${plant.id}')">➡️ 次へ</button>
-        <button class="btn btn-secondary" style="padding:8px 6px;font-size:12px;border-radius:10px;min-height:0;" onclick="eggplantUnitNextCycle('${plant.id}')">🔁 次C</button>
-        <button class="btn btn-secondary" style="padding:8px 6px;font-size:12px;border-radius:10px;min-height:0;" onclick="eggplantUnitPrevStage('${plant.id}')">↩️ 戻る</button>
+        <button class="btn" style="padding:8px 5px;font-size:12px;border-radius:10px;min-height:0;line-height:1.25;white-space:normal;" onclick="eggplantUnitTone('${plant.id}')">🍆 トマトトーン散布</button>
+        <button class="btn btn-secondary" style="padding:8px 5px;font-size:12px;border-radius:10px;min-height:0;line-height:1.25;white-space:normal;" onclick="eggplantUnitNextStage('${plant.id}')">➡️ 次の段階へ</button>
+        <button class="btn btn-secondary" style="padding:8px 5px;font-size:12px;border-radius:10px;min-height:0;line-height:1.25;white-space:normal;" onclick="eggplantUnitNextCycle('${plant.id}')">🔁 次のサイクル開始</button>
+        <button class="btn btn-secondary" style="padding:8px 5px;font-size:12px;border-radius:10px;min-height:0;line-height:1.25;white-space:normal;" onclick="eggplantUnitPrevStage('${plant.id}')">↩️ 一つ戻る</button>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${listHtml}</div>
@@ -4546,6 +4546,7 @@ async function renderSettings() {
     <div class="card">
       <div class="card-title">💾 データ管理</div>
       <button class="btn btn-secondary" onclick="exportData()">📥 データをJSON書き出し</button>
+      <button class="btn btn-secondary" onclick="exportSeasonReviewCSV()" style="margin-top:8px;">📊 振り返りCSVを書き出し</button>
       <button class="btn btn-secondary" onclick="importData()" style="margin-top:8px;">📤 JSONから読み込み</button>
       <input type="file" id="importFile" accept=".json" style="display:none;" onchange="handleImport(event)">
     </div>
@@ -7179,6 +7180,95 @@ async function exportData(includePhotos = null) {
   URL.revokeObjectURL(url);
 }
 
+
+function downloadTextFile(filename, text, mimeType = 'text/plain;charset=utf-8') {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function csvCell(value) {
+  const v = value == null ? '' : String(value);
+  return `"${v.replace(/"/g, '""')}"`;
+}
+function csvRow(values) {
+  return values.map(csvCell).join(',');
+}
+async function exportSeasonReviewCSV(seasonOverride = null) {
+  const plants = await dbGetAll('plants');
+  const tasks = await dbGetAll('tasks');
+  const clusters = await dbGetAll('clusters');
+  const photos = await dbGetAll('photos');
+  const seasons = Array.from(new Set([
+    ...plants.map(p => p.season || (p.plantingDate ? String(new Date(p.plantingDate).getFullYear()) : null)),
+    ...tasks.map(t => _yearOf(t.date))
+  ].filter(Boolean))).sort((a,b) => Number(b) - Number(a));
+  const season = String(seasonOverride || seasons[0] || new Date().getFullYear());
+  const seasonPlants = plants.filter(p => (p.season || String(new Date(p.plantingDate).getFullYear())) === season);
+  const seasonTasks = tasks.filter(t => _yearOf(t.date) === season);
+  const header = [
+    'シーズン','株名','種類','仕立て','植え付け日','終了日','栽培日数',
+    '総収穫数','初収穫日','初収穫までの日数','最終収穫日','収穫期間日数',
+    '水やり','液肥/リキダス','液肥扱い','リキダスのみ','固形肥料','トマトトーン','人工授粉',
+    '脇芽かき','摘心','下葉かき','更新剪定','暑さ対策','防虫散布','観察','写真枚数',
+    '一番花記録','一番果記録','管理単位数','側枝C完了数','メモ'
+  ];
+  const rows = [header];
+  for (const plant of seasonPlants) {
+    const myTasks = seasonTasks.filter(t => t.plantId === plant.id);
+    const myHarvests = myTasks.filter(t => t.type === 'harvest').sort((a,b) => new Date(a.date) - new Date(b.date));
+    const harvestCount = _sumHarvest(myHarvests);
+    const firstHarvest = myHarvests[0]?.date || '';
+    const lastHarvest = myHarvests[myHarvests.length - 1]?.date || '';
+    const span = firstHarvest && lastHarvest ? Math.max(1, _daysBetween(lastHarvest, firstHarvest) + 1) : '';
+    const daysToFirst = firstHarvest ? _daysBetween(firstHarvest, plant.plantingDate) : '';
+    const endDate = plant.finishedAt || '';
+    const activeDays = plant.plantingDate ? _daysBetween(endDate || new Date().toISOString(), plant.plantingDate) : '';
+    const myClusters = clusters.filter(c => c.plantId === plant.id);
+    const sidebranchCycleDone = myClusters.reduce((sum, c) => sum + (Array.isArray(c.cycleHistory) ? c.cycleHistory.length : 0), 0);
+    const photoCount = photos.filter(ph => ph.plantId === plant.id).length;
+    rows.push([
+      season,
+      plant.name || SPECIES[plant.species]?.name || '',
+      SPECIES[plant.species]?.name || plant.species,
+      _trainingLabel(plant),
+      plant.plantingDate || '',
+      endDate,
+      activeDays,
+      harvestCount,
+      firstHarvest ? dateStr(firstHarvest) : '',
+      daysToFirst,
+      lastHarvest ? dateStr(lastHarvest) : '',
+      span,
+      _taskCount(myTasks, 'watering'),
+      _taskCount(myTasks, 'fertilize_liquid'),
+      myTasks.filter(t => _isActualLiquidFertilizerTask(t)).length,
+      myTasks.filter(t => t.type === 'fertilize_liquid' && t.details?.product === 'rikidas').length,
+      _taskCount(myTasks, 'fertilize_granular'),
+      _taskCount(myTasks, 'tomato_tone'),
+      _taskCount(myTasks, 'pollination'),
+      _taskCount(myTasks, 'side_shoot_removal'),
+      _taskCount(myTasks, 'pinching'),
+      _taskCount(myTasks, 'defoliation'),
+      _taskCount(myTasks, 'renewal_pruning'),
+      _taskCount(myTasks, 'heat_protection'),
+      _taskCount(myTasks, 'pest_spray') + _taskCount(myTasks, 'vinegar_spray'),
+      _taskCount(myTasks, 'observation'),
+      photoCount,
+      _taskCount(myTasks, 'first_flower'),
+      _taskCount(myTasks, 'first_fruit'),
+      myClusters.length,
+      sidebranchCycleDone,
+      plant.notes || ''
+    ]);
+  }
+  const csv = '\uFEFF' + rows.map(csvRow).join('\n');
+  downloadTextFile(`garden-review-${season}.csv`, csv, 'text/csv;charset=utf-8');
+}
+
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -8539,6 +8629,12 @@ async function renderSeasonFeedback(selectedSeason = null) {
         </div>
       ` : ''}
     `}
+
+    <div class="card">
+      <div class="card-title">📊 振り返りデータ</div>
+      <button class="btn btn-secondary" onclick="exportSeasonReviewCSV('${season}')">CSVを書き出し</button>
+      <div style="font-size:12px;color:var(--text-light);line-height:1.6;margin-top:8px;">株別の収穫数・初収穫日・作業回数・暑さ対策回数などをスプレッドシートで見られる形式にします。</div>
+    </div>
 
     <div class="card">
       <div class="card-title">☀️ 南向きベランダの暑さ対策メモ</div>
