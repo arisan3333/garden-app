@@ -262,6 +262,32 @@ body {
 
 /* Tasks */
 .task-list { display: flex; flex-direction: column; gap: 8px; }
+.tasks-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 4px;
+  margin: 12px 0 8px;
+}
+.tasks-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.tasks-tab.active {
+  background: white;
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
 .task-item {
   background: white;
   border: 1px solid var(--border);
@@ -1548,27 +1574,51 @@ function weatherAlerts(weather) {
 // =================================================
 // 自動レコメンドタスク生成（今日のタスク用）
 // =================================================
-function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vines = [], appSettings = {}) {
+// referenceDate: null=今日基準, 'YYYY-MM-DD'=その日基準で計算（明日タブ用）。
+// 関数内では「基準日−今日」の日数オフセットを dayDiff の結果に足して扱う。
+function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vines = [], appSettings = {}, referenceDate = null) {
+  // 基準日のオフセット日数（今日=0, 明日=1）。
+  const refOffset = referenceDate ? (() => {
+    const [ry, rm, rd] = referenceDate.split('-').map(Number);
+    const ref = new Date(ry, rm - 1, rd);
+    const [ty, tm, td] = today().split('-').map(Number);
+    const tdy = new Date(ty, tm - 1, td);
+    return Math.round((ref - tdy) / (1000 * 60 * 60 * 24));
+  })() : 0;
+  // 基準日からの経過日数。dayDiff(date) は「今日基準」なので、明日基準なら未来側にずれる分を加算する。
+  // 例: 昨日水やり → 今日基準でdayDiff=1。明日(refOffset=1)から見ると2日前なので 1+1=2 が欲しい。
+  const _days = (date) => dayDiff(date) + refOffset;
+  // 基準日の Date オブジェクト（月判定用）。
+  const _refNow = refOffset === 0 ? new Date() : (() => {
+    const [ry, rm, rd] = referenceDate.split('-').map(Number);
+    return new Date(ry, rm - 1, rd);
+  })();
   // 今日のタスク生成では「直近の作業」を多用するため、まず履歴を新しい順に正規化する。
   lastTasks = sortTasksNewestFirst(lastTasks);
   const tasks = [];
-  const days = dayDiff(plant.plantingDate);
+  const days = _days(plant.plantingDate);
   const displayName = plant.name || SPECIES[plant.species].name;
   const lastWatering = lastTasks.find(t => t.type === 'watering');
-  const daysSinceWater = lastWatering ? dayDiff(lastWatering.date) : 999;
+  const daysSinceWater = lastWatering ? _days(lastWatering.date) : 999;
 
   // 高温アラート（南向きベランダ向け）
   // 天気APIの最高気温が33℃以上なら、実際の鉢・床面はさらに熱くなりやすい前提で確認タスクを出す。
+  // 明日基準（refOffset=1）のときは、weather.tomorrowTempMax を「基準日の最高気温」として使う。
+  // 明後日のデータは無いため、明日基準では「翌日警報」は出さない。
   if (weather.success) {
-    const tMax = Number(weather.tempMax || 0);
-    const tomorrowMax = Number(weather.tomorrowTempMax || 0);
+    const tMax = refOffset === 0
+      ? Number(weather.tempMax || 0)
+      : Number(weather.tomorrowTempMax || 0);
+    const tomorrowMax = refOffset === 0 ? Number(weather.tomorrowTempMax || 0) : 0;
     const heatToday = tMax >= 33;
     const extremeHeat = tMax >= 35;
     const heatTomorrow = tomorrowMax >= 35;
     const lastHeat = lastTasks.find(t => t.type === 'heat_protection');
-    const alreadyCheckedToday = lastHeat && dayDiff(lastHeat.date) === 0;
+    const alreadyCheckedToday = lastHeat && _days(lastHeat.date) === 0;
     if ((heatToday || heatTomorrow) && !alreadyCheckedToday) {
-      const tempText = heatToday ? `今日${Math.round(tMax)}℃` : `明日${Math.round(tomorrowMax)}℃`;
+      const todayLabel = refOffset === 0 ? '今日' : '明日';
+      const nextLabel = refOffset === 0 ? '明日' : '明後日';
+      const tempText = heatToday ? `${todayLabel}${Math.round(tMax)}℃` : `${nextLabel}${Math.round(tomorrowMax)}℃`;
       const passionNote = plant.species === 'passion' ? '。高温期は着果しにくいので、開花/落蕾/着果の記録も' : '';
       tasks.push({
         type: extremeHeat ? 'must' : 'recommended',
@@ -1621,7 +1671,11 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     if (days >= 14) waterInterval = 2;
   }
   
-  const noWaterToday = weather.success && weather.precip >= 60;
+  // 基準日が今日なら weather.precip、明日なら weather.tomorrowPrecip を見る。
+  const precipForRef = refOffset === 0
+    ? Number(weather.precip || 0)
+    : Number(weather.tomorrowPrecip || 0);
+  const noWaterToday = weather.success && precipForRef >= 60;
   
   if (daysSinceWater >= waterInterval && !noWaterToday) {
     tasks.push({
@@ -1663,7 +1717,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     } else if (plant.species === 'ginger') {
       // 生姜は方針で分ける。液肥メイン/併用のみハイポ液肥を自動候補にし、開始は草丈15cm/本葉2〜3枚の記録後。
       const course = _gingerFertilizerCourse(plant);
-      const now = new Date();
+      const now = _refNow;
       const afterMidAugust = (now.getMonth() + 1 > 8) || ((now.getMonth() + 1 === 8) && now.getDate() >= 16);
       canFertilize = course !== 'solid' && _gingerStartTriggered(plant, lastTasks) && !afterMidAugust;
     } else {
@@ -1673,8 +1727,8 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     if (canFertilize) {
       const lastLiquid = lastTasks.find(t => _isActualLiquidFertilizerTask(t));
       const lastGranular = lastTasks.find(t => _isLiquidIntervalBlockingGranular(t));
-      const daysSinceLiquid = lastLiquid ? dayDiff(lastLiquid.date) : 999;
-      const daysSinceGranular = lastGranular ? dayDiff(lastGranular.date) : 999;
+      const daysSinceLiquid = lastLiquid ? _days(lastLiquid.date) : 999;
+      const daysSinceGranular = lastGranular ? _days(lastGranular.date) : 999;
       let daysSinceAny = Math.min(daysSinceLiquid, daysSinceGranular);
       let liquidIntervalDays = plant.species === 'ginger' ? GINGER_LIQUID_INTERVAL_DAYS : 7;
       if (plant.species === 'ginger') {
@@ -1733,7 +1787,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     // 脇芽かき：第1花房が結実したら開始
     const firstFruiting = cluster1 && (cluster1.status === 'fruiting' || cluster1.status === 'harvesting' || cluster1.status === 'finished');
     const lastSideShoot = lastTasks.find(t => t.type === 'side_shoot_removal');
-    const daysSinceShoot = lastSideShoot ? dayDiff(lastSideShoot.date) : 999;
+    const daysSinceShoot = lastSideShoot ? _days(lastSideShoot.date) : 999;
     
     if (firstFruiting) {
       // 開始タイミングに到達してる
@@ -1884,7 +1938,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
       });
     } else if (ff?.handled && !fr?.date) {
       // 一番花処理済み・一番果未着果。開花から平均10〜14日で着果。
-      const daysSinceFlower = dayDiff(ff.date);
+      const daysSinceFlower = _days(ff.date);
       const flowerRemoved = ff.handled === 'removed';
       if (daysSinceFlower >= 7) {
         tasks.push({
@@ -1960,7 +2014,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     }
     // 子づる摘心（主枝摘心から2〜3週間後）
     if (mainPinchedAt) {
-      const daysSinceMainPinch = dayDiff(mainPinchedAt);
+      const daysSinceMainPinch = _days(mainPinchedAt);
       const childVinesPinched = vines.filter(v => v.vineType === 'child' && v.pinchedAt).length;
       const childPinchedLegacy = lastTasks.filter(t => t.type === 'pinching' && t.details?.target === 'child').length;
       // vinesに記録があればそれを優先、なければレガシーカウント
@@ -1979,7 +2033,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     // パッション人工授粉（開花後の毎朝）
     if (days >= 50) {
       const lastPollination = lastTasks.find(t => t.type === 'pollination');
-      const daysSincePollination = lastPollination ? dayDiff(lastPollination.date) : 999;
+      const daysSincePollination = lastPollination ? _days(lastPollination.date) : 999;
       if (daysSincePollination >= 1) {
         tasks.push({
           type: 'recommended',
@@ -1996,7 +2050,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     // ハイポ＋リキダス液肥とは別枠で、液肥間隔はリセットしない。
     if (days >= 30) {
       const lastPk = lastTasks.find(t => _isPassionPhosphorusTask(t));
-      const daysSincePk = lastPk ? dayDiff(lastPk.date) : 999;
+      const daysSincePk = lastPk ? _days(lastPk.date) : 999;
       const interval = lastPk ? _phosphorusIntervalDays(lastPk.details?.fertilizerKind) : 30;
       if (daysSincePk >= interval) {
         const kindText = lastPk ? `${_granularKindLabel(lastPk.details?.fertilizerKind)}の目安${interval}日` : '固形/顆粒は30日、液体資材は14日、緩効性は45日が目安';
@@ -2045,7 +2099,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     if (_gingerStartTriggered(plant, lastTasks)) {
       const topsoils = lastTasks.filter(t => t.type === 'topsoil');
       const lastTopsoil = topsoils[0];
-      const daysSinceTopsoil = lastTopsoil ? dayDiff(lastTopsoil.date) : 999;
+      const daysSinceTopsoil = lastTopsoil ? _days(lastTopsoil.date) : 999;
       if (topsoils.length < 3 && daysSinceTopsoil >= 30) {
         tasks.push({
           type: 'recommended',
@@ -2061,7 +2115,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     {
       const course = _gingerFertilizerCourse(plant);
       const triggered = _gingerStartTriggered(plant, lastTasks);
-      const now = new Date();
+      const now = _refNow;
       const afterMidAugust = (now.getMonth() + 1 > 8) || ((now.getMonth() + 1 === 8) && now.getDate() >= 16);
       if (!triggered && days >= 25 && !afterMidAugust) {
         tasks.push({
@@ -2076,7 +2130,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
         const granularHistory = lastTasks.filter(t => t.type === 'fertilize_granular');
         const granularCount = granularHistory.length;
         const lastGranular = granularHistory[0];
-        const daysSinceGranular = lastGranular ? dayDiff(lastGranular.date) : 999;
+        const daysSinceGranular = lastGranular ? _days(lastGranular.date) : 999;
         if (granularCount === 0 || (granularCount < 3 && daysSinceGranular >= 30)) {
           const nth = granularCount + 1;
           tasks.push({
@@ -2093,7 +2147,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
 
   // パッション越冬準備（11月）
   if (plant.species === 'passion') {
-    const month = new Date().getMonth() + 1;
+    const month = _refNow.getMonth() + 1;
     if (month === 11) {
       const wintered = lastTasks.find(t => t.type === 'mulching' && t.notes?.includes('越冬'));
       if (!wintered) {
@@ -2122,11 +2176,11 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     const sprayHistory = lastTasks.filter(t => t.type === 'pest_spray');
     const sprayCount = sprayHistory.length;
     const lastSpray = sprayHistory[0];
-    const daysSinceSpray = lastSpray ? dayDiff(lastSpray.date) : 999;
+    const daysSinceSpray = lastSpray ? _days(lastSpray.date) : 999;
     
     // 上限到達してたらレコメンドしない
     if (sprayCount < limit) {
-      const today = new Date();
+      const today = _refNow;
       const month = today.getMonth() + 1;
       const date = today.getDate();
       
@@ -2159,7 +2213,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     if (gingerLeafStage) {
       const vinegarHistory = lastTasks.filter(t => t.type === 'vinegar_spray');
       const lastVinegar = vinegarHistory[0];
-      const daysSinceVinegar = lastVinegar ? dayDiff(lastVinegar.date) : 999;
+      const daysSinceVinegar = lastVinegar ? _days(lastVinegar.date) : 999;
       
       // 3日以上経過していれば予防散布をレコメンド（活着以降）
       if (daysSinceVinegar >= 3 && days >= 3) {
@@ -4752,11 +4806,27 @@ async function renderTasks() {
   
   const allClustersData = await dbGetAll('clusters');
   const allVinesData = await dbGetAll('vines');
+
+  // タブ状態（'today' or 'tomorrow'）。リロードで今日に戻る軽い状態管理。
+  const tabMode = window.tasksTabMode || 'today';
+  const isTomorrow = tabMode === 'tomorrow';
+
+  // 明日タブのときは generateRecommendedTasks に referenceDate を渡す。
+  const tomorrowKey = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  })();
+  const refDate = isTomorrow ? tomorrowKey : null;
+  
   let allRecommended = [];
   for (const plant of plants) {
     const plantTasks = sortTasksNewestFirst(allTasks.filter(t => t.plantId === plant.id));
     const plantVines = allVinesData.filter(v => v.plantId === plant.id);
-    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines, appSettings);
+    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines, appSettings, refDate);
     allRecommended = allRecommended.concat(recommended);
   }
   
@@ -4766,61 +4836,72 @@ async function renderTasks() {
   const carryoverTasks = [];
   const doneTasks = [];
   const plantById = new Map(plants.map(p => [p.id, p]));
-  
-  // 今日の実施履歴を完了欄の正とする。
-  // taskStateだけのdoneは、履歴が無い限り「実施済み」として扱わない。
-  const todayDoneRecords = sortTasksNewestFirst(allTasks)
-    .filter(t => plantById.has(t.plantId))
-    .filter(t => TODAY_DONE_RECORD_TYPES.has(t.type))
-    .filter(t => isTodayRecord(t.date));
-  const doneRecordActionKeys = new Set();
-  todayDoneRecords.forEach(record => {
-    doneRecordActionKeys.add(`${record.plantId}:${record.type}`);
-    if (record.details?.clusterId) doneRecordActionKeys.add(`${record.plantId}:${record.type}:${record.details.clusterId}`);
-  });
-  
-  // 持ち越しを取得
-  Object.entries(cachedTasksState).forEach(([key, state]) => {
-    if (state.status === 'carryover' && state.targetDate === todayKey) {
-      // 液肥系は直近7日以内に液肥/固形肥料を実施済みなら、持ち越し表示もしない。
-      // これにより、昨日の液肥タスクを持ち越した後にホーム調合で記録した場合などの重複アラートを防ぐ。
-      if (state.task?.action === 'fertilize_liquid') {
-        const plantHistory = sortTasksNewestFirst(allTasks.filter(t => t.plantId === state.task.plantId));
-        const recentLiquid = plantHistory.find(t => _isActualLiquidFertilizerTask(t));
-        const recentGranular = plantHistory.find(t => _isLiquidIntervalBlockingGranular(t));
-        const daysSinceRecent = Math.min(
-          recentLiquid ? dayDiff(recentLiquid.date) : 999,
-          recentGranular ? dayDiff(recentGranular.date) : 999
-        );
-        if (daysSinceRecent < 7) return;
+
+  // 完了・持ち越しの計算は「今日タブ」のみ。明日タブはプレビューなので操作履歴と無関係に推奨だけ出す。
+  if (!isTomorrow) {
+    // 今日の実施履歴を完了欄の正とする。
+    // taskStateだけのdoneは、履歴が無い限り「実施済み」として扱わない。
+    const todayDoneRecords = sortTasksNewestFirst(allTasks)
+      .filter(t => plantById.has(t.plantId))
+      .filter(t => TODAY_DONE_RECORD_TYPES.has(t.type))
+      .filter(t => isTodayRecord(t.date));
+    const doneRecordActionKeys = new Set();
+    todayDoneRecords.forEach(record => {
+      doneRecordActionKeys.add(`${record.plantId}:${record.type}`);
+      if (record.details?.clusterId) doneRecordActionKeys.add(`${record.plantId}:${record.type}:${record.details.clusterId}`);
+    });
+
+    // 持ち越しを取得
+    Object.entries(cachedTasksState).forEach(([key, state]) => {
+      if (state.status === 'carryover' && state.targetDate === todayKey) {
+        // 液肥系は直近7日以内に液肥/固形肥料を実施済みなら、持ち越し表示もしない。
+        // これにより、昨日の液肥タスクを持ち越した後にホーム調合で記録した場合などの重複アラートを防ぐ。
+        if (state.task?.action === 'fertilize_liquid') {
+          const plantHistory = sortTasksNewestFirst(allTasks.filter(t => t.plantId === state.task.plantId));
+          const recentLiquid = plantHistory.find(t => _isActualLiquidFertilizerTask(t));
+          const recentGranular = plantHistory.find(t => _isLiquidIntervalBlockingGranular(t));
+          const daysSinceRecent = Math.min(
+            recentLiquid ? dayDiff(recentLiquid.date) : 999,
+            recentGranular ? dayDiff(recentGranular.date) : 999
+          );
+          if (daysSinceRecent < 7) return;
+        }
+        carryoverTasks.push({ ...state.task, taskKey: key, isCarryover: true });
       }
-      carryoverTasks.push({ ...state.task, taskKey: key, isCarryover: true });
+    });
+
+    for (const t of allRecommended) {
+      const extraTaskKey = t.clusterId || t.details?.clusterId || '';
+      const key = taskStateKey(todayKey, t.plantId, t.action, extraTaskKey);
+      const doneKey = `${t.plantId}:${t.action}${extraTaskKey ? ':' + extraTaskKey : ''}`;
+      const state = cachedTasksState[key];
+      if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) {
+        // 実作業履歴がある完了は、後段の「今日の記録」から表示する。
+      } else if (state && state.status === 'skip') {
+        // skip skip
+      } else {
+        const taskWithKey = { ...t, taskKey: key };
+        if (t.type === 'must') mustTasks.push(taskWithKey);
+        else recTasks.push(taskWithKey);
+      }
     }
-  });
-  
-  for (const t of allRecommended) {
-    const extraTaskKey = t.clusterId || t.details?.clusterId || '';
-    const key = taskStateKey(todayKey, t.plantId, t.action, extraTaskKey);
-    const doneKey = `${t.plantId}:${t.action}${extraTaskKey ? ':' + extraTaskKey : ''}`;
-    const state = cachedTasksState[key];
-    if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) {
-      // 実作業履歴がある完了は、後段の「今日の記録」から表示する。
-    } else if (state && state.status === 'skip') {
-      // skip skip
-    } else {
-      const taskWithKey = { ...t, taskKey: key };
-      if (t.type === 'must') mustTasks.push(taskWithKey);
-      else recTasks.push(taskWithKey);
+
+    // 今日の実施履歴を完了欄に出す。
+    // 水やり等は記録した瞬間に「推奨条件」から外れるため、tasks履歴そのものを正とする。
+    todayDoneRecords.forEach(record => {
+      doneTasks.push(makeDoneTaskFromRecord(record, plantById.get(record.plantId)));
+    });
+
+    doneTasks.sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0));
+  } else {
+    // 明日タブ：今日の実施履歴で「明日もう不要」になるものを除外しておく。
+    // 例：今日水やりしたら明日の水やり推奨も出るが、間隔条件で消えるはずなので、追加チェックは最小限。
+    // ここでは推奨/必須をそのまま振り分けるだけ。
+    for (const t of allRecommended) {
+      if (t.type === 'must') mustTasks.push(t);
+      else recTasks.push(t);
     }
   }
-  
-  // 今日の実施履歴を完了欄に出す。
-  // 水やり等は記録した瞬間に「推奨条件」から外れるため、tasks履歴そのものを正とする。
-  todayDoneRecords.forEach(record => {
-    doneTasks.push(makeDoneTaskFromRecord(record, plantById.get(record.plantId)));
-  });
-  
-  doneTasks.sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0));
   
   const renderTaskItem = (t) => `
     <div class="task-item ${t.isCarryover ? 'carryover' : t.type}">
@@ -4838,7 +4919,17 @@ async function renderTasks() {
       </div>
     </div>
   `;
-  
+
+  // 明日タブはプレビューなので操作ボタンを出さない（明日になってから「完了」操作する想定）。
+  const renderTaskItemPreview = (t) => `
+    <div class="task-item ${t.type}">
+      <div class="task-content">
+        <div class="task-title">${t.title}</div>
+        <div class="task-desc">${t.desc}</div>
+      </div>
+    </div>
+  `;
+
   const renderDone = (t) => `
     <div class="task-item done">
       <div class="task-content">
@@ -4847,24 +4938,71 @@ async function renderTasks() {
       </div>
     </div>
   `;
+
+  const itemRenderer = isTomorrow ? renderTaskItemPreview : renderTaskItem;
+
+  const headerDate = isTomorrow
+    ? (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return d.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+      })()
+    : new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+
+  // 明日タブ用の天気サマリ（あれば）。
+  let tomorrowWeatherHtml = '';
+  if (isTomorrow && cachedWeather?.success) {
+    const tMax = Math.round(Number(cachedWeather.tomorrowTempMax || 0));
+    const tMin = cachedWeather.tomorrowTempMin != null ? Math.round(Number(cachedWeather.tomorrowTempMin)) : null;
+    const precip = Number(cachedWeather.tomorrowPrecip || 0);
+    const wind = Number(cachedWeather.tomorrowWind || 0);
+    const parts = [];
+    if (tMax) parts.push(`最高${tMax}℃${tMin != null ? ` / 最低${tMin}℃` : ''}`);
+    if (precip) parts.push(`降水確率${Math.round(precip)}%`);
+    if (wind) parts.push(`最大風速${Math.round(wind)}km/h`);
+    if (parts.length) {
+      tomorrowWeatherHtml = `
+        <div class="card" style="background:#eff6ff;border-left:4px solid var(--info);font-size:13px;line-height:1.7;">
+          🌤 ${parts.join(' ・ ')}
+        </div>
+      `;
+    }
+  }
+
+  const tabsHtml = `
+    <div class="tasks-tabs">
+      <button class="tasks-tab ${!isTomorrow ? 'active' : ''}" onclick="switchTasksTab('today')">📅 今日</button>
+      <button class="tasks-tab ${isTomorrow ? 'active' : ''}" onclick="switchTasksTab('tomorrow')">🔮 明日</button>
+    </div>
+  `;
+
+  const previewNote = isTomorrow ? `
+    <div style="font-size:12px;color:var(--text-light);margin:4px 0 8px;line-height:1.6;">
+      ※ 明日の予定はプレビューです。実際の操作は明日になってから「今日」タブで行ってください。
+    </div>
+  ` : '';
   
   const html = `
     <div class="header">
-      <h1>✅ 今日のタスク</h1>
-      <div class="greeting">${new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}</div>
+      <h1>✅ ${isTomorrow ? '明日のタスク' : '今日のタスク'}</h1>
+      <div class="greeting">${headerDate}</div>
     </div>
+
+    ${tabsHtml}
+    ${previewNote}
+    ${tomorrowWeatherHtml}
     
     ${mustTasks.length === 0 && recTasks.length === 0 && carryoverTasks.length === 0 ? `
       <div class="card empty">
-        <div class="icon">🎉</div>
-        <div>今日のタスクは完了です！</div>
+        <div class="icon">${isTomorrow ? '🌱' : '🎉'}</div>
+        <div>${isTomorrow ? '明日の予定タスクはなさそうです' : '今日のタスクは完了です！'}</div>
       </div>
     ` : ''}
     
     ${mustTasks.length > 0 ? `
       <div class="section-header">🔴 必須 (${mustTasks.length})</div>
       <div class="task-list">
-        ${mustTasks.map(renderTaskItem).join('')}
+        ${mustTasks.map(itemRenderer).join('')}
       </div>
     ` : ''}
     
@@ -4878,7 +5016,7 @@ async function renderTasks() {
     ${recTasks.length > 0 ? `
       <div class="section-header">🔵 推奨 (${recTasks.length})</div>
       <div class="task-list">
-        ${recTasks.map(renderTaskItem).join('')}
+        ${recTasks.map(itemRenderer).join('')}
       </div>
     ` : ''}
     
@@ -4890,6 +5028,12 @@ async function renderTasks() {
     ` : ''}
   `;
   document.getElementById('app').innerHTML = html;
+}
+
+// 今日/明日タブの切り替え
+function switchTasksTab(mode) {
+  window.tasksTabMode = mode;
+  renderTasks();
 }
 
 async function renderSettings() {
@@ -4987,7 +5131,12 @@ async function navigate(screen) {
   });
   if (screen === 'home') await renderHome();
   else if (screen === 'plants') await renderPlants();
-  else if (screen === 'tasks') await renderTasks();
+  else if (screen === 'tasks') {
+    // タスク画面を開き直したときは「今日」タブから始めるのが直感的。
+    // タブ内での切り替えは switchTasksTab で別途維持される。
+    window.tasksTabMode = 'today';
+    await renderTasks();
+  }
   else if (screen === 'settings') await renderSettings();
   else if (screen === 'harvest') await renderHarvestStats('week');
   else if (screen === 'feedback') await renderSeasonFeedback();
