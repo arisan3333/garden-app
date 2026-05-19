@@ -1198,7 +1198,7 @@ body {
 // データ管理（IndexedDB）
 // =================================================
 const DB_NAME = 'gardenApp';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 let db;
 let useLocalStorage = false;
 
@@ -1318,6 +1318,12 @@ function openDB() {
         // v3で追加: パッションフルーツのつる管理（主枝・子づる①〜④）
         if (!db.objectStoreNames.contains('vines')) {
           const store = db.createObjectStore('vines', { keyPath: 'id' });
+          store.createIndex('plantId', 'plantId');
+        }
+        // v4で追加: パッションフルーツの実1個ずつの追跡。
+        // 花の開花→授粉→結実→収穫の各ステージをタイムスタンプで持つ。
+        if (!db.objectStoreNames.contains('fruits')) {
+          const store = db.createObjectStore('fruits', { keyPath: 'id' });
           store.createIndex('plantId', 'plantId');
         }
       };
@@ -2942,12 +2948,13 @@ async function renderPlantDetail(plantId) {
   const tasks = sortTasksNewestFirst((await dbGetAll('tasks')).filter(t => t.plantId === plantId));
   const clusters = (await dbGetAll('clusters')).filter(c => c.plantId === plantId).sort((a,b) => a.segmentNumber - b.segmentNumber);
   const vines = (await dbGetAll('vines')).filter(v => v.plantId === plantId);
+  const fruits = (await dbGetAll('fruits')).filter(f => f.plantId === plantId);
   
   let tabContent = '';
   if (currentTab === 'overview') {
     tabContent = renderOverviewTab(plant, tasks, vines);
   } else if (currentTab === 'pruning') {
-    tabContent = renderPruningTab(plant, clusters, tasks, vines);
+    tabContent = renderPruningTab(plant, clusters, tasks, vines, fruits);
   } else if (currentTab === 'history') {
     tabContent = await renderHistoryTab(tasks);
   } else if (currentTab === 'photos') {
@@ -3464,11 +3471,11 @@ function getQuickActions(plant, tasks = []) {
   return [...common, ...(specific[plant.species] || [])];
 }
 
-function renderPruningTab(plant, clusters, tasks, vines) {
+function renderPruningTab(plant, clusters, tasks, vines, fruits) {
   const sp = plant.species;
   if (sp === 'tomato') return renderTomatoPruning(plant, clusters);
   if (sp === 'eggplant' || sp === 'pepper') return renderEggplantPepperPruning(plant, tasks, clusters);
-  if (sp === 'passion') return renderPassionPruning(plant, tasks, vines || []);
+  if (sp === 'passion') return renderPassionPruning(plant, tasks, vines || [], fruits || []);
   if (sp === 'ginger') return renderGingerGuide(plant, tasks);
   return `<div class="card"><div class="empty"><div class="icon">🌱</div>${SPECIES[sp].name}は剪定不要です</div></div>`;
 }
@@ -4565,29 +4572,42 @@ function getVine(vines, vineType, vineIndex) {
   return vines.find(v => v.vineType === vineType && v.vineIndex === vineIndex);
 }
 
-function renderPassionPruning(plant, tasks, vines) {
+function renderPassionPruning(plant, tasks, vines, fruits) {
   vines = vines || [];
+  fruits = fruits || [];
   // 摘心済み判定：vinesテーブル優先、なければ既存tasksの details.target を後方互換でも見る
   const mainVine = getVine(vines, 'main', 1);
   const mainPinchedLegacy = tasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
   const mainPinched = mainVine?.pinchedAt || mainPinchedLegacy?.date || null;
 
-  // 子づる①〜④
+  // 子づる①〜④（摘心と孫づるカウントのみ）。花の3区分カウンタは廃止。
   const children = [1, 2, 3, 4].map(idx => {
     const v = getVine(vines, 'child', idx);
     return {
       idx,
       vine: v,
       pinchedAt: v?.pinchedAt || null,
-      grandchildren: v?.grandchildren || 0,
-      flowers: v?.flowers || 0,
-      fruits: v?.fruits || 0
+      grandchildren: v?.grandchildren || 0
     };
   });
   const totalGrandchildren = children.reduce((s, c) => s + c.grandchildren, 0);
-  const totalFlowers = children.reduce((s, c) => s + c.flowers, 0);
-  const totalFruits = children.reduce((s, c) => s + c.fruits, 0);
   const childPinchedCount = children.filter(c => c.pinchedAt).length;
+
+  // 実1個ずつのサマリ
+  const stats = pollinationStats(fruits);
+  const counts = { opened: 0, pollinated: 0, unpollinated: 0, fruiting: 0, failed: 0, harvested: 0 };
+  for (const f of fruits) counts[f.status] = (counts[f.status] || 0) + 1;
+  // アクティブな実 = まだ終端でないもの。次のアクションが残っているので上に表示する。
+  const isTerminal = (s) => s === 'unpollinated' || s === 'failed' || s === 'harvested';
+  const activeFruits = fruits.filter(f => !isTerminal(f.status));
+  const terminalFruits = fruits.filter(f => isTerminal(f.status));
+  // ソート: アクティブは「開花日が古い順=放置されてる順」、終端は「最終更新日の新しい順」
+  activeFruits.sort((a, b) => new Date(a.openedAt) - new Date(b.openedAt));
+  terminalFruits.sort((a, b) => {
+    const at = a.harvestedAt || a.failedAt || a.pollinatedAt || a.openedAt;
+    const bt = b.harvestedAt || b.failedAt || b.pollinatedAt || b.openedAt;
+    return new Date(bt) - new Date(at);
+  });
   
   // 主枝=緑、子づる=赤、孫づる=青（主枝と区別）
   const svgInner = `
@@ -4615,21 +4635,33 @@ function renderPassionPruning(plant, tasks, vines) {
   `;
   
   const svg = `<svg viewBox="0 70 300 470" class="pruning-svg">${svgInner}</svg>`;
-  
-  // 主枝行
-  const mainRow = `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:${mainPinched ? '#dcfce7' : '#f9fafb'};border-radius:8px;margin-bottom:8px;">
-      <div>
-        <div style="font-weight:600;font-size:14px;">🌿 主枝</div>
-        ${mainPinched ? `<div style="font-size:11px;color:#166534;">✓ 摘心済 ${dateStr(mainPinched)}</div>` : '<div style="font-size:11px;color:var(--text-light);">草丈30cm/支柱頂点で先端カット</div>'}
-      </div>
-      ${mainPinched
-        ? `<button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="undoVinePinch('${plant.id}', 'main', 1)">取消</button>`
-        : `<button class="btn btn-small" onclick="markVinePinch('${plant.id}', 'main', 1)">摘心する</button>`}
+
+  // 孫づるのカウンタ（残すパート）
+  const renderGrandchildrenCounter = (vineType, vineIndex, val) => `
+    <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;">
+      <span style="color:var(--text-light);">🌿 孫づる本数</span>
+      <button onclick="adjustVineCount('${plant.id}', '${vineType}', ${vineIndex}, 'grandchildren', -1)" style="width:24px;height:24px;border:1px solid #d1d5db;background:white;border-radius:4px;font-size:14px;cursor:pointer;">−</button>
+      <span style="min-width:20px;text-align:center;font-weight:600;">${val}</span>
+      <button onclick="adjustVineCount('${plant.id}', '${vineType}', ${vineIndex}, 'grandchildren', 1)" style="width:24px;height:24px;border:1px solid #d1d5db;background:white;border-radius:4px;font-size:14px;cursor:pointer;">＋</button>
     </div>
   `;
   
-  // 子づる行（①〜③ + ④予備）
+  // 主枝行（摘心のみ。主枝は孫づるが出ない前提でカウンタも省略）
+  const mainRow = `
+    <div style="padding:10px 12px;background:${mainPinched ? '#dcfce7' : '#f9fafb'};border-radius:8px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:600;font-size:14px;">🌿 主枝</div>
+          ${mainPinched ? `<div style="font-size:11px;color:#166534;">✓ 摘心済 ${dateStr(mainPinched)}</div>` : '<div style="font-size:11px;color:var(--text-light);">草丈30cm/支柱頂点で先端カット</div>'}
+        </div>
+        ${mainPinched
+          ? `<button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="undoVinePinch('${plant.id}', 'main', 1)">取消</button>`
+          : `<button class="btn btn-small" onclick="markVinePinch('${plant.id}', 'main', 1)">摘心する</button>`}
+      </div>
+    </div>
+  `;
+  
+  // 子づる行
   const childRows = children.map(c => {
     const isReserve = c.idx === 4;
     const label = isReserve ? `子づる④（予備）` : `子づる${['①','②','③'][c.idx-1]}`;
@@ -4644,40 +4676,87 @@ function renderPassionPruning(plant, tasks, vines) {
             ? `<button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="undoVinePinch('${plant.id}', 'child', ${c.idx})">取消</button>`
             : `<button class="btn btn-small" onclick="markVinePinch('${plant.id}', 'child', ${c.idx})">摘心する</button>`}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;font-size:12px;">
-          ${[
-            { key: 'grandchildren', label: '🌿 孫づる', val: c.grandchildren },
-            { key: 'flowers', label: '🌸 花数', val: c.flowers },
-            { key: 'fruits', label: '🍈 着果', val: c.fruits }
-          ].map(f => `
-            <div style="display:flex;flex-direction:column;align-items:center;background:white;border:1px solid #e5e7eb;border-radius:6px;padding:6px 4px;">
-              <div style="color:var(--text-light);font-size:10px;">${f.label}</div>
-              <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
-                <button onclick="adjustVineCount('${plant.id}', 'child', ${c.idx}, '${f.key}', -1)" style="width:24px;height:24px;border:1px solid #d1d5db;background:white;border-radius:4px;font-size:14px;cursor:pointer;">−</button>
-                <span style="min-width:20px;text-align:center;font-weight:600;">${f.val}</span>
-                <button onclick="adjustVineCount('${plant.id}', 'child', ${c.idx}, '${f.key}', 1)" style="width:24px;height:24px;border:1px solid #d1d5db;background:white;border-radius:4px;font-size:14px;cursor:pointer;">＋</button>
-              </div>
-            </div>
-          `).join('')}
-        </div>
+        ${renderGrandchildrenCounter('child', c.idx, c.grandchildren)}
       </div>
     `;
   }).join('');
   
-  // サマリー
-  const summary = `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px;background:#fef3c7;border-radius:8px;margin-bottom:12px;">
+  // 実カード1枚のレンダラ。ステータスに応じて次のアクションボタンを出し分ける。
+  const renderFruitCard = (f) => {
+    const noteHtml = f.note ? `<div style="font-size:11px;color:var(--text-light);margin-top:2px;">📍 ${f.note}</div>` : '';
+    const dateLine = (() => {
+      const parts = [`🌸 ${dateStr(f.openedAt)} 開花`];
+      if (f.pollinatedAt && f.status !== 'unpollinated') parts.push(`🐝 ${dateStr(f.pollinatedAt)} 授粉`);
+      if (f.pollinatedAt && f.status === 'unpollinated') parts.push(`⏳ ${dateStr(f.pollinatedAt)} 未授粉判定`);
+      if (f.fruitingAt) parts.push(`🍈 ${dateStr(f.fruitingAt)} 着果`);
+      if (f.harvestedAt) parts.push(`🧺 ${dateStr(f.harvestedAt)} 収穫${f.weight != null ? `(${f.weight}g)` : ''}`);
+      if (f.failedAt) parts.push(`❌ ${dateStr(f.failedAt)} 終了`);
+      return parts.join(' → ');
+    })();
+    // 次のアクションボタン
+    let actions = '';
+    if (f.status === 'opened') {
+      actions = `
+        <button class="btn btn-small" style="background:#22c55e;color:white;" onclick="transitionFruitAction('${f.id}','pollinated')">🐝 授粉した</button>
+        <button class="btn btn-small" style="background:#e5e7eb;color:#374151;" onclick="transitionFruitAction('${f.id}','unpollinated')">⏳ 授粉せず</button>
+        <button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="transitionFruitAction('${f.id}','failed')">❌ 落ちた</button>
+      `;
+    } else if (f.status === 'pollinated') {
+      actions = `
+        <button class="btn btn-small" style="background:#22c55e;color:white;" onclick="transitionFruitAction('${f.id}','fruiting')">🍈 着果した</button>
+        <button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="transitionFruitAction('${f.id}','failed')">❌ 落ちた</button>
+      `;
+    } else if (f.status === 'fruiting') {
+      actions = `
+        <button class="btn btn-small" style="background:#22c55e;color:white;" onclick="transitionFruitAction('${f.id}','harvested')">🧺 収穫した</button>
+        <button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="transitionFruitAction('${f.id}','failed')">❌ 落ちた</button>
+      `;
+    }
+    // ステータスの背景色
+    const bgColor = {
+      opened: '#fef3c7',
+      pollinated: '#dbeafe',
+      unpollinated: '#f3f4f6',
+      fruiting: '#dcfce7',
+      failed: '#fee2e2',
+      harvested: '#fae8ff'
+    }[f.status] || '#f9fafb';
+    return `
+      <div style="padding:10px 12px;background:${bgColor};border-radius:8px;margin-bottom:6px;border:1px solid rgba(0,0,0,0.04);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:13px;">${fruitDisplayLabel(f)} ${FRUIT_STATUS_LABELS[f.status] || f.status}</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:2px;line-height:1.5;word-break:break-word;">${dateLine}</div>
+            ${noteHtml}
+          </div>
+          <button onclick="deleteFruit('${f.id}')" title="この実を削除" style="background:transparent;border:none;color:#9ca3af;font-size:14px;cursor:pointer;padding:2px;">🗑️</button>
+        </div>
+        ${actions ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">${actions}</div>` : ''}
+      </div>
+    `;
+  };
+
+  // サマリー（実ベース）
+  const summaryFruit = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;padding:10px;background:#fef3c7;border-radius:8px;margin-bottom:12px;">
       <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--text-light);">🌿 孫づる合計</div>
-        <div style="font-size:18px;font-weight:700;color:#92400e;">${totalGrandchildren}</div>
+        <div style="font-size:10px;color:var(--text-light);">🌸 進行中</div>
+        <div style="font-size:18px;font-weight:700;color:#be185d;">${activeFruits.length}</div>
       </div>
       <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--text-light);">🌸 花合計</div>
-        <div style="font-size:18px;font-weight:700;color:#be185d;">${totalFlowers}</div>
+        <div style="font-size:10px;color:var(--text-light);">🍈 着果中</div>
+        <div style="font-size:18px;font-weight:700;color:#15803d;">${counts.fruiting}</div>
       </div>
       <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--text-light);">🍈 着果合計</div>
-        <div style="font-size:18px;font-weight:700;color:#15803d;">${totalFruits}</div>
+        <div style="font-size:10px;color:var(--text-light);">🧺 収穫</div>
+        <div style="font-size:18px;font-weight:700;color:#a21caf;">${counts.harvested}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:var(--text-light);">🐝 授粉成功率</div>
+        <div style="font-size:18px;font-weight:700;color:${stats.successRate == null ? 'var(--text-light)' : (stats.successRate >= 50 ? '#15803d' : '#b45309')};">
+          ${stats.successRate == null ? '—' : `${stats.successRate}%`}
+        </div>
+        <div style="font-size:9px;color:var(--text-light);">${stats.succeeded}/${stats.succeeded + stats.failed}</div>
       </div>
     </div>
   `;
@@ -4685,10 +4764,12 @@ function renderPassionPruning(plant, tasks, vines) {
   return `
     <div class="card">
       <div class="card-title">🌳 つる管理（パッション）</div>
-      ${summary}
       ${mainRow}
       <div style="font-size:12px;color:var(--text-light);margin:12px 0 8px;">─── 子づる（基本3本＋予備1本）───</div>
       ${childRows}
+      ${totalGrandchildren > 0 ? `
+        <div style="margin-top:8px;font-size:11px;color:var(--text-light);">孫づる合計: ${totalGrandchildren}本</div>
+      ` : ''}
       <div style="font-size:12px;color:var(--text-light);margin-top:8px;line-height:1.6;">
         <b>📋 育成ステップ</b><br>
         ${mainPinched ? '✓' : '□'} 主枝摘心（草丈30cm/支柱頂点）<br>
@@ -4697,6 +4778,32 @@ function renderPassionPruning(plant, tasks, vines) {
         □ 開花〜人工授粉
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-title">🌸 実ごとの記録</div>
+      ${summaryFruit}
+      <button class="btn" style="width:100%;margin-bottom:10px;" onclick="openAddFruitModal('${plant.id}')">＋ 花を登録</button>
+      ${fruits.length === 0 ? `
+        <div class="empty" style="padding:20px 0;">
+          <div class="icon">🌸</div>
+          <div style="font-size:13px;">まだ記録された花はありません</div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:4px;">花が咲いたら「＋ 花を登録」から1輪ずつ記録できます</div>
+        </div>
+      ` : ''}
+      ${activeFruits.length > 0 ? `
+        <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin:8px 0 6px;">進行中 (${activeFruits.length})</div>
+        ${activeFruits.map(renderFruitCard).join('')}
+      ` : ''}
+      ${terminalFruits.length > 0 ? `
+        <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin:12px 0 6px;">完了 (${terminalFruits.length})</div>
+        ${terminalFruits.map(renderFruitCard).join('')}
+      ` : ''}
+      <div style="font-size:11px;color:var(--text-light);margin-top:10px;line-height:1.7;padding:8px;background:#f9fafb;border-radius:6px;">
+        <b>💡 使い方</b><br>
+        花が咲いたら<b>＋花を登録</b>で1輪ずつ追加。授粉したら<b>🐝授粉した</b>、できなかったら<b>⏳授粉せず</b>。後日、着果したら<b>🍈着果した</b>、落ちたら<b>❌落ちた</b>。最後に<b>🧺収穫</b>まで進めます。授粉成功率は「着果+収穫 ÷ 授粉した数」で計算されます。
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title">📐 剪定ガイド（参考図）</div>
       <div class="pruning-guide">${svg}</div>
@@ -4711,8 +4818,9 @@ function renderPassionPruning(plant, tasks, vines) {
     <div class="card">
       <div class="card-title">💡 なぜ摘心が必要？</div>
       <div style="font-size:13px;line-height:1.7;">
-        パッションは<b>主枝・子づるには花がつかず、孫づるに花がつく</b>性質。<br><br>
-        摘心しないと主枝ばかり伸びて実がつきません。摘心することで子づるが出て、子づるをまた摘心すると孫づるが出て、その孫づるに花がつきます。
+        パッションは<b>主枝・子づるには花がつきにくく、孫づるに花がつく</b>性質。<br><br>
+        摘心しないと主枝ばかり伸びて実がつきません。摘心することで子づるが出て、子づるをまた摘心すると孫づるが出て、その孫づるに花がつきます。<br><br>
+        ※ 主枝にもまれに花が咲くことがあります。
       </div>
     </div>
   `;
@@ -4746,6 +4854,7 @@ async function renderHistoryTab(tasks) {
     observation: { icon: '👀', label: '観察' },
     cluster_update: { icon: '🌸', label: '花房状態' },
     vine_update: { icon: '🌿', label: 'つる管理' },
+    fruit_update: { icon: '🌸', label: '実の記録' },
     ginger_fertilizer_course: { icon: '🫚', label: '生姜の追肥方針' }
   };
   
@@ -4807,7 +4916,7 @@ async function renderTasks() {
   const allClustersData = await dbGetAll('clusters');
   const allVinesData = await dbGetAll('vines');
 
-  // タブ状態（'today' or 'tomorrow'）。リロードで今日に戻る軽い状態管理。
+  // タブ状態（'today' or 'tomorrow'）。タスク画面に入り直したら今日にリセットされる（navigate側で）。
   const tabMode = window.tasksTabMode || 'today';
   const isTomorrow = tabMode === 'tomorrow';
 
@@ -4837,7 +4946,7 @@ async function renderTasks() {
   const doneTasks = [];
   const plantById = new Map(plants.map(p => [p.id, p]));
 
-  // 完了・持ち越しの計算は「今日タブ」のみ。明日タブはプレビューなので操作履歴と無関係に推奨だけ出す。
+  // 完了・持ち越しの計算は「今日タブ」のみ。明日タブはプレビューなので、操作履歴と絡めずに推奨だけ出す。
   if (!isTomorrow) {
     // 今日の実施履歴を完了欄の正とする。
     // taskStateだけのdoneは、履歴が無い限り「実施済み」として扱わない。
@@ -4894,9 +5003,7 @@ async function renderTasks() {
 
     doneTasks.sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0));
   } else {
-    // 明日タブ：今日の実施履歴で「明日もう不要」になるものを除外しておく。
-    // 例：今日水やりしたら明日の水やり推奨も出るが、間隔条件で消えるはずなので、追加チェックは最小限。
-    // ここでは推奨/必須をそのまま振り分けるだけ。
+    // 明日タブ：今日の操作状態は紐付けず、純粋に「明日基準の推奨」を振り分けるだけ。
     for (const t of allRecommended) {
       if (t.type === 'must') mustTasks.push(t);
       else recTasks.push(t);
@@ -4920,7 +5027,7 @@ async function renderTasks() {
     </div>
   `;
 
-  // 明日タブはプレビューなので操作ボタンを出さない（明日になってから「完了」操作する想定）。
+  // 明日タブはプレビューなので操作ボタンを出さない（明日になってから今日タブで操作する想定）。
   const renderTaskItemPreview = (t) => `
     <div class="task-item ${t.type}">
       <div class="task-content">
@@ -7170,6 +7277,7 @@ async function getOrCreateVine(plantId, vineType, vineIndex) {
       vineIndex,
       pinchedAt: null,
       grandchildren: 0,
+      // 旧フィールド（後方互換のため残す。新規記録は fruits ストアで行う）
       flowers: 0,
       fruits: 0,
       taskId: null
@@ -7224,6 +7332,9 @@ async function undoVinePinch(plantId, vineType, vineIndex) {
 }
 
 async function adjustVineCount(plantId, vineType, vineIndex, field, delta) {
+  // 新仕様では花の3区分カウンタは廃止。孫づる本数（grandchildren）と旧データ用途のみ残す。
+  // 後方互換: 旧データに残る flowers/fruits/pollinated_* も無理やり呼ばれた場合は受けるが、
+  // UI からは呼ばない設計。
   const v = await getOrCreateVine(plantId, vineType, vineIndex);
   const oldValue = v[field] || 0;
   const newValue = Math.max(0, oldValue + delta);
@@ -7257,6 +7368,91 @@ async function deleteHistoryItem(taskId) {
     }
   }
   if (currentPlantId) await renderPlantDetail(currentPlantId);
+}
+
+// =================================================
+// パッションフルーツ 実ごとの記録 アクション
+// =================================================
+// 実カードの「🐝授粉した」等のボタンから呼ばれる。状態遷移＋必要なら収穫重量を聞く。
+async function transitionFruitAction(fruitId, nextStatus) {
+  let extra = {};
+  if (nextStatus === 'harvested') {
+    // 収穫時は任意で重量を聞く（空欄ならスキップ）
+    const ans = prompt('🧺 収穫しました！重量を記録しますか？\n（g、空欄でスキップ）', '');
+    if (ans === null) return; // キャンセル
+    const w = parseFloat(ans);
+    if (!isNaN(w) && w > 0) extra.weight = w;
+  }
+  await transitionFruit(fruitId, nextStatus, extra);
+  if (currentPlantId) await renderPlantDetail(currentPlantId);
+}
+
+// 「＋花を登録」モーダル。最小入力で素早く登録できることを優先。
+async function openAddFruitModal(plantId) {
+  const modalHtml = `
+    <div id="addFruitModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target.id==='addFruitModal') closeAddFruitModal()">
+      <div style="background:white;border-radius:12px;width:100%;max-width:380px;padding:20px;max-height:90vh;overflow-y:auto;">
+        <div style="font-size:16px;font-weight:700;margin-bottom:14px;">🌸 花を登録</div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">どのつる？（任意）</div>
+          <select id="fruitVineSelect" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
+            <option value="">不明・指定しない</option>
+            <option value="main:1">🌿 主枝</option>
+            <option value="child:1">🌱 子づる①</option>
+            <option value="child:2">🌱 子づる②</option>
+            <option value="child:3">🌱 子づる③</option>
+            <option value="child:4">🌱 子づる④（予備）</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">場所メモ（任意）</div>
+          <input id="fruitNoteInput" type="text" placeholder="例：南側の上から2番目、ハンギング鉢の手前など" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">開花日</div>
+          <input id="fruitOpenedDate" type="date" value="${today()}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
+        </div>
+
+        <div style="font-size:11px;color:var(--text-light);background:#f9fafb;padding:8px;border-radius:6px;margin-bottom:14px;line-height:1.6;">
+          まずは「開花」状態で登録します。授粉や着果は登録後にカードのボタンから記録できます。
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button class="btn" style="flex:1;background:#e5e7eb;color:#374151;" onclick="closeAddFruitModal()">キャンセル</button>
+          <button class="btn" style="flex:2;" onclick="submitAddFruit('${plantId}')">登録</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeAddFruitModal() {
+  const m = document.getElementById('addFruitModal');
+  if (m) m.remove();
+}
+
+async function submitAddFruit(plantId) {
+  const vineSel = document.getElementById('fruitVineSelect').value;
+  const note = document.getElementById('fruitNoteInput').value.trim();
+  const dateStr = document.getElementById('fruitOpenedDate').value;
+  let vineType = null;
+  let vineIndex = null;
+  if (vineSel) {
+    const [t, i] = vineSel.split(':');
+    vineType = t;
+    vineIndex = Number(i);
+  }
+  // 日付はYYYY-MM-DDで来るので、ローカル正午のISO文字列に正規化（時差ズレ防止）。
+  const openedAt = dateStr
+    ? new Date(`${dateStr}T12:00:00`).toISOString()
+    : new Date().toISOString();
+  await createFruit(plantId, { vineType, vineIndex, note, openedAt });
+  closeAddFruitModal();
+  await renderPlantDetail(plantId);
 }
 
 async function addCluster(plantId, segmentNumber, stem) {
@@ -7335,7 +7531,11 @@ function vineIndexLabel(vineType, vineIndex) {
   return `子づる${nums[(vineIndex || 1) - 1] || vineIndex}`;
 }
 function vineFieldLabel(field) {
-  return ({ grandchildren: '孫づる', flowers: '花数', fruits: '着果' })[field] || field;
+  return ({
+    grandchildren: '孫づる',
+    flowers: '花数',
+    fruits: '着果'
+  })[field] || field;
 }
 async function recordVineCountHistory(plantId, vineType, vineIndex, field, oldValue, newValue) {
   if (oldValue === newValue) return;
@@ -7358,6 +7558,195 @@ async function recordGingerCourseHistory(plantId, oldCourse, newCourse) {
     details: { oldCourse, newCourse },
     notes: `${_gingerFertilizerCourseLabel(oldCourse)} → ${_gingerFertilizerCourseLabel(newCourse)}`
   });
+}
+
+// =================================================
+// パッションフルーツ 実ごとの記録（fruits）
+// =================================================
+// ステータス遷移:
+//   opened（開花）→ pollinated（授粉済） / unpollinated（授粉せず）
+//   pollinated → fruiting（着果確認）→ harvested（収穫）
+//   pollinated → failed（落ちた・着果せず）
+//   unpollinated は次に進まない終端状態
+//   failed も終端状態
+// 成功率 = harvested + fruiting の数 ÷ pollinated 全体の数
+//          （未授粉と旧データは分母から除外）
+
+const FRUIT_STATUS_LABELS = {
+  opened: '🌸 開花',
+  pollinated: '🐝 授粉済',
+  unpollinated: '⏳ 未授粉',
+  fruiting: '🍈 着果中',
+  failed: '❌ 落ちた',
+  harvested: '🧺 収穫済'
+};
+
+// このつるの「次の番号」を決める。同じ plantId × vineType × vineIndex のなかで最大+1。
+// つる未指定の場合は plantId 全体で番号付け。
+function nextFruitSequence(allFruits, plantId, vineType, vineIndex) {
+  const scope = allFruits.filter(f =>
+    f.plantId === plantId
+    && (f.vineType || null) === (vineType || null)
+    && (f.vineIndex || null) === (vineIndex || null)
+  );
+  return scope.reduce((m, f) => Math.max(m, f.sequence || 0), 0) + 1;
+}
+
+function fruitDisplayLabel(f) {
+  const vineLabel = f.vineType
+    ? vineIndexLabel(f.vineType, f.vineIndex)
+    : 'つる未指定';
+  return `${vineLabel} #${f.sequence || '?'}`;
+}
+
+async function createFruit(plantId, opts = {}) {
+  const allFruits = await dbGetAll('fruits');
+  const vineType = opts.vineType || null;
+  const vineIndex = opts.vineIndex || null;
+  const now = new Date().toISOString();
+  const fruit = {
+    id: uid(),
+    plantId,
+    vineType,
+    vineIndex,
+    sequence: nextFruitSequence(allFruits, plantId, vineType, vineIndex),
+    status: 'opened',
+    openedAt: opts.openedAt || now,
+    pollinatedAt: null,
+    fruitingAt: null,
+    failedAt: null,
+    harvestedAt: null,
+    note: opts.note || '',
+    photoIds: [],
+    weight: null,
+    createdAt: now
+  };
+  await dbPut('fruits', fruit);
+  await recordTask({
+    plantId,
+    type: 'fruit_update',
+    date: now,
+    details: { fruitId: fruit.id, action: 'created', status: 'opened' },
+    notes: `${fruitDisplayLabel(fruit)}：花を登録`
+  });
+  return fruit;
+}
+
+// ステータス遷移の許可マップ。状態機械を守ることでデータ不整合を防ぐ。
+const FRUIT_TRANSITIONS = {
+  opened: ['pollinated', 'unpollinated', 'failed'],
+  pollinated: ['fruiting', 'failed'],
+  unpollinated: [], // 終端
+  fruiting: ['harvested', 'failed'],
+  failed: [], // 終端
+  harvested: [] // 終端
+};
+
+async function transitionFruit(fruitId, nextStatus, extra = {}) {
+  const fruit = await dbGet('fruits', fruitId);
+  if (!fruit) return null;
+  const allowed = FRUIT_TRANSITIONS[fruit.status] || [];
+  if (!allowed.includes(nextStatus)) {
+    console.warn(`Invalid transition: ${fruit.status} → ${nextStatus}`);
+    return null;
+  }
+  const now = new Date().toISOString();
+  const stampField = ({
+    pollinated: 'pollinatedAt',
+    unpollinated: 'pollinatedAt', // 「授粉せず」もこの日に判断したという意味で同じスロットに記録
+    fruiting: 'fruitingAt',
+    failed: 'failedAt',
+    harvested: 'harvestedAt'
+  })[nextStatus];
+  if (stampField && !fruit[stampField]) fruit[stampField] = now;
+  fruit.status = nextStatus;
+  if (extra.weight != null) fruit.weight = extra.weight;
+  await dbPut('fruits', fruit);
+  await recordTask({
+    plantId: fruit.plantId,
+    type: 'fruit_update',
+    date: now,
+    details: { fruitId: fruit.id, action: 'transition', status: nextStatus },
+    notes: `${fruitDisplayLabel(fruit)}：${FRUIT_STATUS_LABELS[nextStatus] || nextStatus}`
+  });
+  // 既存の generateRecommendedTasks / 履歴サマリは「pollination」タスクを最後の人工授粉として参照する。
+  // 新スキーマでも「pollinated」遷移したときに pollination タスクを併せて記録しておく（後方互換）。
+  if (nextStatus === 'pollinated') {
+    await recordTask({
+      plantId: fruit.plantId,
+      type: 'pollination',
+      date: now,
+      details: { fruitId: fruit.id, vineType: fruit.vineType, vineIndex: fruit.vineIndex },
+      notes: `${fruitDisplayLabel(fruit)}：人工授粉`
+    });
+  }
+  // 収穫時は harvest タスクも残す（収穫サマリ集計などが harvest タスクを見るため）。
+  if (nextStatus === 'harvested') {
+    await recordTask({
+      plantId: fruit.plantId,
+      type: 'harvest',
+      date: now,
+      details: { fruitId: fruit.id, weight: fruit.weight || null },
+      notes: `${fruitDisplayLabel(fruit)}：収穫${fruit.weight != null ? `（${fruit.weight}g）` : ''}`
+    });
+  }
+  return fruit;
+}
+
+async function deleteFruit(fruitId) {
+  const fruit = await dbGet('fruits', fruitId);
+  if (!fruit) return;
+  if (!confirm(`${fruitDisplayLabel(fruit)} を削除しますか？\n（履歴も削除されます）`)) return;
+  await dbDelete('fruits', fruitId);
+  // 関連する fruit_update 履歴も整理
+  const allTasks = await dbGetAll('tasks');
+  const related = allTasks.filter(t => t.type === 'fruit_update' && t.details?.fruitId === fruitId);
+  for (const t of related) {
+    await dbDelete('tasks', t.id);
+  }
+  if (currentPlantId) await renderPlantDetail(currentPlantId);
+}
+
+// 成功率計算用のサマリ。
+//   pollinatedCount: 授粉した花の数（成功/失敗どちらでも、ただし unpollinated は除く）
+//   succeededCount: 結実したか収穫まで進んだ数
+//   failedCount: 授粉したが落ちた数
+//   successRate: succeededCount / pollinatedCount × 100
+function summarizeFruits(fruits) {
+  const counts = { opened: 0, pollinated: 0, unpollinated: 0, fruiting: 0, failed: 0, harvested: 0 };
+  for (const f of fruits) counts[f.status] = (counts[f.status] || 0) + 1;
+  // pollinated（途中）, fruiting, harvested, failed のうち failed 以外が「成功扱い」。
+  // unpollinated と opened（未判断）は分母から除外する。
+  const succeededCount = counts.fruiting + counts.harvested;
+  // failed のうち、過去に pollinated を通った（=pollinatedAt がある）ものだけが「授粉した失敗」。
+  // failedAt はあるが pollinatedAt が無い=opened から直接 failed の場合は授粉してないので分母外。
+  // この区別は呼び出し側で fruits を見て判定する必要があるので、ここでは別ロジックで補正。
+  return { counts, succeededCount };
+}
+
+// より正確な「人工授粉した実」の数。pollinated/fruiting/harvested/failed の4状態が「授粉した」分母。
+// unpollinated は判断日が pollinatedAt スロットに入っているが、分母から除外する。
+function pollinationStats(fruits) {
+  const POLLINATED_STATUSES = new Set(['pollinated', 'fruiting', 'harvested', 'failed']);
+  // failed については「授粉せずに opened から直接 failed に飛ばした」場合は分母外にすべき。
+  // → pollinatedAt の有無で判別する。pollinatedAt 無しの failed は「授粉してない失敗」とみなす。
+  const attempted = fruits.filter(f => {
+    if (!POLLINATED_STATUSES.has(f.status)) return false;
+    if (f.status === 'failed' && !f.pollinatedAt) return false; // 授粉せず終了
+    return true;
+  });
+  const failed = attempted.filter(f => f.status === 'failed');
+  const succeeded = attempted.filter(f => f.status === 'fruiting' || f.status === 'harvested');
+  const inProgress = attempted.filter(f => f.status === 'pollinated');
+  const attempts = attempted.length;
+  const decided = succeeded.length + failed.length;
+  return {
+    attempts,
+    succeeded: succeeded.length,
+    failed: failed.length,
+    inProgress: inProgress.length,
+    successRate: decided > 0 ? Math.round((succeeded.length / decided) * 100) : null
+  };
 }
 
 async function saveCluster(plantId, segmentNumber, stem) {
