@@ -1790,31 +1790,22 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     const cluster1 = myClusters.find(c => c.segmentNumber === 1);
     const cluster3 = myClusters.find(c => c.segmentNumber === 3);
     
-    // 脇芽かき：第1花房が結実したら開始
+    // 脇芽かき：第1花房が結実したタイミングで「開始」のアラートを1回だけ出す。
+    // 継続アラート（3日経過チェック）は出さない：脇芽は見つけ次第サッと取る作業で、
+    // アラートで誘導する性質のものではないため、ユーザー要望でオフ。
     const firstFruiting = cluster1 && (cluster1.status === 'fruiting' || cluster1.status === 'harvesting' || cluster1.status === 'finished');
     const lastSideShoot = lastTasks.find(t => t.type === 'side_shoot_removal');
-    const daysSinceShoot = lastSideShoot ? _days(lastSideShoot.date) : 999;
     
-    if (firstFruiting) {
-      // 開始タイミングに到達してる
-      if (!lastSideShoot) {
-        tasks.push({
-          type: 'must',
-          action: 'side_shoot_removal',
-          title: `✂️ ${displayName}: 脇芽かき開始`,
-          desc: '第1花房が結実、5-10cmの脇芽をかく',
-          plantId: plant.id
-        });
-      } else if (daysSinceShoot >= 3) {
-        tasks.push({
-          type: 'recommended',
-          action: 'side_shoot_removal',
-          title: `✂️ ${displayName}: 脇芽チェック`,
-          desc: `前回から${daysSinceShoot}日経過`,
-          plantId: plant.id
-        });
-      }
-    } else if (days >= 21) {
+    if (firstFruiting && !lastSideShoot) {
+      // 開始タイミング到達 & まだ一度も脇芽かきしてない → 初回の必須アラート
+      tasks.push({
+        type: 'must',
+        action: 'side_shoot_removal',
+        title: `✂️ ${displayName}: 脇芽かき開始`,
+        desc: '第1花房が結実、5-10cmの脇芽をかく',
+        plantId: plant.id
+      });
+    } else if (!firstFruiting && days >= 21) {
       // まだ第1花房が結実してないが3週間以上経ってる場合は確認を促す
       tasks.push({
         type: 'recommended',
@@ -2766,10 +2757,28 @@ async function renderHome() {
   }
   
   // 完了済み・スキップ済みを除外
+  // renderTasks と完全に同じロジックでカウントする：
+  //   - 実作業履歴があり、かつ taskState=done → 完了（カウントしない）
+  //   - taskState=skip → スキップ済（カウントしない）
+  //   - それ以外 → 未完了としてカウント
+  // これにより「ホーム件数 vs タスク画面件数」のズレを防ぐ。
   const todayKey = today();
+  const todayDoneRecords = sortTasksNewestFirst(allTasks)
+    .filter(t => TODAY_DONE_RECORD_TYPES.has(t.type))
+    .filter(t => isTodayRecord(t.date));
+  const doneRecordActionKeys = new Set();
+  todayDoneRecords.forEach(record => {
+    doneRecordActionKeys.add(`${record.plantId}:${record.type}`);
+    if (record.details?.clusterId) doneRecordActionKeys.add(`${record.plantId}:${record.type}:${record.details.clusterId}`);
+  });
   const pendingTasks = allRecommended.filter(t => {
-    const key = `${todayKey}:${t.plantId}:${t.action}`;
-    return !cachedTasksState[key] || cachedTasksState[key].status === 'carryover';
+    const extraTaskKey = t.clusterId || t.details?.clusterId || '';
+    const key = taskStateKey(todayKey, t.plantId, t.action, extraTaskKey);
+    const doneKey = `${t.plantId}:${t.action}${extraTaskKey ? ':' + extraTaskKey : ''}`;
+    const state = cachedTasksState[key];
+    if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) return false;
+    if (state && state.status === 'skip') return false;
+    return true;
   });
   
   // 持ち越しタスクを取得
