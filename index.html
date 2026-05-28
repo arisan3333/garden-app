@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#4ade80">
 <title>🌱 ベランダ菜園</title>
+<!-- PATCH_20260528_NO_FRUIT_BASE_UPLOADED_INDEX -->
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 :root {
@@ -3776,10 +3777,10 @@ function eggplantUnitLabel(unit) {
   return unit.kind === 'M' ? `主${unit.no}` : `側${unit.no}`;
 }
 function eggplantStageLabel(stage) {
-  return ({ idle: '未開始', blooming: '花', fruiting: '実', harvesting: '収穫', cutback: '剪定' })[stage] || '未開始';
+  return ({ idle: '未開始', blooming: '花', fruiting: '実', no_fruit: '不着果', harvesting: '収穫', cutback: '剪定' })[stage] || '未開始';
 }
 function eggplantStageEmoji(stage) {
-  return ({ blooming: '🌸', fruiting: '🍆', harvesting: '🧺', cutback: '✂️' })[stage] || '';
+  return ({ blooming: '🌸', fruiting: '🍆', no_fruit: '🥀', harvesting: '🧺', cutback: '✂️' })[stage] || '';
 }
 function eggplantToneTargetLabel(unit) {
   if (!unit) return '';
@@ -3850,15 +3851,42 @@ async function eggplantUnitTone(plantId) {
   await syncTaskStateOnRecord(plantId, 'tomato_tone', unit.id);
   await renderPlantDetail(plantId);
 }
+async function eggplantUnitNoFruit(plantId) {
+  const all = await dbGetAll('clusters');
+  const units = getEggplantSidebranchUnits(all, plantId);
+  const key = eggplantUnitSelections[plantId] || 'F-1';
+  const unit = units.find(u => u.unitKey === key);
+  if (!unit) return;
+  if (unit.status !== 'blooming') return alert('花の段階で記録します');
+  unit.status = 'no_fruit';
+  unit.currentCycleResult = 'no_fruit';
+  unit.noFruitHistory = unit.noFruitHistory || [];
+  unit.noFruitHistory.push({ date: new Date().toISOString(), cycle: unit.cycle || 1 });
+  await dbPut('clusters', unit);
+  await recordTask({
+    plantId,
+    type: 'no_fruit',
+    date: new Date().toISOString(),
+    details: { cluster: unit.segmentNumber, clusterId: unit.id, unitKey: unit.unitKey, cycle: unit.cycle || 1 },
+    notes: `${eggplantToneTargetLabel(unit)}：花は咲いたが実にならず`
+  });
+  await renderPlantDetail(plantId);
+}
 async function eggplantUnitNextStage(plantId) {
   const all = await dbGetAll('clusters');
   const units = getEggplantSidebranchUnits(all, plantId);
   const key = eggplantUnitSelections[plantId] || 'F-1';
   const unit = units.find(u => u.unitKey === key);
   if (!unit) return;
+  if (unit.status === 'no_fruit') {
+    unit.status = 'cutback';
+    await dbPut('clusters', unit);
+    await renderPlantDetail(plantId);
+    return;
+  }
   const order = ['idle', 'blooming', 'fruiting', 'harvesting', 'cutback'];
   const idx = order.indexOf(unit.status || 'idle');
-  if (idx >= order.length - 1) return alert('これ以上は進めません');
+  if (idx >= order.length - 1 || idx < 0) return alert('これ以上は進めません');
   unit.status = order[idx + 1];
   await dbPut('clusters', unit);
   await renderPlantDetail(plantId);
@@ -3872,10 +3900,11 @@ async function eggplantUnitNextCycle(plantId) {
   if (unit.kind !== 'S') return alert(unit.kind === 'F' ? '一番花はC管理しません' : '主枝果はC管理しません');
   if (unit.status !== 'cutback') return alert('まず剪定まで進めてください');
   unit.cycleHistory = unit.cycleHistory || [];
-  unit.cycleHistory.push({ cycle: unit.cycle || 1, finishedAt: new Date().toISOString(), toneDone: (unit.tomatoToneHistory || []).length > 0 });
+  unit.cycleHistory.push({ cycle: unit.cycle || 1, finishedAt: new Date().toISOString(), toneDone: (unit.tomatoToneHistory || []).length > 0, result: unit.currentCycleResult || 'harvested' });
   unit.cycle = (unit.cycle || 1) + 1;
   unit.status = 'blooming';
   unit.tomatoToneHistory = [];
+  unit.currentCycleResult = null;
   await dbPut('clusters', unit);
   await renderPlantDetail(plantId);
 }
@@ -3886,12 +3915,20 @@ async function eggplantUnitPrevStage(plantId) {
   const key = eggplantUnitSelections[plantId] || 'F-1';
   const unit = units.find(u => u.unitKey === key);
   if (!unit) return;
+  if (unit.status === 'no_fruit') {
+    unit.status = 'blooming';
+    unit.currentCycleResult = null;
+    await dbPut('clusters', unit);
+    await renderPlantDetail(plantId);
+    return;
+  }
   const order = ['idle', 'blooming', 'fruiting', 'harvesting', 'cutback'];
   const idx = order.indexOf(unit.status || 'idle');
   if (idx <= 0) return alert('これ以上は戻せません');
   unit.status = order[idx - 1];
   if (unit.status === 'idle') {
     unit.tomatoToneHistory = [];
+    unit.currentCycleResult = null;
   }
   await dbPut('clusters', unit);
   await renderPlantDetail(plantId);
@@ -3908,6 +3945,8 @@ async function eggplantUnitReset(plantId) {
   unit.status = 'idle';
   unit.tomatoToneHistory = [];
   unit.cycleHistory = [];
+  unit.noFruitHistory = [];
+  unit.currentCycleResult = null;
   await dbPut('clusters', unit);
   await renderPlantDetail(plantId);
 }
@@ -3953,8 +3992,8 @@ function renderEggplantSidebranchManager(plant, clusters = []) {
   });
   const stageText = selected ? `${eggplantStageEmoji(selected.status)} ${eggplantStageLabel(selected.status)}` : '';
   const currentName = selected ? eggplantToneTargetLabel(selected) : '';
-  const nextStageMap = { idle: '🌸 花', blooming: '🍆 実', fruiting: '🧺 収穫', harvesting: '✂️ 剪定', cutback: '次のサイクル開始' };
-  const prevStageMap = { idle: '戻れません', blooming: '未開始', fruiting: '🌸 花', harvesting: '🍆 実', cutback: '🧺 収穫' };
+  const nextStageMap = { idle: '🌸 花', blooming: '🍆 実（だめなら🥀実にならず）', fruiting: '🧺 収穫', no_fruit: '✂️ 剪定', harvesting: '✂️ 剪定', cutback: '次のサイクル開始' };
+  const prevStageMap = { idle: '戻れません', blooming: '未開始', fruiting: '🌸 花', no_fruit: '🌸 花', harvesting: '🍆 実', cutback: '🧺 収穫' };
   const nextStageText = selected ? (nextStageMap[selected.status || 'idle'] || '—') : '—';
   const prevStageText = selected ? (prevStageMap[selected.status || 'idle'] || '—') : '—';
   const selectedHelp = !selected ? '管理単位をタップしてください。' : `
@@ -4004,7 +4043,7 @@ function renderEggplantSidebranchManager(plant, clusters = []) {
           ${svgNodes}
         </svg>
       </div>
-      <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-top:8px;">Cは側枝だけ。オレンジ枠は花で未散布、✓は散布済み。</div>
+      <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-top:8px;">Cは側枝だけ。🥀は不着果、オレンジ枠は花で未散布、✓は散布済み。</div>
     </div>
     <div class="card">
       <div class="card-title">🎯 選択中の管理単位</div>
@@ -4015,6 +4054,7 @@ function renderEggplantSidebranchManager(plant, clusters = []) {
         <button class="btn btn-secondary" style="padding:8px 5px;font-size:12px;border-radius:10px;min-height:0;line-height:1.25;white-space:normal;" onclick="eggplantUnitNextCycle('${plant.id}')">🔁 次のサイクル開始</button>
         <button class="btn btn-secondary" style="padding:8px 5px;font-size:12px;border-radius:10px;min-height:0;line-height:1.25;white-space:normal;" onclick="eggplantUnitPrevStage('${plant.id}')">↩️ 一つ戻る</button>
       </div>
+      ${selected && selected.status === 'blooming' ? `<button class="btn btn-secondary" style="width:100%;margin-top:8px;padding:7px 5px;font-size:12px;border-radius:10px;min-height:0;line-height:1.25;white-space:normal;border-color:#f59e0b;color:#92400e;background:#fff7ed;" onclick="eggplantUnitNoFruit('${plant.id}')">🥀 実にならず</button>` : ''}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${listHtml}</div>
   `;
@@ -7500,7 +7540,7 @@ async function addCluster(plantId, segmentNumber, stem) {
 }
 
 function clusterStatusLabel(status) {
-  return ({ idle: '未開始', blooming: '開花中', fruiting: '結実中', harvesting: '収穫中', cutback: '剪定済み', finished: '終了' })[status] || status || '未設定';
+  return ({ idle: '未開始', blooming: '開花中', fruiting: '結実中', no_fruit: '不着果', harvesting: '収穫中', cutback: '剪定済み', finished: '終了' })[status] || status || '未設定';
 }
 function clusterStemLabel(stem) {
   return stem === 'B' ? '[B枝] ' : '';
@@ -8108,7 +8148,7 @@ async function exportSeasonReviewCSV(seasonOverride = null) {
   const header = [
     'シーズン','株名','種類','仕立て','植え付け日','終了日','栽培日数',
     '総収穫数','初収穫日','初収穫までの日数','最終収穫日','収穫期間日数',
-    '水やり','液肥/リキダス','液肥扱い','リキダスのみ','固形肥料','トマトトーン','人工授粉',
+    '水やり','液肥/リキダス','液肥扱い','リキダスのみ','固形肥料','トマトトーン','不着果','人工授粉',
     '脇芽かき','摘心','下葉かき','更新剪定','暑さ対策','防虫散布','観察','写真枚数',
     '一番花記録','一番果記録','管理単位数','側枝C完了数','メモ'
   ];
@@ -8145,6 +8185,7 @@ async function exportSeasonReviewCSV(seasonOverride = null) {
       myTasks.filter(t => t.type === 'fertilize_liquid' && t.details?.product === 'rikidas').length,
       _taskCount(myTasks, 'fertilize_granular'),
       _taskCount(myTasks, 'tomato_tone'),
+      _taskCount(myTasks, 'no_fruit') + myClusters.filter(c => c.status === 'no_fruit').length,
       _taskCount(myTasks, 'pollination'),
       _taskCount(myTasks, 'side_shoot_removal'),
       _taskCount(myTasks, 'pinching'),
