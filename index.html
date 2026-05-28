@@ -2589,44 +2589,11 @@ async function renderHome() {
 }
 
 async function renderPlants() {
-  let plants = [];
-  try {
-    plants = await dbGetAll('plants');
-  } catch (e) {
-    console.error('renderPlants db error', e);
-  }
-  const activeCount = plants.filter(p => p && p.status === 'active').length;
-  const cards = plants.map(p => {
-    try {
-      const sp = SPECIES[p.species] || { icon: '🌱', name: p.species || '不明', color: '#4ade80' };
-      const phase = getPhase(p);
-      return `
-        <div class="plant-card" onclick="openPlant('${p.id}')" ${p.status !== 'active' ? 'style="opacity:0.5"' : ''}>
-          <div class="plant-icon" style="background:${sp.color}22">${sp.icon}</div>
-          <div class="info">
-            <div class="name">${p.name || sp.name}</div>
-            <div class="meta">Day ${dayDiff(p.plantingDate)} ・ ${phase.name}${p.status !== 'active' ? ' ・ 終了' : ''}</div>
-          </div>
-          <div class="arrow">›</div>
-        </div>
-      `;
-    } catch (e) {
-      console.error('plant card render error', p, e);
-      return `
-        <div class="plant-card" style="opacity:.8">
-          <div class="plant-icon">🌱</div>
-          <div class="info">
-            <div class="name">${p?.name || '表示できない株'}</div>
-            <div class="meta">データ形式を確認してください</div>
-          </div>
-        </div>
-      `;
-    }
-  }).join('');
+  const plants = await dbGetAll('plants');
   const html = `
     <div class="header">
       <h1>🌱 株一覧</h1>
-      <div class="greeting">${activeCount}株 育成中</div>
+      <div class="greeting">${plants.filter(p => p.status === 'active').length}株 育成中</div>
     </div>
     ${plants.length === 0 ? `
       <div class="card empty">
@@ -2635,7 +2602,22 @@ async function renderPlants() {
         <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
       </div>
     ` : `
-      <div class="plant-list">${cards}</div>
+      <div class="plant-list">
+        ${plants.map(p => {
+          const sp = SPECIES[p.species];
+          const phase = getPhase(p);
+          return `
+            <div class="plant-card" onclick="openPlant('${p.id}')" ${p.status !== 'active' ? 'style="opacity:0.5"' : ''}>
+              <div class="plant-icon" style="background:${sp.color}22">${sp.icon}</div>
+              <div class="info">
+                <div class="name">${p.name || sp.name}</div>
+                <div class="meta">Day ${dayDiff(p.plantingDate)} ・ ${phase.name}${p.status !== 'active' ? ' ・ 終了' : ''}</div>
+              </div>
+              <div class="arrow">›</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
       <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
     `}
   `;
@@ -3462,7 +3444,6 @@ async function eggplantUnitNoFruit(plantId) {
   });
   await renderPlantDetail(plantId);
 }
-
 async function eggplantUnitNextStage(plantId) {
   const all = await dbGetAll('clusters');
   const units = getEggplantSidebranchUnits(all, plantId);
@@ -3536,8 +3517,6 @@ async function eggplantUnitReset(plantId) {
   unit.status = 'idle';
   unit.tomatoToneHistory = [];
   unit.cycleHistory = [];
-  unit.noFruitHistory = [];
-  unit.currentCycleResult = null;
   await dbPut('clusters', unit);
   await renderPlantDetail(plantId);
 }
