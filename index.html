@@ -262,6 +262,32 @@ body {
 
 /* Tasks */
 .task-list { display: flex; flex-direction: column; gap: 8px; }
+.tasks-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 4px;
+  margin: 12px 0 8px;
+}
+.tasks-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.tasks-tab.active {
+  background: white;
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
 .task-item {
   background: white;
   border: 1px solid var(--border);
@@ -933,6 +959,216 @@ body {
 .diagnosis-card.weak .title { color:#1d4ed8; }
 .diagnosis-card.ok .title { color:#047857; }
 
+/* === 開花・着果ステッパー === */
+.flower-stepper {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin: 12px 0 16px;
+  position: relative;
+}
+.flower-stepper .step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.flower-stepper .step .dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--text-light);
+  position: relative;
+  z-index: 2;
+}
+.flower-stepper .step.done .dot {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+.flower-stepper .step.current .dot {
+  background: white;
+  border-color: var(--primary);
+  color: var(--primary-dark);
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.2);
+}
+.flower-stepper .step.waiting .dot {
+  background: #fef3c7;
+  border-color: #fbbf24;
+  color: #92400e;
+}
+.flower-stepper .step.alert .dot {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #991b1b;
+  animation: stepperPulse 1.5s ease-in-out infinite;
+}
+@keyframes stepperPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+.flower-stepper .step .label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 4px;
+  text-align: center;
+  line-height: 1.2;
+}
+.flower-stepper .step.pending .label { color: var(--text-light); font-weight: 500; }
+.flower-stepper .step .sublabel {
+  font-size: 10px;
+  color: var(--text-light);
+  margin-top: 2px;
+  text-align: center;
+  line-height: 1.2;
+  min-height: 12px;
+}
+.flower-stepper .step.done .sublabel { color: var(--primary-dark); }
+.flower-stepper .step.waiting .sublabel { color: #92400e; }
+.flower-stepper .step.alert .sublabel { color: #991b1b; font-weight: 600; }
+/* ステップ間の線 */
+.flower-stepper .step::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: -50%;
+  right: 50%;
+  height: 2px;
+  background: var(--border);
+  z-index: 1;
+}
+.flower-stepper .step:first-child::before { display: none; }
+.flower-stepper .step.line-done::before { background: var(--primary); }
+
+/* === 今やること バナー === */
+.now-action {
+  background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 12px 0;
+}
+.now-action.alert {
+  background: linear-gradient(135deg, #fef3c7, #fffbeb);
+  border-left-color: #f59e0b;
+}
+.now-action .now-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.now-action.alert .now-label { color: #92400e; }
+.now-action .now-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.5;
+}
+.now-action .now-sub {
+  font-size: 11px;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+
+/* === infoアイコン + 折りたたみ === */
+.info-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-light);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  margin-left: 6px;
+  vertical-align: middle;
+  font-style: italic;
+}
+.info-toggle:active { background: var(--primary); color: white; }
+.info-panel {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.7;
+  border: 1px solid var(--border);
+}
+.info-panel div { margin: 2px 0; }
+
+/* === 過去記録セクション === */
+.past-records {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.past-records .rec {
+  font-size: 12px;
+  color: var(--text-light);
+  padding: 2px 0;
+}
+.past-records .rec .check { color: var(--primary-dark); font-weight: 600; }
+
+/* === 株づくり記録セクション（折りたたみ） === */
+.stockwork-section {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fafafa;
+}
+.stockwork-section summary {
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.stockwork-section summary::-webkit-details-marker { display: none; }
+.stockwork-section summary::after {
+  content: '▼';
+  font-size: 10px;
+  color: var(--text-light);
+  transition: transform 0.2s;
+}
+.stockwork-section[open] summary::after { transform: rotate(180deg); }
+.stockwork-section .stockwork-body {
+  padding: 0 12px 12px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.6;
+}
+.stockwork-section .stockwork-desc {
+  color: var(--text-light);
+  margin-bottom: 8px;
+}
+.stockwork-section .stockwork-last {
+  background: white;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
 </style>
 </head>
 <body>
@@ -962,7 +1198,7 @@ body {
 // データ管理（IndexedDB）
 // =================================================
 const DB_NAME = 'gardenApp';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 let db;
 let useLocalStorage = false;
 
@@ -1082,6 +1318,12 @@ function openDB() {
         // v3で追加: パッションフルーツのつる管理（主枝・子づる①〜④）
         if (!db.objectStoreNames.contains('vines')) {
           const store = db.createObjectStore('vines', { keyPath: 'id' });
+          store.createIndex('plantId', 'plantId');
+        }
+        // v4で追加: パッションフルーツの実1個ずつの追跡。
+        // 花の開花→授粉→結実→収穫の各ステージをタイムスタンプで持つ。
+        if (!db.objectStoreNames.contains('fruits')) {
+          const store = db.createObjectStore('fruits', { keyPath: 'id' });
           store.createIndex('plantId', 'plantId');
         }
       };
@@ -1338,27 +1580,51 @@ function weatherAlerts(weather) {
 // =================================================
 // 自動レコメンドタスク生成（今日のタスク用）
 // =================================================
-function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vines = [], appSettings = {}) {
+// referenceDate: null=今日基準, 'YYYY-MM-DD'=その日基準で計算（明日タブ用）。
+// 関数内では「基準日−今日」の日数オフセットを dayDiff の結果に足して扱う。
+function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vines = [], appSettings = {}, referenceDate = null) {
+  // 基準日のオフセット日数（今日=0, 明日=1）。
+  const refOffset = referenceDate ? (() => {
+    const [ry, rm, rd] = referenceDate.split('-').map(Number);
+    const ref = new Date(ry, rm - 1, rd);
+    const [ty, tm, td] = today().split('-').map(Number);
+    const tdy = new Date(ty, tm - 1, td);
+    return Math.round((ref - tdy) / (1000 * 60 * 60 * 24));
+  })() : 0;
+  // 基準日からの経過日数。dayDiff(date) は「今日基準」なので、明日基準なら未来側にずれる分を加算する。
+  // 例: 昨日水やり → 今日基準でdayDiff=1。明日(refOffset=1)から見ると2日前なので 1+1=2 が欲しい。
+  const _days = (date) => dayDiff(date) + refOffset;
+  // 基準日の Date オブジェクト（月判定用）。
+  const _refNow = refOffset === 0 ? new Date() : (() => {
+    const [ry, rm, rd] = referenceDate.split('-').map(Number);
+    return new Date(ry, rm - 1, rd);
+  })();
   // 今日のタスク生成では「直近の作業」を多用するため、まず履歴を新しい順に正規化する。
   lastTasks = sortTasksNewestFirst(lastTasks);
   const tasks = [];
-  const days = dayDiff(plant.plantingDate);
+  const days = _days(plant.plantingDate);
   const displayName = plant.name || SPECIES[plant.species].name;
   const lastWatering = lastTasks.find(t => t.type === 'watering');
-  const daysSinceWater = lastWatering ? dayDiff(lastWatering.date) : 999;
+  const daysSinceWater = lastWatering ? _days(lastWatering.date) : 999;
 
   // 高温アラート（南向きベランダ向け）
   // 天気APIの最高気温が33℃以上なら、実際の鉢・床面はさらに熱くなりやすい前提で確認タスクを出す。
+  // 明日基準（refOffset=1）のときは、weather.tomorrowTempMax を「基準日の最高気温」として使う。
+  // 明後日のデータは無いため、明日基準では「翌日警報」は出さない。
   if (weather.success) {
-    const tMax = Number(weather.tempMax || 0);
-    const tomorrowMax = Number(weather.tomorrowTempMax || 0);
+    const tMax = refOffset === 0
+      ? Number(weather.tempMax || 0)
+      : Number(weather.tomorrowTempMax || 0);
+    const tomorrowMax = refOffset === 0 ? Number(weather.tomorrowTempMax || 0) : 0;
     const heatToday = tMax >= 33;
     const extremeHeat = tMax >= 35;
     const heatTomorrow = tomorrowMax >= 35;
     const lastHeat = lastTasks.find(t => t.type === 'heat_protection');
-    const alreadyCheckedToday = lastHeat && dayDiff(lastHeat.date) === 0;
+    const alreadyCheckedToday = lastHeat && _days(lastHeat.date) === 0;
     if ((heatToday || heatTomorrow) && !alreadyCheckedToday) {
-      const tempText = heatToday ? `今日${Math.round(tMax)}℃` : `明日${Math.round(tomorrowMax)}℃`;
+      const todayLabel = refOffset === 0 ? '今日' : '明日';
+      const nextLabel = refOffset === 0 ? '明日' : '明後日';
+      const tempText = heatToday ? `${todayLabel}${Math.round(tMax)}℃` : `${nextLabel}${Math.round(tomorrowMax)}℃`;
       const passionNote = plant.species === 'passion' ? '。高温期は着果しにくいので、開花/落蕾/着果の記録も' : '';
       tasks.push({
         type: extremeHeat ? 'must' : 'recommended',
@@ -1411,7 +1677,11 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     if (days >= 14) waterInterval = 2;
   }
   
-  const noWaterToday = weather.success && weather.precip >= 60;
+  // 基準日が今日なら weather.precip、明日なら weather.tomorrowPrecip を見る。
+  const precipForRef = refOffset === 0
+    ? Number(weather.precip || 0)
+    : Number(weather.tomorrowPrecip || 0);
+  const noWaterToday = weather.success && precipForRef >= 60;
   
   if (daysSinceWater >= waterInterval && !noWaterToday) {
     tasks.push({
@@ -1453,7 +1723,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     } else if (plant.species === 'ginger') {
       // 生姜は方針で分ける。液肥メイン/併用のみハイポ液肥を自動候補にし、開始は草丈15cm/本葉2〜3枚の記録後。
       const course = _gingerFertilizerCourse(plant);
-      const now = new Date();
+      const now = _refNow;
       const afterMidAugust = (now.getMonth() + 1 > 8) || ((now.getMonth() + 1 === 8) && now.getDate() >= 16);
       canFertilize = course !== 'solid' && _gingerStartTriggered(plant, lastTasks) && !afterMidAugust;
     } else {
@@ -1463,8 +1733,8 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     if (canFertilize) {
       const lastLiquid = lastTasks.find(t => _isActualLiquidFertilizerTask(t));
       const lastGranular = lastTasks.find(t => _isLiquidIntervalBlockingGranular(t));
-      const daysSinceLiquid = lastLiquid ? dayDiff(lastLiquid.date) : 999;
-      const daysSinceGranular = lastGranular ? dayDiff(lastGranular.date) : 999;
+      const daysSinceLiquid = lastLiquid ? _days(lastLiquid.date) : 999;
+      const daysSinceGranular = lastGranular ? _days(lastGranular.date) : 999;
       let daysSinceAny = Math.min(daysSinceLiquid, daysSinceGranular);
       let liquidIntervalDays = plant.species === 'ginger' ? GINGER_LIQUID_INTERVAL_DAYS : 7;
       if (plant.species === 'ginger') {
@@ -1520,31 +1790,22 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     const cluster1 = myClusters.find(c => c.segmentNumber === 1);
     const cluster3 = myClusters.find(c => c.segmentNumber === 3);
     
-    // 脇芽かき：第1花房が結実したら開始
+    // 脇芽かき：第1花房が結実したタイミングで「開始」のアラートを1回だけ出す。
+    // 継続アラート（3日経過チェック）は出さない：脇芽は見つけ次第サッと取る作業で、
+    // アラートで誘導する性質のものではないため、ユーザー要望でオフ。
     const firstFruiting = cluster1 && (cluster1.status === 'fruiting' || cluster1.status === 'harvesting' || cluster1.status === 'finished');
     const lastSideShoot = lastTasks.find(t => t.type === 'side_shoot_removal');
-    const daysSinceShoot = lastSideShoot ? dayDiff(lastSideShoot.date) : 999;
     
-    if (firstFruiting) {
-      // 開始タイミングに到達してる
-      if (!lastSideShoot) {
-        tasks.push({
-          type: 'must',
-          action: 'side_shoot_removal',
-          title: `✂️ ${displayName}: 脇芽かき開始`,
-          desc: '第1花房が結実、5-10cmの脇芽をかく',
-          plantId: plant.id
-        });
-      } else if (daysSinceShoot >= 3) {
-        tasks.push({
-          type: 'recommended',
-          action: 'side_shoot_removal',
-          title: `✂️ ${displayName}: 脇芽チェック`,
-          desc: `前回から${daysSinceShoot}日経過`,
-          plantId: plant.id
-        });
-      }
-    } else if (days >= 21) {
+    if (firstFruiting && !lastSideShoot) {
+      // 開始タイミング到達 & まだ一度も脇芽かきしてない → 初回の必須アラート
+      tasks.push({
+        type: 'must',
+        action: 'side_shoot_removal',
+        title: `✂️ ${displayName}: 脇芽かき開始`,
+        desc: '第1花房が結実、5-10cmの脇芽をかく',
+        plantId: plant.id
+      });
+    } else if (!firstFruiting && days >= 21) {
       // まだ第1花房が結実してないが3週間以上経ってる場合は確認を促す
       tasks.push({
         type: 'recommended',
@@ -1646,9 +1907,9 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
   // ナス・ピーマンの一番花・一番果処理
   // plant.firstFlower / plant.firstFruit のステータスでフェーズを管理。
   // - firstFlower 未記録 → 「一番花が咲いていたら記録を」（早期から表示）
-  // - firstFlower 記録済み・handled 未設定 → 「処理（摘む or 残す）を」
+  // - firstFlower 記録済み・handled 未設定 → 「処理（摘む or 実をならせる）を」
   // - firstFruit 未記録 → 「着果したら記録を」
-  // - firstFruit 記録済み・handled 未設定 → 「処理を」
+  // - firstFruit 記録済み → フェーズ完了（処理ステップは廃止。着果記録で全トリガー切替）
   if (['eggplant', 'pepper'].includes(plant.species) && days >= 5) {
     const ff = plant.firstFlower;
     const fr = plant.firstFruit;
@@ -1674,7 +1935,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
       });
     } else if (ff?.handled && !fr?.date) {
       // 一番花処理済み・一番果未着果。開花から平均10〜14日で着果。
-      const daysSinceFlower = dayDiff(ff.date);
+      const daysSinceFlower = _days(ff.date);
       const flowerRemoved = ff.handled === 'removed';
       if (daysSinceFlower >= 7) {
         tasks.push({
@@ -1689,21 +1950,8 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
           plantId: plant.id
         });
       }
-    } else if (fr?.date && !fr.handled) {
-      const flowerRemoved = ff?.handled === 'removed';
-      const fruitDesc = flowerRemoved
-        ? '記録だけ残せばOK（一番花を摘んだ場合は普通に育てて収穫）'
-        : (plant.species === 'pepper'
-          ? '小さいうちに摘果すると株が充実、後の収量UP（概要タブで記録）'
-          : '小さいうちに摘果すると秋まで安定収穫（概要タブで記録）');
-      tasks.push({
-        type: flowerRemoved ? 'recommended' : 'must',
-        action: 'first_fruit',
-        title: `🍆 ${displayName}: ${flowerRemoved ? '着果記録の処理' : '一番果の処理'}`,
-        desc: fruitDesc,
-        plantId: plant.id
-      });
     }
+    // fr.dateが入ったらフェーズ完了。追加タスクなし
   }
 
   // ナスのトマトトーン（開花当日・1花房1回）
@@ -1763,7 +2011,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     }
     // 子づる摘心（主枝摘心から2〜3週間後）
     if (mainPinchedAt) {
-      const daysSinceMainPinch = dayDiff(mainPinchedAt);
+      const daysSinceMainPinch = _days(mainPinchedAt);
       const childVinesPinched = vines.filter(v => v.vineType === 'child' && v.pinchedAt).length;
       const childPinchedLegacy = lastTasks.filter(t => t.type === 'pinching' && t.details?.target === 'child').length;
       // vinesに記録があればそれを優先、なければレガシーカウント
@@ -1782,7 +2030,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     // パッション人工授粉（開花後の毎朝）
     if (days >= 50) {
       const lastPollination = lastTasks.find(t => t.type === 'pollination');
-      const daysSincePollination = lastPollination ? dayDiff(lastPollination.date) : 999;
+      const daysSincePollination = lastPollination ? _days(lastPollination.date) : 999;
       if (daysSincePollination >= 1) {
         tasks.push({
           type: 'recommended',
@@ -1799,7 +2047,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     // ハイポ＋リキダス液肥とは別枠で、液肥間隔はリセットしない。
     if (days >= 30) {
       const lastPk = lastTasks.find(t => _isPassionPhosphorusTask(t));
-      const daysSincePk = lastPk ? dayDiff(lastPk.date) : 999;
+      const daysSincePk = lastPk ? _days(lastPk.date) : 999;
       const interval = lastPk ? _phosphorusIntervalDays(lastPk.details?.fertilizerKind) : 30;
       if (daysSincePk >= interval) {
         const kindText = lastPk ? `${_granularKindLabel(lastPk.details?.fertilizerKind)}の目安${interval}日` : '固形/顆粒は30日、液体資材は14日、緩効性は45日が目安';
@@ -1848,7 +2096,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     if (_gingerStartTriggered(plant, lastTasks)) {
       const topsoils = lastTasks.filter(t => t.type === 'topsoil');
       const lastTopsoil = topsoils[0];
-      const daysSinceTopsoil = lastTopsoil ? dayDiff(lastTopsoil.date) : 999;
+      const daysSinceTopsoil = lastTopsoil ? _days(lastTopsoil.date) : 999;
       if (topsoils.length < 3 && daysSinceTopsoil >= 30) {
         tasks.push({
           type: 'recommended',
@@ -1864,7 +2112,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     {
       const course = _gingerFertilizerCourse(plant);
       const triggered = _gingerStartTriggered(plant, lastTasks);
-      const now = new Date();
+      const now = _refNow;
       const afterMidAugust = (now.getMonth() + 1 > 8) || ((now.getMonth() + 1 === 8) && now.getDate() >= 16);
       if (!triggered && days >= 25 && !afterMidAugust) {
         tasks.push({
@@ -1879,7 +2127,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
         const granularHistory = lastTasks.filter(t => t.type === 'fertilize_granular');
         const granularCount = granularHistory.length;
         const lastGranular = granularHistory[0];
-        const daysSinceGranular = lastGranular ? dayDiff(lastGranular.date) : 999;
+        const daysSinceGranular = lastGranular ? _days(lastGranular.date) : 999;
         if (granularCount === 0 || (granularCount < 3 && daysSinceGranular >= 30)) {
           const nth = granularCount + 1;
           tasks.push({
@@ -1896,7 +2144,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
 
   // パッション越冬準備（11月）
   if (plant.species === 'passion') {
-    const month = new Date().getMonth() + 1;
+    const month = _refNow.getMonth() + 1;
     if (month === 11) {
       const wintered = lastTasks.find(t => t.type === 'mulching' && t.notes?.includes('越冬'));
       if (!wintered) {
@@ -1925,11 +2173,11 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     const sprayHistory = lastTasks.filter(t => t.type === 'pest_spray');
     const sprayCount = sprayHistory.length;
     const lastSpray = sprayHistory[0];
-    const daysSinceSpray = lastSpray ? dayDiff(lastSpray.date) : 999;
+    const daysSinceSpray = lastSpray ? _days(lastSpray.date) : 999;
     
     // 上限到達してたらレコメンドしない
     if (sprayCount < limit) {
-      const today = new Date();
+      const today = _refNow;
       const month = today.getMonth() + 1;
       const date = today.getDate();
       
@@ -1962,7 +2210,7 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
     if (gingerLeafStage) {
       const vinegarHistory = lastTasks.filter(t => t.type === 'vinegar_spray');
       const lastVinegar = vinegarHistory[0];
-      const daysSinceVinegar = lastVinegar ? dayDiff(lastVinegar.date) : 999;
+      const daysSinceVinegar = lastVinegar ? _days(lastVinegar.date) : 999;
       
       // 3日以上経過していれば予防散布をレコメンド（活着以降）
       if (daysSinceVinegar >= 3 && days >= 3) {
@@ -2027,30 +2275,62 @@ function generateUpcomingTasks(plant, lastTasks, vines = []) {
   
   if (sp === 'eggplant') {
     const eFlowerRemoved = plant.firstFlower?.handled === 'removed';
+    const eFF = plant.firstFlower;
     if (!plant.firstFlower?.date) {
       tasks.push({ daysOffset: '随時', label: '🌸 一番花の確認（咲いたら記録）', urgent: false });
     } else if (!plant.firstFlower?.handled) {
       tasks.push({ daysOffset: '今', label: '🌸 一番花の処理を記録', urgent: true });
     } else if (!plant.firstFruit?.date) {
-      tasks.push({ daysOffset: '随時', label: eFlowerRemoved ? '🍆 初めての着果を待つ（着いたら記録）' : '🍆 一番果の確認（着果したら記録）', urgent: false });
-    } else if (!plant.firstFruit?.handled) {
-      tasks.push({ daysOffset: '今', label: '🍆 着果記録を完了（液肥スタート）', urgent: true });
+      // 長期化アラート: 一番花摘除から14日以上経過 + 直近7日に2番花摘花記録なし → アラートで置き換え
+      let longWait = false;
+      if (eFlowerRemoved && eFF?.date) {
+        const dSince = dayDiff(eFF.date);
+        const recent7 = lastTasks.some(t =>
+          t.plantId === plant.id &&
+          t.type === 'first_flower' &&
+          t.details?.event === 'early_flower_removed' &&
+          dayDiff(t.date) <= 7
+        );
+        if (dSince >= 14 && !recent7) longWait = true;
+      }
+      if (longWait) {
+        tasks.push({ daysOffset: '今', label: '🌿 2番花の状況を確認（一番花から14日経過）', urgent: true });
+      } else {
+        tasks.push({ daysOffset: '随時', label: eFlowerRemoved ? '🍆 初めての着果を待つ（着いたら記録）' : '🍆 一番果の確認（着果したら記録）', urgent: false });
+      }
     }
+    // 着果記録あり = フェーズ完了。追加タスクなし（液肥は別ロジックで自動切替）
     if (plant.trainingMethod === 'two_stem' && days < 80) tasks.push({ daysOffset: 80 - days, label: '🌿 更新剪定（秋ナスのため）', urgent: false });
     if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🧺 収穫開始', urgent: false });
   }
-  
+
   if (sp === 'pepper') {
     const pFlowerRemoved = plant.firstFlower?.handled === 'removed';
+    const pFF = plant.firstFlower;
     if (!plant.firstFlower?.date) {
       tasks.push({ daysOffset: '随時', label: '🌸 一番花の確認（咲いたら記録）', urgent: false });
     } else if (!plant.firstFlower?.handled) {
       tasks.push({ daysOffset: '今', label: '🌸 一番花を摘み取る（記録）', urgent: true });
     } else if (!plant.firstFruit?.date) {
-      tasks.push({ daysOffset: '随時', label: pFlowerRemoved ? '🍆 初めての着果を待つ（着いたら記録）' : '🍆 一番果の確認（着果したら記録）', urgent: false });
-    } else if (!plant.firstFruit?.handled) {
-      tasks.push({ daysOffset: '今', label: '🍆 着果記録を完了（液肥スタート）', urgent: true });
+      // 長期化アラート（ピーマン版）
+      let longWait = false;
+      if (pFlowerRemoved && pFF?.date) {
+        const dSince = dayDiff(pFF.date);
+        const recent7 = lastTasks.some(t =>
+          t.plantId === plant.id &&
+          t.type === 'first_flower' &&
+          t.details?.event === 'early_flower_removed' &&
+          dayDiff(t.date) <= 7
+        );
+        if (dSince >= 14 && !recent7) longWait = true;
+      }
+      if (longWait) {
+        tasks.push({ daysOffset: '今', label: '🌿 2番花の状況を確認（一番花から14日経過）', urgent: true });
+      } else {
+        tasks.push({ daysOffset: '随時', label: pFlowerRemoved ? '🍆 初めての着果を待つ（着いたら記録）' : '🍆 一番果の確認（着果したら記録）', urgent: false });
+      }
     }
+    // 着果記録あり = フェーズ完了。追加タスクなし（液肥は別ロジックで自動切替）
     if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🧺 収穫開始', urgent: false });
   }
   
@@ -2171,6 +2451,27 @@ function _fruitVegLiquidFertilizerPlan(plant, lastTasks = []) {
       ...base,
       desc: '結実確認済み。通常の週1液肥へ移行',
       reasonKey: 'fruiting_normal'
+    };
+  }
+
+  // 「株づくり継続中」判定: 直近7日以内に2番花以降の摘花記録があれば、株づくり継続中と明示
+  const recentEarlyRemoval = (lastTasks || []).find(t =>
+    t.plantId === plant.id &&
+    t.type === 'first_flower' &&
+    t.details?.event === 'early_flower_removed' &&
+    dayDiff(t.date) <= 7
+  );
+  if (recentEarlyRemoval && days >= 14) {
+    return {
+      canFertilize: true,
+      strength: 'light',
+      strengthLabel: '薄め',
+      titleLabel: '薄め液肥',
+      dilutionPattern: 'mixed_careful',
+      dilutionLabel: '1000倍',
+      desc: '2番花以降も摘花中。株づくり継続のため1000倍液肥で控えめに',
+      reasonKey: 'stockwork_ongoing',
+      candidate: false
     };
   }
 
@@ -2456,10 +2757,28 @@ async function renderHome() {
   }
   
   // 完了済み・スキップ済みを除外
+  // renderTasks と完全に同じロジックでカウントする：
+  //   - 実作業履歴があり、かつ taskState=done → 完了（カウントしない）
+  //   - taskState=skip → スキップ済（カウントしない）
+  //   - それ以外 → 未完了としてカウント
+  // これにより「ホーム件数 vs タスク画面件数」のズレを防ぐ。
   const todayKey = today();
+  const todayDoneRecords = sortTasksNewestFirst(allTasks)
+    .filter(t => TODAY_DONE_RECORD_TYPES.has(t.type))
+    .filter(t => isTodayRecord(t.date));
+  const doneRecordActionKeys = new Set();
+  todayDoneRecords.forEach(record => {
+    doneRecordActionKeys.add(`${record.plantId}:${record.type}`);
+    if (record.details?.clusterId) doneRecordActionKeys.add(`${record.plantId}:${record.type}:${record.details.clusterId}`);
+  });
   const pendingTasks = allRecommended.filter(t => {
-    const key = `${todayKey}:${t.plantId}:${t.action}`;
-    return !cachedTasksState[key] || cachedTasksState[key].status === 'carryover';
+    const extraTaskKey = t.clusterId || t.details?.clusterId || '';
+    const key = taskStateKey(todayKey, t.plantId, t.action, extraTaskKey);
+    const doneKey = `${t.plantId}:${t.action}${extraTaskKey ? ':' + extraTaskKey : ''}`;
+    const state = cachedTasksState[key];
+    if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) return false;
+    if (state && state.status === 'skip') return false;
+    return true;
   });
   
   // 持ち越しタスクを取得
@@ -2638,12 +2957,13 @@ async function renderPlantDetail(plantId) {
   const tasks = sortTasksNewestFirst((await dbGetAll('tasks')).filter(t => t.plantId === plantId));
   const clusters = (await dbGetAll('clusters')).filter(c => c.plantId === plantId).sort((a,b) => a.segmentNumber - b.segmentNumber);
   const vines = (await dbGetAll('vines')).filter(v => v.plantId === plantId);
+  const fruits = (await dbGetAll('fruits')).filter(f => f.plantId === plantId);
   
   let tabContent = '';
   if (currentTab === 'overview') {
     tabContent = renderOverviewTab(plant, tasks, vines);
   } else if (currentTab === 'pruning') {
-    tabContent = renderPruningTab(plant, clusters, tasks, vines);
+    tabContent = renderPruningTab(plant, clusters, tasks, vines, fruits);
   } else if (currentTab === 'history') {
     tabContent = await renderHistoryTab(tasks);
   } else if (currentTab === 'photos') {
@@ -2770,86 +3090,193 @@ function renderOverviewTab(plant, tasks, vines = []) {
     </div>
     
     ${(() => {
-      // ナス・ピーマンの開花・着果ステータス管理
+      // ナス・ピーマンの開花・着果ステータス管理（3ステップ・ステッパー型UI）
+      // 設計: 液肥/水やり/フェーズ/健康度などのトリガーは全て firstFruit.date のみ。
+      //       着果記録時点で全切り替わるため、着果後の「処理ステップ」は廃止。
       if (!['eggplant', 'pepper'].includes(plant.species)) return '';
       const speciesName = plant.species === 'eggplant' ? 'ナス' : 'ピーマン';
       const ff = plant.firstFlower;  // {date, handled: 'removed'|'kept'} or null
-      const fr = plant.firstFruit;   // {date, handled: 'thinned'|'kept'} or null
-      
-      // 一番花を摘除済みかどうかで step2 の意味が変わる:
-      // - removed: その花からは実ができないので「初めての着果」を待つ
-      // - kept:    その花が結実するのを待つ
+      const fr = plant.firstFruit;   // {date, ...} or null（handledは死にフィールド・参照しない）
+
       const flowerRemoved = ff?.handled === 'removed';
+      const flowerKept = ff?.handled === 'kept';
       const earlyFlowerRemovedRecords = tasks.filter(t =>
         t.type === 'first_flower' && t.details?.event === 'early_flower_removed'
       );
       const todayEarlyFlowerRemoved = earlyFlowerRemovedRecords.some(t => isTodayRecord(t.date));
       const lastEarlyFlowerRemoved = earlyFlowerRemovedRecords[0] || null;
-      const earlyFlowerRemovedStatus = flowerRemoved && earlyFlowerRemovedRecords.length > 0
-        ? `<div style="color:#166534;margin-top:8px;font-size:12px;">✓ <b>2番花以降の摘花記録あり</b>（${lastEarlyFlowerRemoved ? dateStr(lastEarlyFlowerRemoved.date) : ''}${todayEarlyFlowerRemoved ? ' / 本日記録済み' : ''}）</div>`
-        : '';
-      
-      const flowerAction = plant.species === 'pepper'
-        ? '株を充実させるため<b>摘み取る</b>のが基本'
-        : '受粉させて<b>結実を確認</b>（小さいうちに摘果する手もあり）';
-      
-      // 一番果（または初着果）の処理アドバイス
-      const fruitAction = flowerRemoved
-        ? '次の花が咲いて実がついたら記録を。結実前でも摘花済みなら薄め液肥の対象'
-        : (plant.species === 'pepper'
-          ? '小さいうちに<b>摘果して株を充実</b>させると後の収量UP'
-          : '小さいうちに<b>摘果</b>すると秋まで安定して収穫できる');
-      
-      const step1 = ff?.date 
-        ? `<div style="color:#166534;">✓ <b>一番花 開花記録あり</b>（${dateStr(ff.date)}${ff.handled === 'removed' ? ' / 摘除済み' : ff.handled === 'kept' ? ' / 残した' : ''}）</div>`
-        : `<div style="color:#92400e;">⏳ <b>一番花の開花を待っています</b><br><span style="font-size:11px;color:var(--text-light);">咲いたら下のボタンを押してください</span></div>`;
-      
-      // step2 のラベルも状態に応じて変える
-      const step2Label = flowerRemoved ? '初めての着果' : '一番果';
-      const step2 = fr?.date
-        ? `<div style="color:#166534;margin-top:8px;">✓ <b>${step2Label} 記録あり</b>（${dateStr(fr.date)}${fr.handled === 'thinned' ? ' / 摘果済み' : fr.handled === 'kept' ? ' / 残した' : ''}）<br><span style="font-size:11px;color:var(--text-light);">→ 通常液肥へ移行する時期です</span></div>`
-        : ff?.date
-          ? `<div style="color:#92400e;margin-top:8px;">⏳ <b>${step2Label}を待っています</b><br><span style="font-size:11px;color:var(--text-light);">${fruitAction}</span></div>${earlyFlowerRemovedStatus}`
-          : `<div style="color:var(--text-light);margin-top:8px;font-size:12px;">（一番花が咲いてから次へ）</div>`;
-      
-      let buttons = '';
-      if (!ff?.date) {
-        buttons = `<button class="btn btn-small" style="width:100%;margin-top:10px;" onclick="recordFirstFlower('${plant.id}')">🌸 一番花が咲いた</button>`;
-      } else if (!ff.handled) {
-        buttons = `
-          <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.6;">${flowerAction}</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-            <button class="btn btn-small btn-secondary" onclick="setFirstFlowerHandled('${plant.id}','removed')">摘み取った</button>
-            <button class="btn btn-small btn-secondary" onclick="setFirstFlowerHandled('${plant.id}','kept')">残した</button>
-          </div>`;
-      } else if (!fr?.date) {
-        // ボタンラベルも一番花を摘除したかで変える
-        const btnLabel = flowerRemoved ? '🍆 初めての実が着いた' : '🍆 一番果が着いた';
-        const extraFlowerButton = flowerRemoved
-          ? (todayEarlyFlowerRemoved
-            ? `<button class="btn btn-small btn-secondary" style="width:100%;margin-top:8px;opacity:0.65;" disabled>✓ 今日の摘花を記録済み</button>`
-            : `<button class="btn btn-small btn-secondary" style="width:100%;margin-top:8px;" onclick="recordEarlyFlowerRemoved('${plant.id}')">🌸 2番花以降も摘花した</button>`)
-          : '';
-        buttons = `<button class="btn btn-small" style="width:100%;margin-top:10px;" onclick="recordFirstFruit('${plant.id}')">${btnLabel}</button>${extraFlowerButton}`;
-      } else if (!fr.handled) {
-        // 一番花摘除パターンでは「摘果/残す」の判断は不要（株に初めて着いた実をそのまま育てる選択肢が中心）
-        // ただし手動で記録したい人もいるので両ボタン残す
-        buttons = `
-          <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.6;">${flowerRemoved ? 'この実は普通に育てて収穫してOK。記録だけ残しましょう' : fruitAction}</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-            <button class="btn btn-small btn-secondary" onclick="setFirstFruitHandled('${plant.id}','thinned')">摘果した</button>
-            <button class="btn btn-small btn-secondary" onclick="setFirstFruitHandled('${plant.id}','kept')">残した（収穫まで育てる）</button>
-          </div>`;
+
+      // === 長期化アラート判定 ===
+      // 一番花摘除済み・着果未記録・摘除から14日以上経過・直近7日に摘花記録なし
+      let longWaitAlert = false;
+      let daysSinceFlower = 0;
+      if (flowerRemoved && !fr?.date && ff?.date) {
+        daysSinceFlower = dayDiff(ff.date);
+        const recentRemovalWithin7d = earlyFlowerRemovedRecords.some(t => dayDiff(t.date) <= 7);
+        if (daysSinceFlower >= 14 && !recentRemovalWithin7d) longWaitAlert = true;
       }
-      
+
+      // === ステッパー3ステップの状態算出 ===
+      // step1: 開花 / step2: 株づくり / step3: 着果
+      const s1Done = !!ff?.date;
+      const s2Done = !!ff?.handled;
+      const s3Done = !!fr?.date;
+
+      const s1 = {
+        label: '開花',
+        sublabel: s1Done ? dateStr(ff.date) : '─',
+        state: s1Done ? 'done' : 'current'
+      };
+      let s2sub = '─';
+      let s2state = 'pending';
+      if (!s1Done) { s2state = 'pending'; }
+      else if (!s2Done) { s2sub = '判断中'; s2state = 'current'; }
+      else if (flowerRemoved && earlyFlowerRemovedRecords.length > 0 && !s3Done) {
+        s2sub = '継続中'; s2state = 'done';
+      } else if (flowerRemoved) { s2sub = '摘除'; s2state = 'done'; }
+      else if (flowerKept) { s2sub = '実らせ'; s2state = 'done'; }
+      const s2 = { label: '株づくり', sublabel: s2sub, state: s2state };
+
+      let s3sub = '─';
+      let s3state = 'pending';
+      if (!s2Done) { s3state = 'pending'; }
+      else if (s3Done) { s3sub = dateStr(fr.date); s3state = 'done'; }
+      else if (longWaitAlert) { s3sub = '要確認'; s3state = 'alert'; }
+      else { s3sub = '待ち'; s3state = 'waiting'; }
+      const s3 = { label: '着果', sublabel: s3sub, state: s3state };
+
+      const steps = [s1, s2, s3];
+      const stepperHtml = steps.map((st, i) => {
+        const prev = steps[i - 1];
+        const lineDone = i > 0 && prev.state === 'done' ? ' line-done' : '';
+        return `
+          <div class="step ${st.state}${lineDone}">
+            <div class="dot">${st.state === 'done' ? '✓' : st.state === 'alert' ? '!' : i + 1}</div>
+            <div class="label">${st.label}</div>
+            <div class="sublabel">${st.sublabel}</div>
+          </div>`;
+      }).join('');
+
+      // === 今やること バナー ===
+      let nowLabel = '今やること';
+      let nowText = '';
+      let nowSub = '';
+      let nowAlert = false;
+      if (!s1Done) {
+        nowText = '🌸 一番花が咲いたら下のボタンを押す';
+      } else if (!s2Done) {
+        nowText = plant.species === 'pepper'
+          ? '🌸 一番花を摘み取って記録'
+          : '🌸 摘み取るか実をならせるか決める';
+      } else if (!s3Done) {
+        if (longWaitAlert) {
+          nowLabel = '要確認';
+          nowText = '🌿 観察リマインダー（一番花から14日）';
+          nowSub = '2番花の状況を確認してください';
+          nowAlert = true;
+        } else if (flowerRemoved) {
+          nowText = '🍆 次の花が実をつけたら下のボタンを押す';
+          nowSub = `一番花摘除から${daysSinceFlower}日経過（平均10-14日で着果）`;
+        } else {
+          nowText = '🍆 一番果が着果したら下のボタンを押す';
+          const d = ff?.date ? dayDiff(ff.date) : 0;
+          nowSub = `開花から${d}日経過（平均10-14日で着果）`;
+        }
+      } else {
+        // 着果記録済み = 完了
+        nowLabel = '完了';
+        nowText = '✅ 本格期へ移行 — 通常液肥スタート';
+      }
+
+      // === ボタン群 ===
+      let buttons = '';
+      if (!s1Done) {
+        buttons = `<button class="btn btn-small" style="width:100%;margin-top:10px;" onclick="recordFirstFlower('${plant.id}')">🌸 一番花が咲いた</button>`;
+      } else if (!s2Done) {
+        if (plant.species === 'pepper') {
+          // ピーマンは「摘み取った」一択推し → 1ボタン化 + 「その他の選択肢」展開
+          buttons = `
+            <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.6;">株を充実させるため<b>摘み取る</b>のが基本</div>
+            <button class="btn btn-small" style="width:100%;margin-top:8px;" onclick="setFirstFlowerHandled('${plant.id}','removed')">🌸 摘み取った</button>
+            <details style="margin-top:8px;">
+              <summary style="font-size:11px;color:var(--text-light);cursor:pointer;padding:4px 0;">その他の選択肢 ▼</summary>
+              <button class="btn btn-small btn-secondary" style="width:100%;margin-top:6px;" onclick="setFirstFlowerHandled('${plant.id}','kept')">🍆 実をならせる</button>
+            </details>`;
+        } else {
+          // ナスは2択並列
+          buttons = `
+            <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.6;">受粉させて<b>結実を確認</b>（小さいうちに摘果する手もあり）</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+              <button class="btn btn-small btn-secondary" onclick="setFirstFlowerHandled('${plant.id}','removed')">🌸 摘み取った</button>
+              <button class="btn btn-small btn-secondary" onclick="setFirstFlowerHandled('${plant.id}','kept')">🍆 実をならせる</button>
+            </div>`;
+        }
+      } else if (!s3Done) {
+        const btnLabel = flowerRemoved ? '🍆 初めての実が着いた' : '🍆 一番果が着いた';
+        buttons = `<button class="btn btn-small" style="width:100%;margin-top:10px;" onclick="recordFirstFruit('${plant.id}')">${btnLabel}</button>`;
+      }
+      // 着果済みはボタンなし（完了状態）
+
+      // === 過去記録 ===
+      const pastRecords = [];
+      if (ff?.date) {
+        const handledText = ff.handled === 'removed' ? '摘除' : ff.handled === 'kept' ? '実をならせている' : '記録のみ';
+        pastRecords.push(`<div class="rec"><span class="check">✓</span> 一番花 ${dateStr(ff.date)}（${handledText}）</div>`);
+      }
+      if (fr?.date) {
+        pastRecords.push(`<div class="rec"><span class="check">✓</span> 着果 ${dateStr(fr.date)}</div>`);
+      }
+      const pastRecordsHtml = pastRecords.length > 0
+        ? `<div class="past-records">${pastRecords.join('')}</div>`
+        : '';
+
+      // === 株づくり記録セクション（折りたたみ） ===
+      // 一番花を摘除済みで、まだ着果記録がない場合のみ表示
+      let stockworkHtml = '';
+      if (flowerRemoved && !s3Done) {
+        const lastDateStr = lastEarlyFlowerRemoved
+          ? `${dateStr(lastEarlyFlowerRemoved.date)}（${dayDiff(lastEarlyFlowerRemoved.date)}日前）`
+          : '記録なし';
+        const totalCount = earlyFlowerRemovedRecords.length;
+        const btnHtml = todayEarlyFlowerRemoved
+          ? `<button class="btn btn-small btn-secondary" style="width:100%;opacity:0.65;" disabled>✓ 今日の摘花を記録済み</button>`
+          : `<button class="btn btn-small btn-secondary" style="width:100%;" onclick="recordEarlyFlowerRemoved('${plant.id}')">🌸 今日も摘花した</button>`;
+        stockworkHtml = `
+          <details class="stockwork-section"${totalCount > 0 ? ' open' : ''}>
+            <summary>📝 株づくりの記録${totalCount > 0 ? `（${totalCount}回）` : ''}</summary>
+            <div class="stockwork-body">
+              <div class="stockwork-desc">まだ実をつけるには早いと判断した場合、2番花以降も摘んで記録できます。摘花継続中は<b>薄め液肥（1000倍）</b>が推奨されます。</div>
+              ${totalCount > 0 ? `<div class="stockwork-last">直近の摘花：${lastDateStr} / 累計 ${totalCount}回</div>` : ''}
+              ${btnHtml}
+            </div>
+          </details>`;
+      }
+
+      // === infoパネル（タップ展開） ===
+      const infoId = `flower-info-${plant.id}`;
+      const infoHtml = `
+        <button type="button" class="info-toggle" onclick="(function(el){var p=document.getElementById('${infoId}');p.style.display=p.style.display==='block'?'none':'block';})(this)">i</button>
+        <div id="${infoId}" class="info-panel" style="display:none;">
+          <div><b>このフェーズの記録は以下に連動します：</b></div>
+          <div>💧 水やり頻度（ピーマンのみ）</div>
+          <div>🧪 液肥のスタートと濃度</div>
+          <div>📊 フェーズラベルと健康度</div>
+          <div>✅ タスクタブの内容</div>
+          <div>💬 ホーム画面の説明文</div>
+        </div>`;
+
       return `
       <div class="card">
-        <div class="card-title">🌸 ${speciesName}の開花・着果</div>
-        <div style="font-size:13px;line-height:1.7;">
-          ${step1}
-          ${step2}
+        <div class="card-title">🌸 ${speciesName}の開花・着果${infoHtml}</div>
+        <div class="flower-stepper">${stepperHtml}</div>
+        <div class="now-action${nowAlert ? ' alert' : ''}">
+          <div class="now-label">${nowLabel}</div>
+          <div class="now-text">${nowText}</div>
+          ${nowSub ? `<div class="now-sub">${nowSub}</div>` : ''}
         </div>
         ${buttons}
+        ${pastRecordsHtml}
+        ${stockworkHtml}
       </div>
       `;
     })()}
@@ -3053,11 +3480,11 @@ function getQuickActions(plant, tasks = []) {
   return [...common, ...(specific[plant.species] || [])];
 }
 
-function renderPruningTab(plant, clusters, tasks, vines) {
+function renderPruningTab(plant, clusters, tasks, vines, fruits) {
   const sp = plant.species;
   if (sp === 'tomato') return renderTomatoPruning(plant, clusters);
   if (sp === 'eggplant' || sp === 'pepper') return renderEggplantPepperPruning(plant, tasks, clusters);
-  if (sp === 'passion') return renderPassionPruning(plant, tasks, vines || []);
+  if (sp === 'passion') return renderPassionPruning(plant, tasks, vines || [], fruits || []);
   if (sp === 'ginger') return renderGingerGuide(plant, tasks);
   return `<div class="card"><div class="empty"><div class="icon">🌱</div>${SPECIES[sp].name}は剪定不要です</div></div>`;
 }
@@ -4154,29 +4581,42 @@ function getVine(vines, vineType, vineIndex) {
   return vines.find(v => v.vineType === vineType && v.vineIndex === vineIndex);
 }
 
-function renderPassionPruning(plant, tasks, vines) {
+function renderPassionPruning(plant, tasks, vines, fruits) {
   vines = vines || [];
+  fruits = fruits || [];
   // 摘心済み判定：vinesテーブル優先、なければ既存tasksの details.target を後方互換でも見る
   const mainVine = getVine(vines, 'main', 1);
   const mainPinchedLegacy = tasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
   const mainPinched = mainVine?.pinchedAt || mainPinchedLegacy?.date || null;
 
-  // 子づる①〜④
+  // 子づる①〜④（摘心と孫づるカウントのみ）。花の3区分カウンタは廃止。
   const children = [1, 2, 3, 4].map(idx => {
     const v = getVine(vines, 'child', idx);
     return {
       idx,
       vine: v,
       pinchedAt: v?.pinchedAt || null,
-      grandchildren: v?.grandchildren || 0,
-      flowers: v?.flowers || 0,
-      fruits: v?.fruits || 0
+      grandchildren: v?.grandchildren || 0
     };
   });
   const totalGrandchildren = children.reduce((s, c) => s + c.grandchildren, 0);
-  const totalFlowers = children.reduce((s, c) => s + c.flowers, 0);
-  const totalFruits = children.reduce((s, c) => s + c.fruits, 0);
   const childPinchedCount = children.filter(c => c.pinchedAt).length;
+
+  // 実1個ずつのサマリ
+  const stats = pollinationStats(fruits);
+  const counts = { opened: 0, pollinated: 0, unpollinated: 0, fruiting: 0, failed: 0, harvested: 0 };
+  for (const f of fruits) counts[f.status] = (counts[f.status] || 0) + 1;
+  // アクティブな実 = まだ終端でないもの。次のアクションが残っているので上に表示する。
+  const isTerminal = (s) => s === 'unpollinated' || s === 'failed' || s === 'harvested';
+  const activeFruits = fruits.filter(f => !isTerminal(f.status));
+  const terminalFruits = fruits.filter(f => isTerminal(f.status));
+  // ソート: アクティブは「開花日が古い順=放置されてる順」、終端は「最終更新日の新しい順」
+  activeFruits.sort((a, b) => new Date(a.openedAt) - new Date(b.openedAt));
+  terminalFruits.sort((a, b) => {
+    const at = a.harvestedAt || a.failedAt || a.pollinatedAt || a.openedAt;
+    const bt = b.harvestedAt || b.failedAt || b.pollinatedAt || b.openedAt;
+    return new Date(bt) - new Date(at);
+  });
   
   // 主枝=緑、子づる=赤、孫づる=青（主枝と区別）
   const svgInner = `
@@ -4204,21 +4644,33 @@ function renderPassionPruning(plant, tasks, vines) {
   `;
   
   const svg = `<svg viewBox="0 70 300 470" class="pruning-svg">${svgInner}</svg>`;
-  
-  // 主枝行
-  const mainRow = `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:${mainPinched ? '#dcfce7' : '#f9fafb'};border-radius:8px;margin-bottom:8px;">
-      <div>
-        <div style="font-weight:600;font-size:14px;">🌿 主枝</div>
-        ${mainPinched ? `<div style="font-size:11px;color:#166534;">✓ 摘心済 ${dateStr(mainPinched)}</div>` : '<div style="font-size:11px;color:var(--text-light);">草丈30cm/支柱頂点で先端カット</div>'}
-      </div>
-      ${mainPinched
-        ? `<button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="undoVinePinch('${plant.id}', 'main', 1)">取消</button>`
-        : `<button class="btn btn-small" onclick="markVinePinch('${plant.id}', 'main', 1)">摘心する</button>`}
+
+  // 孫づるのカウンタ（残すパート）
+  const renderGrandchildrenCounter = (vineType, vineIndex, val) => `
+    <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;">
+      <span style="color:var(--text-light);">🌿 孫づる本数</span>
+      <button onclick="adjustVineCount('${plant.id}', '${vineType}', ${vineIndex}, 'grandchildren', -1)" style="width:24px;height:24px;border:1px solid #d1d5db;background:white;border-radius:4px;font-size:14px;cursor:pointer;">−</button>
+      <span style="min-width:20px;text-align:center;font-weight:600;">${val}</span>
+      <button onclick="adjustVineCount('${plant.id}', '${vineType}', ${vineIndex}, 'grandchildren', 1)" style="width:24px;height:24px;border:1px solid #d1d5db;background:white;border-radius:4px;font-size:14px;cursor:pointer;">＋</button>
     </div>
   `;
   
-  // 子づる行（①〜③ + ④予備）
+  // 主枝行（摘心のみ。主枝は孫づるが出ない前提でカウンタも省略）
+  const mainRow = `
+    <div style="padding:10px 12px;background:${mainPinched ? '#dcfce7' : '#f9fafb'};border-radius:8px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:600;font-size:14px;">🌿 主枝</div>
+          ${mainPinched ? `<div style="font-size:11px;color:#166534;">✓ 摘心済 ${dateStr(mainPinched)}</div>` : '<div style="font-size:11px;color:var(--text-light);">草丈30cm/支柱頂点で先端カット</div>'}
+        </div>
+        ${mainPinched
+          ? `<button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="undoVinePinch('${plant.id}', 'main', 1)">取消</button>`
+          : `<button class="btn btn-small" onclick="markVinePinch('${plant.id}', 'main', 1)">摘心する</button>`}
+      </div>
+    </div>
+  `;
+  
+  // 子づる行
   const childRows = children.map(c => {
     const isReserve = c.idx === 4;
     const label = isReserve ? `子づる④（予備）` : `子づる${['①','②','③'][c.idx-1]}`;
@@ -4233,40 +4685,87 @@ function renderPassionPruning(plant, tasks, vines) {
             ? `<button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="undoVinePinch('${plant.id}', 'child', ${c.idx})">取消</button>`
             : `<button class="btn btn-small" onclick="markVinePinch('${plant.id}', 'child', ${c.idx})">摘心する</button>`}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;font-size:12px;">
-          ${[
-            { key: 'grandchildren', label: '🌿 孫づる', val: c.grandchildren },
-            { key: 'flowers', label: '🌸 花数', val: c.flowers },
-            { key: 'fruits', label: '🍈 着果', val: c.fruits }
-          ].map(f => `
-            <div style="display:flex;flex-direction:column;align-items:center;background:white;border:1px solid #e5e7eb;border-radius:6px;padding:6px 4px;">
-              <div style="color:var(--text-light);font-size:10px;">${f.label}</div>
-              <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
-                <button onclick="adjustVineCount('${plant.id}', 'child', ${c.idx}, '${f.key}', -1)" style="width:24px;height:24px;border:1px solid #d1d5db;background:white;border-radius:4px;font-size:14px;cursor:pointer;">−</button>
-                <span style="min-width:20px;text-align:center;font-weight:600;">${f.val}</span>
-                <button onclick="adjustVineCount('${plant.id}', 'child', ${c.idx}, '${f.key}', 1)" style="width:24px;height:24px;border:1px solid #d1d5db;background:white;border-radius:4px;font-size:14px;cursor:pointer;">＋</button>
-              </div>
-            </div>
-          `).join('')}
-        </div>
+        ${renderGrandchildrenCounter('child', c.idx, c.grandchildren)}
       </div>
     `;
   }).join('');
   
-  // サマリー
-  const summary = `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px;background:#fef3c7;border-radius:8px;margin-bottom:12px;">
+  // 実カード1枚のレンダラ。ステータスに応じて次のアクションボタンを出し分ける。
+  const renderFruitCard = (f) => {
+    const noteHtml = f.note ? `<div style="font-size:11px;color:var(--text-light);margin-top:2px;">📍 ${f.note}</div>` : '';
+    const dateLine = (() => {
+      const parts = [`🌸 ${dateStr(f.openedAt)} 開花`];
+      if (f.pollinatedAt && f.status !== 'unpollinated') parts.push(`🐝 ${dateStr(f.pollinatedAt)} 授粉`);
+      if (f.pollinatedAt && f.status === 'unpollinated') parts.push(`⏳ ${dateStr(f.pollinatedAt)} 未授粉判定`);
+      if (f.fruitingAt) parts.push(`🍈 ${dateStr(f.fruitingAt)} 着果`);
+      if (f.harvestedAt) parts.push(`🧺 ${dateStr(f.harvestedAt)} 収穫${f.weight != null ? `(${f.weight}g)` : ''}`);
+      if (f.failedAt) parts.push(`❌ ${dateStr(f.failedAt)} 終了`);
+      return parts.join(' → ');
+    })();
+    // 次のアクションボタン
+    let actions = '';
+    if (f.status === 'opened') {
+      actions = `
+        <button class="btn btn-small" style="background:#22c55e;color:white;" onclick="transitionFruitAction('${f.id}','pollinated')">🐝 授粉した</button>
+        <button class="btn btn-small" style="background:#e5e7eb;color:#374151;" onclick="transitionFruitAction('${f.id}','unpollinated')">⏳ 授粉せず</button>
+        <button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="transitionFruitAction('${f.id}','failed')">❌ 落ちた</button>
+      `;
+    } else if (f.status === 'pollinated') {
+      actions = `
+        <button class="btn btn-small" style="background:#22c55e;color:white;" onclick="transitionFruitAction('${f.id}','fruiting')">🍈 着果した</button>
+        <button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="transitionFruitAction('${f.id}','failed')">❌ 落ちた</button>
+      `;
+    } else if (f.status === 'fruiting') {
+      actions = `
+        <button class="btn btn-small" style="background:#22c55e;color:white;" onclick="transitionFruitAction('${f.id}','harvested')">🧺 収穫した</button>
+        <button class="btn btn-small" style="background:#fee2e2;color:#b91c1c;" onclick="transitionFruitAction('${f.id}','failed')">❌ 落ちた</button>
+      `;
+    }
+    // ステータスの背景色
+    const bgColor = {
+      opened: '#fef3c7',
+      pollinated: '#dbeafe',
+      unpollinated: '#f3f4f6',
+      fruiting: '#dcfce7',
+      failed: '#fee2e2',
+      harvested: '#fae8ff'
+    }[f.status] || '#f9fafb';
+    return `
+      <div style="padding:10px 12px;background:${bgColor};border-radius:8px;margin-bottom:6px;border:1px solid rgba(0,0,0,0.04);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:13px;">${fruitDisplayLabel(f)} ${FRUIT_STATUS_LABELS[f.status] || f.status}</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:2px;line-height:1.5;word-break:break-word;">${dateLine}</div>
+            ${noteHtml}
+          </div>
+          <button onclick="deleteFruit('${f.id}')" title="この実を削除" style="background:transparent;border:none;color:#9ca3af;font-size:14px;cursor:pointer;padding:2px;">🗑️</button>
+        </div>
+        ${actions ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">${actions}</div>` : ''}
+      </div>
+    `;
+  };
+
+  // サマリー（実ベース）
+  const summaryFruit = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;padding:10px;background:#fef3c7;border-radius:8px;margin-bottom:12px;">
       <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--text-light);">🌿 孫づる合計</div>
-        <div style="font-size:18px;font-weight:700;color:#92400e;">${totalGrandchildren}</div>
+        <div style="font-size:10px;color:var(--text-light);">🌸 進行中</div>
+        <div style="font-size:18px;font-weight:700;color:#be185d;">${activeFruits.length}</div>
       </div>
       <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--text-light);">🌸 花合計</div>
-        <div style="font-size:18px;font-weight:700;color:#be185d;">${totalFlowers}</div>
+        <div style="font-size:10px;color:var(--text-light);">🍈 着果中</div>
+        <div style="font-size:18px;font-weight:700;color:#15803d;">${counts.fruiting}</div>
       </div>
       <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--text-light);">🍈 着果合計</div>
-        <div style="font-size:18px;font-weight:700;color:#15803d;">${totalFruits}</div>
+        <div style="font-size:10px;color:var(--text-light);">🧺 収穫</div>
+        <div style="font-size:18px;font-weight:700;color:#a21caf;">${counts.harvested}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:var(--text-light);">🐝 授粉成功率</div>
+        <div style="font-size:18px;font-weight:700;color:${stats.successRate == null ? 'var(--text-light)' : (stats.successRate >= 50 ? '#15803d' : '#b45309')};">
+          ${stats.successRate == null ? '—' : `${stats.successRate}%`}
+        </div>
+        <div style="font-size:9px;color:var(--text-light);">${stats.succeeded}/${stats.succeeded + stats.failed}</div>
       </div>
     </div>
   `;
@@ -4274,10 +4773,12 @@ function renderPassionPruning(plant, tasks, vines) {
   return `
     <div class="card">
       <div class="card-title">🌳 つる管理（パッション）</div>
-      ${summary}
       ${mainRow}
       <div style="font-size:12px;color:var(--text-light);margin:12px 0 8px;">─── 子づる（基本3本＋予備1本）───</div>
       ${childRows}
+      ${totalGrandchildren > 0 ? `
+        <div style="margin-top:8px;font-size:11px;color:var(--text-light);">孫づる合計: ${totalGrandchildren}本</div>
+      ` : ''}
       <div style="font-size:12px;color:var(--text-light);margin-top:8px;line-height:1.6;">
         <b>📋 育成ステップ</b><br>
         ${mainPinched ? '✓' : '□'} 主枝摘心（草丈30cm/支柱頂点）<br>
@@ -4286,6 +4787,32 @@ function renderPassionPruning(plant, tasks, vines) {
         □ 開花〜人工授粉
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-title">🌸 実ごとの記録</div>
+      ${summaryFruit}
+      <button class="btn" style="width:100%;margin-bottom:10px;" onclick="openAddFruitModal('${plant.id}')">＋ 花を登録</button>
+      ${fruits.length === 0 ? `
+        <div class="empty" style="padding:20px 0;">
+          <div class="icon">🌸</div>
+          <div style="font-size:13px;">まだ記録された花はありません</div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:4px;">花が咲いたら「＋ 花を登録」から1輪ずつ記録できます</div>
+        </div>
+      ` : ''}
+      ${activeFruits.length > 0 ? `
+        <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin:8px 0 6px;">進行中 (${activeFruits.length})</div>
+        ${activeFruits.map(renderFruitCard).join('')}
+      ` : ''}
+      ${terminalFruits.length > 0 ? `
+        <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin:12px 0 6px;">完了 (${terminalFruits.length})</div>
+        ${terminalFruits.map(renderFruitCard).join('')}
+      ` : ''}
+      <div style="font-size:11px;color:var(--text-light);margin-top:10px;line-height:1.7;padding:8px;background:#f9fafb;border-radius:6px;">
+        <b>💡 使い方</b><br>
+        花が咲いたら<b>＋花を登録</b>で1輪ずつ追加。授粉したら<b>🐝授粉した</b>、できなかったら<b>⏳授粉せず</b>。後日、着果したら<b>🍈着果した</b>、落ちたら<b>❌落ちた</b>。最後に<b>🧺収穫</b>まで進めます。授粉成功率は「着果+収穫 ÷ 授粉した数」で計算されます。
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title">📐 剪定ガイド（参考図）</div>
       <div class="pruning-guide">${svg}</div>
@@ -4300,8 +4827,9 @@ function renderPassionPruning(plant, tasks, vines) {
     <div class="card">
       <div class="card-title">💡 なぜ摘心が必要？</div>
       <div style="font-size:13px;line-height:1.7;">
-        パッションは<b>主枝・子づるには花がつかず、孫づるに花がつく</b>性質。<br><br>
-        摘心しないと主枝ばかり伸びて実がつきません。摘心することで子づるが出て、子づるをまた摘心すると孫づるが出て、その孫づるに花がつきます。
+        パッションは<b>主枝・子づるには花がつきにくく、孫づるに花がつく</b>性質。<br><br>
+        摘心しないと主枝ばかり伸びて実がつきません。摘心することで子づるが出て、子づるをまた摘心すると孫づるが出て、その孫づるに花がつきます。<br><br>
+        ※ 主枝にもまれに花が咲くことがあります。
       </div>
     </div>
   `;
@@ -4335,6 +4863,7 @@ async function renderHistoryTab(tasks) {
     observation: { icon: '👀', label: '観察' },
     cluster_update: { icon: '🌸', label: '花房状態' },
     vine_update: { icon: '🌿', label: 'つる管理' },
+    fruit_update: { icon: '🌸', label: '実の記録' },
     ginger_fertilizer_course: { icon: '🫚', label: '生姜の追肥方針' }
   };
   
@@ -4395,11 +4924,27 @@ async function renderTasks() {
   
   const allClustersData = await dbGetAll('clusters');
   const allVinesData = await dbGetAll('vines');
+
+  // タブ状態（'today' or 'tomorrow'）。タスク画面に入り直したら今日にリセットされる（navigate側で）。
+  const tabMode = window.tasksTabMode || 'today';
+  const isTomorrow = tabMode === 'tomorrow';
+
+  // 明日タブのときは generateRecommendedTasks に referenceDate を渡す。
+  const tomorrowKey = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  })();
+  const refDate = isTomorrow ? tomorrowKey : null;
+  
   let allRecommended = [];
   for (const plant of plants) {
     const plantTasks = sortTasksNewestFirst(allTasks.filter(t => t.plantId === plant.id));
     const plantVines = allVinesData.filter(v => v.plantId === plant.id);
-    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines, appSettings);
+    const recommended = generateRecommendedTasks(plant, plantTasks, cachedWeather, allClustersData, plantVines, appSettings, refDate);
     allRecommended = allRecommended.concat(recommended);
   }
   
@@ -4409,61 +4954,70 @@ async function renderTasks() {
   const carryoverTasks = [];
   const doneTasks = [];
   const plantById = new Map(plants.map(p => [p.id, p]));
-  
-  // 今日の実施履歴を完了欄の正とする。
-  // taskStateだけのdoneは、履歴が無い限り「実施済み」として扱わない。
-  const todayDoneRecords = sortTasksNewestFirst(allTasks)
-    .filter(t => plantById.has(t.plantId))
-    .filter(t => TODAY_DONE_RECORD_TYPES.has(t.type))
-    .filter(t => isTodayRecord(t.date));
-  const doneRecordActionKeys = new Set();
-  todayDoneRecords.forEach(record => {
-    doneRecordActionKeys.add(`${record.plantId}:${record.type}`);
-    if (record.details?.clusterId) doneRecordActionKeys.add(`${record.plantId}:${record.type}:${record.details.clusterId}`);
-  });
-  
-  // 持ち越しを取得
-  Object.entries(cachedTasksState).forEach(([key, state]) => {
-    if (state.status === 'carryover' && state.targetDate === todayKey) {
-      // 液肥系は直近7日以内に液肥/固形肥料を実施済みなら、持ち越し表示もしない。
-      // これにより、昨日の液肥タスクを持ち越した後にホーム調合で記録した場合などの重複アラートを防ぐ。
-      if (state.task?.action === 'fertilize_liquid') {
-        const plantHistory = sortTasksNewestFirst(allTasks.filter(t => t.plantId === state.task.plantId));
-        const recentLiquid = plantHistory.find(t => _isActualLiquidFertilizerTask(t));
-        const recentGranular = plantHistory.find(t => _isLiquidIntervalBlockingGranular(t));
-        const daysSinceRecent = Math.min(
-          recentLiquid ? dayDiff(recentLiquid.date) : 999,
-          recentGranular ? dayDiff(recentGranular.date) : 999
-        );
-        if (daysSinceRecent < 7) return;
+
+  // 完了・持ち越しの計算は「今日タブ」のみ。明日タブはプレビューなので、操作履歴と絡めずに推奨だけ出す。
+  if (!isTomorrow) {
+    // 今日の実施履歴を完了欄の正とする。
+    // taskStateだけのdoneは、履歴が無い限り「実施済み」として扱わない。
+    const todayDoneRecords = sortTasksNewestFirst(allTasks)
+      .filter(t => plantById.has(t.plantId))
+      .filter(t => TODAY_DONE_RECORD_TYPES.has(t.type))
+      .filter(t => isTodayRecord(t.date));
+    const doneRecordActionKeys = new Set();
+    todayDoneRecords.forEach(record => {
+      doneRecordActionKeys.add(`${record.plantId}:${record.type}`);
+      if (record.details?.clusterId) doneRecordActionKeys.add(`${record.plantId}:${record.type}:${record.details.clusterId}`);
+    });
+
+    // 持ち越しを取得
+    Object.entries(cachedTasksState).forEach(([key, state]) => {
+      if (state.status === 'carryover' && state.targetDate === todayKey) {
+        // 液肥系は直近7日以内に液肥/固形肥料を実施済みなら、持ち越し表示もしない。
+        // これにより、昨日の液肥タスクを持ち越した後にホーム調合で記録した場合などの重複アラートを防ぐ。
+        if (state.task?.action === 'fertilize_liquid') {
+          const plantHistory = sortTasksNewestFirst(allTasks.filter(t => t.plantId === state.task.plantId));
+          const recentLiquid = plantHistory.find(t => _isActualLiquidFertilizerTask(t));
+          const recentGranular = plantHistory.find(t => _isLiquidIntervalBlockingGranular(t));
+          const daysSinceRecent = Math.min(
+            recentLiquid ? dayDiff(recentLiquid.date) : 999,
+            recentGranular ? dayDiff(recentGranular.date) : 999
+          );
+          if (daysSinceRecent < 7) return;
+        }
+        carryoverTasks.push({ ...state.task, taskKey: key, isCarryover: true });
       }
-      carryoverTasks.push({ ...state.task, taskKey: key, isCarryover: true });
+    });
+
+    for (const t of allRecommended) {
+      const extraTaskKey = t.clusterId || t.details?.clusterId || '';
+      const key = taskStateKey(todayKey, t.plantId, t.action, extraTaskKey);
+      const doneKey = `${t.plantId}:${t.action}${extraTaskKey ? ':' + extraTaskKey : ''}`;
+      const state = cachedTasksState[key];
+      if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) {
+        // 実作業履歴がある完了は、後段の「今日の記録」から表示する。
+      } else if (state && state.status === 'skip') {
+        // skip skip
+      } else {
+        const taskWithKey = { ...t, taskKey: key };
+        if (t.type === 'must') mustTasks.push(taskWithKey);
+        else recTasks.push(taskWithKey);
+      }
     }
-  });
-  
-  for (const t of allRecommended) {
-    const extraTaskKey = t.clusterId || t.details?.clusterId || '';
-    const key = taskStateKey(todayKey, t.plantId, t.action, extraTaskKey);
-    const doneKey = `${t.plantId}:${t.action}${extraTaskKey ? ':' + extraTaskKey : ''}`;
-    const state = cachedTasksState[key];
-    if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) {
-      // 実作業履歴がある完了は、後段の「今日の記録」から表示する。
-    } else if (state && state.status === 'skip') {
-      // skip skip
-    } else {
-      const taskWithKey = { ...t, taskKey: key };
-      if (t.type === 'must') mustTasks.push(taskWithKey);
-      else recTasks.push(taskWithKey);
+
+    // 今日の実施履歴を完了欄に出す。
+    // 水やり等は記録した瞬間に「推奨条件」から外れるため、tasks履歴そのものを正とする。
+    todayDoneRecords.forEach(record => {
+      doneTasks.push(makeDoneTaskFromRecord(record, plantById.get(record.plantId)));
+    });
+
+    doneTasks.sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0));
+  } else {
+    // 明日タブ：今日の操作状態は紐付けず、純粋に「明日基準の推奨」を振り分けるだけ。
+    for (const t of allRecommended) {
+      if (t.type === 'must') mustTasks.push(t);
+      else recTasks.push(t);
     }
   }
-  
-  // 今日の実施履歴を完了欄に出す。
-  // 水やり等は記録した瞬間に「推奨条件」から外れるため、tasks履歴そのものを正とする。
-  todayDoneRecords.forEach(record => {
-    doneTasks.push(makeDoneTaskFromRecord(record, plantById.get(record.plantId)));
-  });
-  
-  doneTasks.sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0));
   
   const renderTaskItem = (t) => `
     <div class="task-item ${t.isCarryover ? 'carryover' : t.type}">
@@ -4481,7 +5035,17 @@ async function renderTasks() {
       </div>
     </div>
   `;
-  
+
+  // 明日タブはプレビューなので操作ボタンを出さない（明日になってから今日タブで操作する想定）。
+  const renderTaskItemPreview = (t) => `
+    <div class="task-item ${t.type}">
+      <div class="task-content">
+        <div class="task-title">${t.title}</div>
+        <div class="task-desc">${t.desc}</div>
+      </div>
+    </div>
+  `;
+
   const renderDone = (t) => `
     <div class="task-item done">
       <div class="task-content">
@@ -4490,24 +5054,71 @@ async function renderTasks() {
       </div>
     </div>
   `;
+
+  const itemRenderer = isTomorrow ? renderTaskItemPreview : renderTaskItem;
+
+  const headerDate = isTomorrow
+    ? (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return d.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+      })()
+    : new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+
+  // 明日タブ用の天気サマリ（あれば）。
+  let tomorrowWeatherHtml = '';
+  if (isTomorrow && cachedWeather?.success) {
+    const tMax = Math.round(Number(cachedWeather.tomorrowTempMax || 0));
+    const tMin = cachedWeather.tomorrowTempMin != null ? Math.round(Number(cachedWeather.tomorrowTempMin)) : null;
+    const precip = Number(cachedWeather.tomorrowPrecip || 0);
+    const wind = Number(cachedWeather.tomorrowWind || 0);
+    const parts = [];
+    if (tMax) parts.push(`最高${tMax}℃${tMin != null ? ` / 最低${tMin}℃` : ''}`);
+    if (precip) parts.push(`降水確率${Math.round(precip)}%`);
+    if (wind) parts.push(`最大風速${Math.round(wind)}km/h`);
+    if (parts.length) {
+      tomorrowWeatherHtml = `
+        <div class="card" style="background:#eff6ff;border-left:4px solid var(--info);font-size:13px;line-height:1.7;">
+          🌤 ${parts.join(' ・ ')}
+        </div>
+      `;
+    }
+  }
+
+  const tabsHtml = `
+    <div class="tasks-tabs">
+      <button class="tasks-tab ${!isTomorrow ? 'active' : ''}" onclick="switchTasksTab('today')">📅 今日</button>
+      <button class="tasks-tab ${isTomorrow ? 'active' : ''}" onclick="switchTasksTab('tomorrow')">🔮 明日</button>
+    </div>
+  `;
+
+  const previewNote = isTomorrow ? `
+    <div style="font-size:12px;color:var(--text-light);margin:4px 0 8px;line-height:1.6;">
+      ※ 明日の予定はプレビューです。実際の操作は明日になってから「今日」タブで行ってください。
+    </div>
+  ` : '';
   
   const html = `
     <div class="header">
-      <h1>✅ 今日のタスク</h1>
-      <div class="greeting">${new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}</div>
+      <h1>✅ ${isTomorrow ? '明日のタスク' : '今日のタスク'}</h1>
+      <div class="greeting">${headerDate}</div>
     </div>
+
+    ${tabsHtml}
+    ${previewNote}
+    ${tomorrowWeatherHtml}
     
     ${mustTasks.length === 0 && recTasks.length === 0 && carryoverTasks.length === 0 ? `
       <div class="card empty">
-        <div class="icon">🎉</div>
-        <div>今日のタスクは完了です！</div>
+        <div class="icon">${isTomorrow ? '🌱' : '🎉'}</div>
+        <div>${isTomorrow ? '明日の予定タスクはなさそうです' : '今日のタスクは完了です！'}</div>
       </div>
     ` : ''}
     
     ${mustTasks.length > 0 ? `
       <div class="section-header">🔴 必須 (${mustTasks.length})</div>
       <div class="task-list">
-        ${mustTasks.map(renderTaskItem).join('')}
+        ${mustTasks.map(itemRenderer).join('')}
       </div>
     ` : ''}
     
@@ -4521,7 +5132,7 @@ async function renderTasks() {
     ${recTasks.length > 0 ? `
       <div class="section-header">🔵 推奨 (${recTasks.length})</div>
       <div class="task-list">
-        ${recTasks.map(renderTaskItem).join('')}
+        ${recTasks.map(itemRenderer).join('')}
       </div>
     ` : ''}
     
@@ -4533,6 +5144,12 @@ async function renderTasks() {
     ` : ''}
   `;
   document.getElementById('app').innerHTML = html;
+}
+
+// 今日/明日タブの切り替え
+function switchTasksTab(mode) {
+  window.tasksTabMode = mode;
+  renderTasks();
 }
 
 async function renderSettings() {
@@ -4630,7 +5247,12 @@ async function navigate(screen) {
   });
   if (screen === 'home') await renderHome();
   else if (screen === 'plants') await renderPlants();
-  else if (screen === 'tasks') await renderTasks();
+  else if (screen === 'tasks') {
+    // タスク画面を開き直したときは「今日」タブから始めるのが直感的。
+    // タブ内での切り替えは switchTasksTab で別途維持される。
+    window.tasksTabMode = 'today';
+    await renderTasks();
+  }
   else if (screen === 'settings') await renderSettings();
   else if (screen === 'harvest') await renderHarvestStats('week');
   else if (screen === 'feedback') await renderSeasonFeedback();
@@ -4963,29 +5585,16 @@ async function recordEarlyFlowerRemoved(plantId) {
 
 async function recordFirstFruit(plantId) {
   const plant = await dbGet('plants', plantId);
-  plant.firstFruit = { date: new Date().toISOString(), handled: null };
+  // 着果記録のみで全トリガー（液肥/水やり/フェーズ/健康度）が切り替わる。
+  // handledフィールドは旧UIの名残（参照されていない）。互換のためkept固定で記録。
+  plant.firstFruit = { date: new Date().toISOString(), handled: 'kept' };
   await dbPut('plants', plant);
   await recordTask({
     plantId,
     type: 'first_fruit',
     date: new Date().toISOString(),
     details: { event: 'fruited' },
-    notes: '一番果 着果'
-  });
-  await renderPlantDetail(plantId);
-}
-
-async function setFirstFruitHandled(plantId, handled) {
-  const plant = await dbGet('plants', plantId);
-  if (!plant.firstFruit) plant.firstFruit = { date: new Date().toISOString() };
-  plant.firstFruit.handled = handled;
-  await dbPut('plants', plant);
-  await recordTask({
-    plantId,
-    type: 'first_fruit',
-    date: new Date().toISOString(),
-    details: { event: 'handled', handled },
-    notes: handled === 'thinned' ? '一番果 摘果' : '一番果 残した'
+    notes: '初着果'
   });
   await renderPlantDetail(plantId);
 }
@@ -6677,6 +7286,7 @@ async function getOrCreateVine(plantId, vineType, vineIndex) {
       vineIndex,
       pinchedAt: null,
       grandchildren: 0,
+      // 旧フィールド（後方互換のため残す。新規記録は fruits ストアで行う）
       flowers: 0,
       fruits: 0,
       taskId: null
@@ -6731,6 +7341,9 @@ async function undoVinePinch(plantId, vineType, vineIndex) {
 }
 
 async function adjustVineCount(plantId, vineType, vineIndex, field, delta) {
+  // 新仕様では花の3区分カウンタは廃止。孫づる本数（grandchildren）と旧データ用途のみ残す。
+  // 後方互換: 旧データに残る flowers/fruits/pollinated_* も無理やり呼ばれた場合は受けるが、
+  // UI からは呼ばない設計。
   const v = await getOrCreateVine(plantId, vineType, vineIndex);
   const oldValue = v[field] || 0;
   const newValue = Math.max(0, oldValue + delta);
@@ -6764,6 +7377,91 @@ async function deleteHistoryItem(taskId) {
     }
   }
   if (currentPlantId) await renderPlantDetail(currentPlantId);
+}
+
+// =================================================
+// パッションフルーツ 実ごとの記録 アクション
+// =================================================
+// 実カードの「🐝授粉した」等のボタンから呼ばれる。状態遷移＋必要なら収穫重量を聞く。
+async function transitionFruitAction(fruitId, nextStatus) {
+  let extra = {};
+  if (nextStatus === 'harvested') {
+    // 収穫時は任意で重量を聞く（空欄ならスキップ）
+    const ans = prompt('🧺 収穫しました！重量を記録しますか？\n（g、空欄でスキップ）', '');
+    if (ans === null) return; // キャンセル
+    const w = parseFloat(ans);
+    if (!isNaN(w) && w > 0) extra.weight = w;
+  }
+  await transitionFruit(fruitId, nextStatus, extra);
+  if (currentPlantId) await renderPlantDetail(currentPlantId);
+}
+
+// 「＋花を登録」モーダル。最小入力で素早く登録できることを優先。
+async function openAddFruitModal(plantId) {
+  const modalHtml = `
+    <div id="addFruitModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target.id==='addFruitModal') closeAddFruitModal()">
+      <div style="background:white;border-radius:12px;width:100%;max-width:380px;padding:20px;max-height:90vh;overflow-y:auto;">
+        <div style="font-size:16px;font-weight:700;margin-bottom:14px;">🌸 花を登録</div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">どのつる？（任意）</div>
+          <select id="fruitVineSelect" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
+            <option value="">不明・指定しない</option>
+            <option value="main:1">🌿 主枝</option>
+            <option value="child:1">🌱 子づる①</option>
+            <option value="child:2">🌱 子づる②</option>
+            <option value="child:3">🌱 子づる③</option>
+            <option value="child:4">🌱 子づる④（予備）</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">場所メモ（任意）</div>
+          <input id="fruitNoteInput" type="text" placeholder="例：南側の上から2番目、ハンギング鉢の手前など" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">開花日</div>
+          <input id="fruitOpenedDate" type="date" value="${today()}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
+        </div>
+
+        <div style="font-size:11px;color:var(--text-light);background:#f9fafb;padding:8px;border-radius:6px;margin-bottom:14px;line-height:1.6;">
+          まずは「開花」状態で登録します。授粉や着果は登録後にカードのボタンから記録できます。
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button class="btn" style="flex:1;background:#e5e7eb;color:#374151;" onclick="closeAddFruitModal()">キャンセル</button>
+          <button class="btn" style="flex:2;" onclick="submitAddFruit('${plantId}')">登録</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeAddFruitModal() {
+  const m = document.getElementById('addFruitModal');
+  if (m) m.remove();
+}
+
+async function submitAddFruit(plantId) {
+  const vineSel = document.getElementById('fruitVineSelect').value;
+  const note = document.getElementById('fruitNoteInput').value.trim();
+  const dateStr = document.getElementById('fruitOpenedDate').value;
+  let vineType = null;
+  let vineIndex = null;
+  if (vineSel) {
+    const [t, i] = vineSel.split(':');
+    vineType = t;
+    vineIndex = Number(i);
+  }
+  // 日付はYYYY-MM-DDで来るので、ローカル正午のISO文字列に正規化（時差ズレ防止）。
+  const openedAt = dateStr
+    ? new Date(`${dateStr}T12:00:00`).toISOString()
+    : new Date().toISOString();
+  await createFruit(plantId, { vineType, vineIndex, note, openedAt });
+  closeAddFruitModal();
+  await renderPlantDetail(plantId);
 }
 
 async function addCluster(plantId, segmentNumber, stem) {
@@ -6842,7 +7540,11 @@ function vineIndexLabel(vineType, vineIndex) {
   return `子づる${nums[(vineIndex || 1) - 1] || vineIndex}`;
 }
 function vineFieldLabel(field) {
-  return ({ grandchildren: '孫づる', flowers: '花数', fruits: '着果' })[field] || field;
+  return ({
+    grandchildren: '孫づる',
+    flowers: '花数',
+    fruits: '着果'
+  })[field] || field;
 }
 async function recordVineCountHistory(plantId, vineType, vineIndex, field, oldValue, newValue) {
   if (oldValue === newValue) return;
@@ -6865,6 +7567,195 @@ async function recordGingerCourseHistory(plantId, oldCourse, newCourse) {
     details: { oldCourse, newCourse },
     notes: `${_gingerFertilizerCourseLabel(oldCourse)} → ${_gingerFertilizerCourseLabel(newCourse)}`
   });
+}
+
+// =================================================
+// パッションフルーツ 実ごとの記録（fruits）
+// =================================================
+// ステータス遷移:
+//   opened（開花）→ pollinated（授粉済） / unpollinated（授粉せず）
+//   pollinated → fruiting（着果確認）→ harvested（収穫）
+//   pollinated → failed（落ちた・着果せず）
+//   unpollinated は次に進まない終端状態
+//   failed も終端状態
+// 成功率 = harvested + fruiting の数 ÷ pollinated 全体の数
+//          （未授粉と旧データは分母から除外）
+
+const FRUIT_STATUS_LABELS = {
+  opened: '🌸 開花',
+  pollinated: '🐝 授粉済',
+  unpollinated: '⏳ 未授粉',
+  fruiting: '🍈 着果中',
+  failed: '❌ 落ちた',
+  harvested: '🧺 収穫済'
+};
+
+// このつるの「次の番号」を決める。同じ plantId × vineType × vineIndex のなかで最大+1。
+// つる未指定の場合は plantId 全体で番号付け。
+function nextFruitSequence(allFruits, plantId, vineType, vineIndex) {
+  const scope = allFruits.filter(f =>
+    f.plantId === plantId
+    && (f.vineType || null) === (vineType || null)
+    && (f.vineIndex || null) === (vineIndex || null)
+  );
+  return scope.reduce((m, f) => Math.max(m, f.sequence || 0), 0) + 1;
+}
+
+function fruitDisplayLabel(f) {
+  const vineLabel = f.vineType
+    ? vineIndexLabel(f.vineType, f.vineIndex)
+    : 'つる未指定';
+  return `${vineLabel} #${f.sequence || '?'}`;
+}
+
+async function createFruit(plantId, opts = {}) {
+  const allFruits = await dbGetAll('fruits');
+  const vineType = opts.vineType || null;
+  const vineIndex = opts.vineIndex || null;
+  const now = new Date().toISOString();
+  const fruit = {
+    id: uid(),
+    plantId,
+    vineType,
+    vineIndex,
+    sequence: nextFruitSequence(allFruits, plantId, vineType, vineIndex),
+    status: 'opened',
+    openedAt: opts.openedAt || now,
+    pollinatedAt: null,
+    fruitingAt: null,
+    failedAt: null,
+    harvestedAt: null,
+    note: opts.note || '',
+    photoIds: [],
+    weight: null,
+    createdAt: now
+  };
+  await dbPut('fruits', fruit);
+  await recordTask({
+    plantId,
+    type: 'fruit_update',
+    date: now,
+    details: { fruitId: fruit.id, action: 'created', status: 'opened' },
+    notes: `${fruitDisplayLabel(fruit)}：花を登録`
+  });
+  return fruit;
+}
+
+// ステータス遷移の許可マップ。状態機械を守ることでデータ不整合を防ぐ。
+const FRUIT_TRANSITIONS = {
+  opened: ['pollinated', 'unpollinated', 'failed'],
+  pollinated: ['fruiting', 'failed'],
+  unpollinated: [], // 終端
+  fruiting: ['harvested', 'failed'],
+  failed: [], // 終端
+  harvested: [] // 終端
+};
+
+async function transitionFruit(fruitId, nextStatus, extra = {}) {
+  const fruit = await dbGet('fruits', fruitId);
+  if (!fruit) return null;
+  const allowed = FRUIT_TRANSITIONS[fruit.status] || [];
+  if (!allowed.includes(nextStatus)) {
+    console.warn(`Invalid transition: ${fruit.status} → ${nextStatus}`);
+    return null;
+  }
+  const now = new Date().toISOString();
+  const stampField = ({
+    pollinated: 'pollinatedAt',
+    unpollinated: 'pollinatedAt', // 「授粉せず」もこの日に判断したという意味で同じスロットに記録
+    fruiting: 'fruitingAt',
+    failed: 'failedAt',
+    harvested: 'harvestedAt'
+  })[nextStatus];
+  if (stampField && !fruit[stampField]) fruit[stampField] = now;
+  fruit.status = nextStatus;
+  if (extra.weight != null) fruit.weight = extra.weight;
+  await dbPut('fruits', fruit);
+  await recordTask({
+    plantId: fruit.plantId,
+    type: 'fruit_update',
+    date: now,
+    details: { fruitId: fruit.id, action: 'transition', status: nextStatus },
+    notes: `${fruitDisplayLabel(fruit)}：${FRUIT_STATUS_LABELS[nextStatus] || nextStatus}`
+  });
+  // 既存の generateRecommendedTasks / 履歴サマリは「pollination」タスクを最後の人工授粉として参照する。
+  // 新スキーマでも「pollinated」遷移したときに pollination タスクを併せて記録しておく（後方互換）。
+  if (nextStatus === 'pollinated') {
+    await recordTask({
+      plantId: fruit.plantId,
+      type: 'pollination',
+      date: now,
+      details: { fruitId: fruit.id, vineType: fruit.vineType, vineIndex: fruit.vineIndex },
+      notes: `${fruitDisplayLabel(fruit)}：人工授粉`
+    });
+  }
+  // 収穫時は harvest タスクも残す（収穫サマリ集計などが harvest タスクを見るため）。
+  if (nextStatus === 'harvested') {
+    await recordTask({
+      plantId: fruit.plantId,
+      type: 'harvest',
+      date: now,
+      details: { fruitId: fruit.id, weight: fruit.weight || null },
+      notes: `${fruitDisplayLabel(fruit)}：収穫${fruit.weight != null ? `（${fruit.weight}g）` : ''}`
+    });
+  }
+  return fruit;
+}
+
+async function deleteFruit(fruitId) {
+  const fruit = await dbGet('fruits', fruitId);
+  if (!fruit) return;
+  if (!confirm(`${fruitDisplayLabel(fruit)} を削除しますか？\n（履歴も削除されます）`)) return;
+  await dbDelete('fruits', fruitId);
+  // 関連する fruit_update 履歴も整理
+  const allTasks = await dbGetAll('tasks');
+  const related = allTasks.filter(t => t.type === 'fruit_update' && t.details?.fruitId === fruitId);
+  for (const t of related) {
+    await dbDelete('tasks', t.id);
+  }
+  if (currentPlantId) await renderPlantDetail(currentPlantId);
+}
+
+// 成功率計算用のサマリ。
+//   pollinatedCount: 授粉した花の数（成功/失敗どちらでも、ただし unpollinated は除く）
+//   succeededCount: 結実したか収穫まで進んだ数
+//   failedCount: 授粉したが落ちた数
+//   successRate: succeededCount / pollinatedCount × 100
+function summarizeFruits(fruits) {
+  const counts = { opened: 0, pollinated: 0, unpollinated: 0, fruiting: 0, failed: 0, harvested: 0 };
+  for (const f of fruits) counts[f.status] = (counts[f.status] || 0) + 1;
+  // pollinated（途中）, fruiting, harvested, failed のうち failed 以外が「成功扱い」。
+  // unpollinated と opened（未判断）は分母から除外する。
+  const succeededCount = counts.fruiting + counts.harvested;
+  // failed のうち、過去に pollinated を通った（=pollinatedAt がある）ものだけが「授粉した失敗」。
+  // failedAt はあるが pollinatedAt が無い=opened から直接 failed の場合は授粉してないので分母外。
+  // この区別は呼び出し側で fruits を見て判定する必要があるので、ここでは別ロジックで補正。
+  return { counts, succeededCount };
+}
+
+// より正確な「人工授粉した実」の数。pollinated/fruiting/harvested/failed の4状態が「授粉した」分母。
+// unpollinated は判断日が pollinatedAt スロットに入っているが、分母から除外する。
+function pollinationStats(fruits) {
+  const POLLINATED_STATUSES = new Set(['pollinated', 'fruiting', 'harvested', 'failed']);
+  // failed については「授粉せずに opened から直接 failed に飛ばした」場合は分母外にすべき。
+  // → pollinatedAt の有無で判別する。pollinatedAt 無しの failed は「授粉してない失敗」とみなす。
+  const attempted = fruits.filter(f => {
+    if (!POLLINATED_STATUSES.has(f.status)) return false;
+    if (f.status === 'failed' && !f.pollinatedAt) return false; // 授粉せず終了
+    return true;
+  });
+  const failed = attempted.filter(f => f.status === 'failed');
+  const succeeded = attempted.filter(f => f.status === 'fruiting' || f.status === 'harvested');
+  const inProgress = attempted.filter(f => f.status === 'pollinated');
+  const attempts = attempted.length;
+  const decided = succeeded.length + failed.length;
+  return {
+    attempts,
+    succeeded: succeeded.length,
+    failed: failed.length,
+    inProgress: inProgress.length,
+    successRate: decided > 0 ? Math.round((succeeded.length / decided) * 100) : null
+  };
 }
 
 async function saveCluster(plantId, segmentNumber, stem) {
@@ -7548,10 +8439,6 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
       msg = removed
         ? '🍆 一番花は摘除済み。次の花が咲いて<b>初めて実が着いたら概要タブで記録</b>を。これで通常液肥へ移行します。摘花済みなら結実前でも薄め液肥の対象になります。'
         : '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これで通常液肥へ移行します。摘花済みなら結実前でも薄め液肥の対象になります。';
-    } else if (!fr.handled) {
-      msg = removed
-        ? '🍆 初めての実が着きました！普通に育てて収穫してOK。<b>概要タブで「残した」を記録</b>すると液肥スタート。'
-        : '🍆 一番果を確認しました！小ぶりで早めに摘果すると株が疲れず秋まで収穫続きます。';
     } else if (days < 100) {
       msg = plant.trainingMethod === 'two_stem_one_fruit'
         ? '🍆 収穫期。側枝を更新しながら収穫を続けます。水切れと肥料切れに注意。'
@@ -7574,10 +8461,6 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
       msg = removed
         ? '🫑 一番花は摘除済み。次の花が咲いて<b>初めて実が着いたら概要タブで記録</b>を。これで通常液肥へ移行します。摘花済みなら結実前でも薄め液肥の対象になります。'
         : '🍆 一番果の着果待ち。実が見えてきたら<b>概要タブの「一番果が着いた」ボタン</b>を。これで通常液肥へ移行します。摘花済みなら結実前でも薄め液肥の対象になります。';
-    } else if (!fr.handled) {
-      msg = removed
-        ? '🫑 初めての実が着きました！普通に育てて収穫してOK。<b>概要タブで「残した」を記録</b>すると液肥スタート。'
-        : '🍆 一番果を確認しました！小さいうちに摘果すると、その後の収量が大きく増えます。';
     } else if (days < 100) {
       msg = '🫑 収穫最盛期。早めに収穫すると次々に実がつく、追肥は週1継続。';
     } else {
@@ -9106,10 +9989,10 @@ function renderPhotoViewer(plant) {
     <div class="viewer-footer">
       ${photo.memo ? `<div class="memo">${escapeHtml(photo.memo)}</div>` : '<div class="memo" style="opacity:0.5;font-style:italic;">メモなし</div>'}
       <div class="actions">
-        ${currentViewerIndex < total - 1 ? `<button onclick="navigatePhoto(1,'${plant.id}')">‹ 前</button>` : '<button disabled style="opacity:0.3;">‹ 前</button>'}
+        ${currentViewerIndex > 0 ? `<button onclick="navigatePhoto(-1,'${plant.id}')">‹ 新しい</button>` : '<button disabled style="opacity:0.3;">‹ 新しい</button>'}
         <button onclick="editPhotoMemo('${photo.id}','${plant.id}')">📝 メモ編集</button>
         <button class="danger" onclick="deletePhoto('${photo.id}','${plant.id}')">🗑 削除</button>
-        ${currentViewerIndex > 0 ? `<button onclick="navigatePhoto(-1,'${plant.id}')">次 ›</button>` : '<button disabled style="opacity:0.3;">次 ›</button>'}
+        ${currentViewerIndex < total - 1 ? `<button onclick="navigatePhoto(1,'${plant.id}')">古い ›</button>` : '<button disabled style="opacity:0.3;">古い ›</button>'}
       </div>
     </div>
   `;
@@ -9127,10 +10010,12 @@ function attachSwipeHandler(viewer, plant) {
   area.ontouchend = (e) => {
     const dx = e.changedTouches[0].clientX - startX;
     if (Math.abs(dx) < 50) return;
-    if (dx > 0 && currentViewerIndex < currentViewerPhotos.length - 1) {
-      navigatePhoto(1, plant.id);
-    } else if (dx < 0 && currentViewerIndex > 0) {
+    // 右スワイプ = 「‹ 前」(より新しい写真 / index--)
+    // 左スワイプ = 「次 ›」(より古い写真 / index++)
+    if (dx > 0 && currentViewerIndex > 0) {
       navigatePhoto(-1, plant.id);
+    } else if (dx < 0 && currentViewerIndex < currentViewerPhotos.length - 1) {
+      navigatePhoto(1, plant.id);
     }
   };
 }
@@ -9169,6 +10054,9 @@ async function editPhotoMemo(photoId, plantId) {
     </div>
   `;
   showModal(content);
+  // フォトビューア（z-index:9999）の上に出すため、このモーダルだけ z-index を引き上げる
+  const modal = document.querySelector('.modal');
+  if (modal) modal.style.zIndex = '10000';
 }
 
 async function updatePhotoMemo(photoId, plantId) {
