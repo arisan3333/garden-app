@@ -2589,11 +2589,50 @@ async function renderHome() {
 }
 
 async function renderPlants() {
-  const plants = await dbGetAll('plants');
+  let plants = [];
+  try {
+    plants = await dbGetAll('plants');
+  } catch (e) {
+    console.error('renderPlants db error', e);
+    plants = [];
+  }
+
+  const activeCount = plants.filter(p => p && p.status === 'active').length;
+  const cards = (plants || []).map(p => {
+    try {
+      if (!p) return '';
+      const sp = SPECIES[p.species] || { icon: '🌱', name: p.species || '不明', color: '#4ade80' };
+      let phase = { name: '確認中' };
+      try { phase = getPhase(p) || phase; } catch (e) { console.warn('phase error', p, e); }
+      const day = p.plantingDate ? dayDiff(p.plantingDate) : '-';
+      return `
+        <div class="plant-card" onclick="openPlant('${p.id}')" ${p.status !== 'active' ? 'style="opacity:0.5"' : ''}>
+          <div class="plant-icon" style="background:${sp.color}22">${sp.icon}</div>
+          <div class="info">
+            <div class="name">${p.name || sp.name}</div>
+            <div class="meta">Day ${day} ・ ${phase.name}${p.status !== 'active' ? ' ・ 終了' : ''}</div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+      `;
+    } catch (e) {
+      console.error('plant card error', p, e);
+      return `
+        <div class="plant-card" style="border:1px solid #fca5a5;">
+          <div class="plant-icon" style="background:#fee2e2">⚠️</div>
+          <div class="info">
+            <div class="name">${p?.name || '表示できない株'}</div>
+            <div class="meta">データ確認が必要です</div>
+          </div>
+        </div>
+      `;
+    }
+  }).join('');
+
   const html = `
     <div class="header">
       <h1>🌱 株一覧</h1>
-      <div class="greeting">${plants.filter(p => p.status === 'active').length}株 育成中</div>
+      <div class="greeting">${activeCount}株 育成中</div>
     </div>
     ${plants.length === 0 ? `
       <div class="card empty">
@@ -2602,22 +2641,7 @@ async function renderPlants() {
         <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
       </div>
     ` : `
-      <div class="plant-list">
-        ${plants.map(p => {
-          const sp = SPECIES[p.species];
-          const phase = getPhase(p);
-          return `
-            <div class="plant-card" onclick="openPlant('${p.id}')" ${p.status !== 'active' ? 'style="opacity:0.5"' : ''}>
-              <div class="plant-icon" style="background:${sp.color}22">${sp.icon}</div>
-              <div class="info">
-                <div class="name">${p.name || sp.name}</div>
-                <div class="meta">Day ${dayDiff(p.plantingDate)} ・ ${phase.name}${p.status !== 'active' ? ' ・ 終了' : ''}</div>
-              </div>
-              <div class="arrow">›</div>
-            </div>
-          `;
-        }).join('')}
-      </div>
+      <div class="plant-list">${cards}</div>
       <button class="btn" onclick="showAddPlant()">+ 株を追加</button>
     `}
   `;
@@ -4659,19 +4683,35 @@ async function deleteAllPhotos() {
 // アクション関数
 // =================================================
 async function navigate(screen) {
-  currentScreen = screen;
-  document.querySelectorAll('.nav-item').forEach(el => {
-    // harvest/feedback画面はホーム配下扱い
-    const matchScreen = (screen === 'harvest' || screen === 'feedback') ? 'home' : screen;
-    el.classList.toggle('active', el.dataset.screen === matchScreen);
-  });
-  if (screen === 'home') await renderHome();
-  else if (screen === 'plants') await renderPlants();
-  else if (screen === 'tasks') await renderTasks();
-  else if (screen === 'settings') await renderSettings();
-  else if (screen === 'harvest') await renderHarvestStats('week');
-  else if (screen === 'feedback') await renderSeasonFeedback();
-  window.scrollTo(0, 0);
+  try {
+    currentScreen = screen;
+    document.querySelectorAll('.nav-item').forEach(el => {
+      const matchScreen = (screen === 'harvest' || screen === 'feedback') ? 'home' : screen;
+      el.classList.toggle('active', el.dataset.screen === matchScreen);
+    });
+    if (screen === 'home') await renderHome();
+    else if (screen === 'plants') await renderPlants();
+    else if (screen === 'tasks') await renderTasks();
+    else if (screen === 'settings') await renderSettings();
+    else if (screen === 'harvest') await renderHarvestStats('week');
+    else if (screen === 'feedback') await renderSeasonFeedback();
+    window.scrollTo(0, 0);
+  } catch (e) {
+    console.error('navigate error', screen, e);
+    const app = document.getElementById('app');
+    if (app) {
+      app.innerHTML = `
+        <div class="header"><h1>⚠️ 表示エラー</h1></div>
+        <div class="card">
+          <div class="card-title">画面を表示できませんでした</div>
+          <div style="font-size:12px;color:var(--text-light);line-height:1.7;margin-bottom:10px;">
+            ${e?.message || e}
+          </div>
+          <button class="btn" onclick="renderPlants()">株一覧を再表示</button>
+        </div>
+      `;
+    }
+  }
 }
 
 async function openPlant(plantId) {
