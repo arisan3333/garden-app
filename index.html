@@ -1020,39 +1020,82 @@ function openDB() {
       resolve(null);
       return;
     }
-    // 安全弁：DB が 5 秒以内に開かない場合（onblocked 等で無限待機を回避）
+
     let resolved = false;
-    const safeResolve = (val) => { if (!resolved) { resolved = true; resolve(val); } };
-    const timeout = setTimeout(() => {
-      console.warn('IndexedDB open timed out (5s). 別タブが古いバージョンを開いている可能性があります。');
-      alert('データベースを開けませんでした。\n他のタブで古いバージョンのこのアプリを開いている場合、それらを閉じて再読み込みしてください。');
-      safeResolve(null);
-    }, 5000);
-    
-    try {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-      request.onerror = () => {
+    let activeRequest = null;
+    const safeResolve = (val) => {
+      if (!resolved) {
+        resolved = true;
         clearTimeout(timeout);
-        console.warn('IndexedDB unavailable. Falling back to localStorage.', request.error);
-        useLocalStorage = true;
-        safeResolve(null);
-      };
+        resolve(val);
+      }
+    };
+
+    const attachSuccessHandlers = (request) => {
       request.onsuccess = () => {
-        clearTimeout(timeout);
         db = request.result;
-        // 別タブでアップグレード要求が来たら、こちらの接続を閉じて妨害しない
+        useLocalStorage = false;
         db.onversionchange = () => {
           db.close();
           alert('別のタブでアップグレードされました。このタブを再読み込みしてください。');
         };
         safeResolve(db);
       };
-      request.onblocked = () => {
-        // 別タブが古いバージョンで開いている → ユーザーに通知
-        clearTimeout(timeout);
-        alert('別のタブでこのアプリが開かれているため、データベースのアップグレードができません。\n他のタブを閉じてから再読み込みしてください。');
+    };
+
+    const openLatestVersion = (reason) => {
+      console.warn('Retry IndexedDB open without fixed version:', reason);
+      try {
+        const retry = indexedDB.open(DB_NAME);
+        activeRequest = retry;
+        retry.onerror = () => {
+          console.warn('IndexedDB retry failed. Falling back to localStorage.', retry.error);
+          useLocalStorage = true;
+          safeResolve(null);
+        };
+        retry.onblocked = () => {
+          console.warn('IndexedDB retry blocked.');
+          useLocalStorage = true;
+          safeResolve(null);
+        };
+        attachSuccessHandlers(retry);
+      } catch (e) {
+        console.warn('IndexedDB retry threw. Falling back to localStorage.', e);
+        useLocalStorage = true;
+        safeResolve(null);
+      }
+    };
+
+    const timeout = setTimeout(() => {
+      console.warn('IndexedDB open timed out (5s). Retrying without fixed version.');
+      openLatestVersion('timeout');
+    }, 5000);
+
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      activeRequest = request;
+
+      request.onerror = () => {
+        const err = request.error;
+        // 既存DBのバージョンがこのHTMLのDB_VERSIONより新しい場合、
+        // fixed version open は VersionError になる。そこで最新版を開き直す。
+        if (err && err.name === 'VersionError') {
+          openLatestVersion('VersionError');
+          return;
+        }
+        console.warn('IndexedDB unavailable. Falling back to localStorage.', err);
+        useLocalStorage = true;
         safeResolve(null);
       };
+
+      attachSuccessHandlers(request);
+
+      request.onblocked = () => {
+        clearTimeout(timeout);
+        alert('別のタブでこのアプリが開かれているため、データベースのアップグレードができません。\n他のタブを閉じてから再読み込みしてください。');
+        openLatestVersion('blocked');
+      };
+
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('plants')) {
@@ -1079,14 +1122,12 @@ function openDB() {
           store.createIndex('plantId', 'plantId');
           store.createIndex('takenAt', 'takenAt');
         }
-        // v3で追加: パッションフルーツのつる管理（主枝・子づる①〜④）
         if (!db.objectStoreNames.contains('vines')) {
           const store = db.createObjectStore('vines', { keyPath: 'id' });
           store.createIndex('plantId', 'plantId');
         }
       };
     } catch (e) {
-      clearTimeout(timeout);
       console.warn('IndexedDB failed. Falling back to localStorage.', e);
       useLocalStorage = true;
       safeResolve(null);
