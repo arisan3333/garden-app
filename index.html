@@ -3570,12 +3570,12 @@ function renderGingerGuide(plant, tasks) {
 function renderTomatoPruning(plant, clusters) {
   const isTwoStem = plant.trainingMethod === 'two_stem';
   const stems = isTwoStem ? ['A', 'B'] : ['A'];
-  const targetSegments = 5; // 第5花房まで管理
+  const targetSegments = 8; // 第8花房まで管理
   
   // SVG生成
   const stemX = (idx) => isTwoStem ? (idx === 0 ? 80 : 220) : 150;
-  const baseY = 580;
-  const segHeight = 95;
+  const baseY = 720;
+  const segHeight = 80;
   
   let svgInner = '';
   // 土
@@ -3618,7 +3618,7 @@ function renderTomatoPruning(plant, clusters) {
       }
     }
     
-    // 摘心位置（第5花房の上）
+    // 摘心位置（第8花房の上）
     const pinchY = baseY - segHeight * targetSegments - 20;
     svgInner += `<line x1="${x-15}" y1="${pinchY}" x2="${x+15}" y2="${pinchY}" stroke="#dc2626" stroke-width="3" stroke-dasharray="3,3"/>`;
     svgInner += `<text x="${x}" y="${pinchY - 8}" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心</text>`;
@@ -3635,7 +3635,7 @@ function renderTomatoPruning(plant, clusters) {
   }
   
   const svg = `
-    <svg viewBox="0 0 300 660" class="pruning-svg" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 300 800" class="pruning-svg" xmlns="http://www.w3.org/2000/svg">
       ${svgInner}
     </svg>
   `;
@@ -3663,7 +3663,7 @@ function renderTomatoPruning(plant, clusters) {
         ●（赤）= 開花中の花房 / ●（薄）= 未開花<br>
         ✓ = トマトトーン散布回数<br>
         🍅 = 結実中 / 🧺 = 収穫中<br>
-        ✂️ 摘心 = 第5花房の上で先端カット
+        ✂️ 摘心 = 第${targetSegments}花房の上で先端カット
       </div>
     </div>
 
