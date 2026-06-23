@@ -2586,6 +2586,11 @@ let eggplantUnitSelections = {};
 let currentTab = 'overview';
 let cachedWeather = null;
 let cachedTasksState = {}; // taskKey -> {status: 'done'|'skip'|'carryover', date}
+const PASSION_CHILD_VINE_SLOTS = 6;
+const PASSION_TARGET_CHILD_VINES = 3;
+const VINE_NUMS = ['①','②','③','④','⑤','⑥'];
+let pendingSkipTaskKey = null;
+let pendingSkipTimer = null;
 
 function localDateKey(value) {
   if (!value) return '';
@@ -2757,10 +2762,11 @@ async function renderHome() {
     allRecommended = allRecommended.concat(recommended);
   }
   
-  // 完了済み・スキップ済みを除外
+  // 完了済み・スキップ済み・明日へ送ったタスクを除外
   // renderTasks と完全に同じロジックでカウントする：
   //   - 実作業履歴があり、かつ taskState=done → 完了（カウントしない）
-  //   - taskState=skip → スキップ済（カウントしない）
+  //   - taskState=skip → 今回は見送り済（カウントしない）
+  //   - taskState=carryover → 明日へ送った（今日の未完了には残さない）
   //   - それ以外 → 未完了としてカウント
   // これにより「ホーム件数 vs タスク画面件数」のズレを防ぐ。
   const todayKey = today();
@@ -2779,6 +2785,7 @@ async function renderHome() {
     const state = cachedTasksState[key];
     if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) return false;
     if (state && state.status === 'skip') return false;
+    if (state && state.status === 'carryover') return false;
     return true;
   });
   
@@ -3570,12 +3577,12 @@ function renderGingerGuide(plant, tasks) {
 function renderTomatoPruning(plant, clusters) {
   const isTwoStem = plant.trainingMethod === 'two_stem';
   const stems = isTwoStem ? ['A', 'B'] : ['A'];
-  const targetSegments = 8; // 第8花房まで管理
+  const targetSegments = 5; // 第5花房まで管理
   
   // SVG生成
   const stemX = (idx) => isTwoStem ? (idx === 0 ? 80 : 220) : 150;
-  const baseY = 720;
-  const segHeight = 80;
+  const baseY = 580;
+  const segHeight = 95;
   
   let svgInner = '';
   // 土
@@ -3618,7 +3625,7 @@ function renderTomatoPruning(plant, clusters) {
       }
     }
     
-    // 摘心位置（第8花房の上）
+    // 摘心位置（第5花房の上）
     const pinchY = baseY - segHeight * targetSegments - 20;
     svgInner += `<line x1="${x-15}" y1="${pinchY}" x2="${x+15}" y2="${pinchY}" stroke="#dc2626" stroke-width="3" stroke-dasharray="3,3"/>`;
     svgInner += `<text x="${x}" y="${pinchY - 8}" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心</text>`;
@@ -3635,7 +3642,7 @@ function renderTomatoPruning(plant, clusters) {
   }
   
   const svg = `
-    <svg viewBox="0 0 300 800" class="pruning-svg" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 300 660" class="pruning-svg" xmlns="http://www.w3.org/2000/svg">
       ${svgInner}
     </svg>
   `;
@@ -3663,7 +3670,7 @@ function renderTomatoPruning(plant, clusters) {
         ●（赤）= 開花中の花房 / ●（薄）= 未開花<br>
         ✓ = トマトトーン散布回数<br>
         🍅 = 結実中 / 🧺 = 収穫中<br>
-        ✂️ 摘心 = 第${targetSegments}花房の上で先端カット
+        ✂️ 摘心 = 第5花房の上で先端カット
       </div>
     </div>
 
@@ -5028,15 +5035,24 @@ async function renderTasks() {
       }
     });
 
+    const carryoverActionKeys = new Set(carryoverTasks.map(t => {
+      const extraKey = t.clusterId || t.details?.clusterId || '';
+      return `${t.plantId}:${t.action}${extraKey ? ':' + extraKey : ''}`;
+    }));
+
     for (const t of allRecommended) {
       const extraTaskKey = t.clusterId || t.details?.clusterId || '';
       const key = taskStateKey(todayKey, t.plantId, t.action, extraTaskKey);
       const doneKey = `${t.plantId}:${t.action}${extraTaskKey ? ':' + extraTaskKey : ''}`;
       const state = cachedTasksState[key];
-      if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) {
+      if (carryoverActionKeys.has(doneKey)) {
+        // 前日以前からの「明日へ」タスクが今日表示されている場合は、通常推奨との二重表示を避ける。
+      } else if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) {
         // 実作業履歴がある完了は、後段の「今日の記録」から表示する。
       } else if (state && state.status === 'skip') {
-        // skip skip
+        // 今回は見送り済み。今日の未完了には残さない。
+      } else if (state && state.status === 'carryover') {
+        // 「明日へ」送ったタスク。今日の未完了には残さない。
       } else {
         const taskWithKey = { ...t, taskKey: key };
         if (t.type === 'must') mustTasks.push(taskWithKey);
@@ -5069,8 +5085,11 @@ async function renderTasks() {
         <button class="check" onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'done')" title="作業した・完了として記録">
           <span class="ico">✓</span><span>完了</span>
         </button>
-        <button class="skip-btn" onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'skip')" title="今日はやらない（明日また表示）">
-          <span class="ico">⏭</span><span>あとで</span>
+        <button class="carry-btn" onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'carryover')" title="明日のタスクへ送る">
+          <span class="ico">↪</span><span>明日へ</span>
+        </button>
+        <button class="skip-btn" onclick="requestSkipTask(this, '${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')})" title="今回は見送る（二度タップで確定）">
+          <span class="ico">🚫</span><span>見送り</span>
         </button>
       </div>
     </div>
@@ -7926,15 +7945,47 @@ async function deleteCluster(clusterId) {
   await renderPlantDetail(currentPlantId);
 }
 
+function requestSkipTask(buttonEl, taskKey, taskData) {
+  // 誤タッチ防止：見送りは2回タップで確定。1回目はボタン表示だけを変える。
+  if (pendingSkipTaskKey === taskKey) {
+    if (pendingSkipTimer) {
+      clearTimeout(pendingSkipTimer);
+      pendingSkipTimer = null;
+    }
+    pendingSkipTaskKey = null;
+    markTask(taskKey, taskData, 'skip');
+    return;
+  }
+  pendingSkipTaskKey = taskKey;
+  if (pendingSkipTimer) clearTimeout(pendingSkipTimer);
+  const originalHtml = buttonEl.innerHTML;
+  const originalBg = buttonEl.style.background;
+  const originalColor = buttonEl.style.color;
+  const originalBorder = buttonEl.style.borderColor;
+  buttonEl.innerHTML = '<span class="ico">⚠️</span><span>もう一度</span>';
+  buttonEl.style.background = '#fef3c7';
+  buttonEl.style.color = '#92400e';
+  buttonEl.style.borderColor = '#f59e0b';
+  pendingSkipTimer = setTimeout(() => {
+    if (pendingSkipTaskKey === taskKey) pendingSkipTaskKey = null;
+    if (buttonEl && buttonEl.isConnected) {
+      buttonEl.innerHTML = originalHtml;
+      buttonEl.style.background = originalBg;
+      buttonEl.style.color = originalColor;
+      buttonEl.style.borderColor = originalBorder;
+    }
+  }, 2500);
+}
+
 async function markTask(taskKey, taskData, status) {
   const taskState = await dbGet('settings', 'taskState') || { key: 'taskState', value: {} };
   taskState.value = taskState.value || {};
   
   if (status === 'carryover') {
-    // 翌日に持ち越し
+    // 「明日へ」：翌日に持ち越し
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowKey = tomorrow.toISOString().split('T')[0];
+    const tomorrowKey = localDateKey(tomorrow);
     taskState.value[taskKey] = {
       status: 'carryover',
       date: today(),
