@@ -1316,7 +1316,7 @@ function openDB() {
           store.createIndex('plantId', 'plantId');
           store.createIndex('takenAt', 'takenAt');
         }
-        // v3で追加: パッションフルーツのつる管理（主枝・子づる①〜⑥）
+        // v3で追加: パッションフルーツのつる管理（主枝・子づる①〜④）
         if (!db.objectStoreNames.contains('vines')) {
           const store = db.createObjectStore('vines', { keyPath: 'id' });
           store.createIndex('plantId', 'plantId');
@@ -2017,12 +2017,12 @@ function generateRecommendedTasks(plant, lastTasks, weather, clusters = [], vine
       const childPinchedLegacy = lastTasks.filter(t => t.type === 'pinching' && t.details?.target === 'child').length;
       // vinesに記録があればそれを優先、なければレガシーカウント
       const childPinched = childVinesPinched > 0 ? childVinesPinched : childPinchedLegacy;
-      if (daysSinceMainPinch >= 14 && childPinched < PASSION_TARGET_CHILD_VINES) {
+      if (daysSinceMainPinch >= 14 && childPinched < 3) {
         tasks.push({
           type: 'recommended',
           action: 'pinching',
           title: `🌺 ${displayName}: 子づる摘心`,
-          desc: `${childPinched}/${PASSION_TARGET_CHILD_VINES}本完了`,
+          desc: `${childPinched}/3本完了`,
           plantId: plant.id
         });
       }
@@ -2349,8 +2349,8 @@ function generateUpcomingTasks(plant, lastTasks, vines = []) {
       tasks.push({ daysOffset: Math.max(0, 14 - days), label: '✂️ 主枝摘心（草丈30cm/支柱頂点に達したら）', urgent: false });
     }
     // 子づる摘心が3本未満なら表示（残本数も表示）
-    if (childPinchedCount < PASSION_TARGET_CHILD_VINES && days < 45) {
-      const remaining = PASSION_TARGET_CHILD_VINES - childPinchedCount;
+    if (childPinchedCount < 3 && days < 45) {
+      const remaining = 3 - childPinchedCount;
       tasks.push({ daysOffset: Math.max(0, 30 - days), label: `✂️ 子づる摘心（残${remaining}本／リング1周＝約50cmで）`, urgent: false });
     }
     if (days < 50) tasks.push({ daysOffset: 50 - days, label: '🐝 開花・人工授粉開始', urgent: false });
@@ -2586,11 +2586,6 @@ let eggplantUnitSelections = {};
 let currentTab = 'overview';
 let cachedWeather = null;
 let cachedTasksState = {}; // taskKey -> {status: 'done'|'skip'|'carryover', date}
-const PASSION_CHILD_VINE_SLOTS = 6;
-const PASSION_TARGET_CHILD_VINES = 3;
-const VINE_NUMS = ['①','②','③','④','⑤','⑥'];
-let pendingSkipTaskKey = null;
-let pendingSkipTimer = null;
 
 function localDateKey(value) {
   if (!value) return '';
@@ -2745,6 +2740,7 @@ function renderFertilizerMixerCard(activePlants = []) {
 async function renderHome() {
   const plants = await dbGetAll('plants');
   const allTasks = await dbGetAll('tasks');
+  const allFruitsData = await dbGetAll('fruits');
   const taskState = await dbGet('settings', 'taskState') || { key: 'taskState', value: {} };
   cachedTasksState = taskState.value || {};
   const appSettings = await getAppPreferences();
@@ -2762,11 +2758,10 @@ async function renderHome() {
     allRecommended = allRecommended.concat(recommended);
   }
   
-  // 完了済み・スキップ済み・明日へ送ったタスクを除外
+  // 完了済み・スキップ済みを除外
   // renderTasks と完全に同じロジックでカウントする：
   //   - 実作業履歴があり、かつ taskState=done → 完了（カウントしない）
-  //   - taskState=skip → 今回は見送り済（カウントしない）
-  //   - taskState=carryover → 明日へ送った（今日の未完了には残さない）
+  //   - taskState=skip → スキップ済（カウントしない）
   //   - それ以外 → 未完了としてカウント
   // これにより「ホーム件数 vs タスク画面件数」のズレを防ぐ。
   const todayKey = today();
@@ -2785,7 +2780,6 @@ async function renderHome() {
     const state = cachedTasksState[key];
     if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) return false;
     if (state && state.status === 'skip') return false;
-    if (state && state.status === 'carryover') return false;
     return true;
   });
   
@@ -2818,9 +2812,8 @@ async function renderHome() {
   })).filter(h => h.msg); // メッセージあるもののみ
   
   // 収穫数（今シーズン総数）
-  const totalHarvest = allTasks
-    .filter(t => t.type === 'harvest')
-    .reduce((sum, t) => sum + (t.details?.count || 1), 0);
+  // パッションの実ごとの「収穫済み」も、harvest履歴が無ければ1個として補完集計する。
+  const totalHarvest = _sumHarvest(buildEffectiveHarvests(allTasks, allFruitsData));
   
   const html = `
     <div class="header">
@@ -3577,12 +3570,12 @@ function renderGingerGuide(plant, tasks) {
 function renderTomatoPruning(plant, clusters) {
   const isTwoStem = plant.trainingMethod === 'two_stem';
   const stems = isTwoStem ? ['A', 'B'] : ['A'];
-  const targetSegments = 8; // 第8花房まで管理
+  const targetSegments = 5; // 第5花房まで管理
   
   // SVG生成
   const stemX = (idx) => isTwoStem ? (idx === 0 ? 80 : 220) : 150;
-  const baseY = 740;
-  const segHeight = 74;
+  const baseY = 580;
+  const segHeight = 95;
   
   let svgInner = '';
   // 土
@@ -3625,7 +3618,7 @@ function renderTomatoPruning(plant, clusters) {
       }
     }
     
-    // 摘心位置（第8花房の上）
+    // 摘心位置（第5花房の上）
     const pinchY = baseY - segHeight * targetSegments - 20;
     svgInner += `<line x1="${x-15}" y1="${pinchY}" x2="${x+15}" y2="${pinchY}" stroke="#dc2626" stroke-width="3" stroke-dasharray="3,3"/>`;
     svgInner += `<text x="${x}" y="${pinchY - 8}" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">✂️ 摘心</text>`;
@@ -3642,7 +3635,7 @@ function renderTomatoPruning(plant, clusters) {
   }
   
   const svg = `
-    <svg viewBox="0 0 300 820" class="pruning-svg" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 300 660" class="pruning-svg" xmlns="http://www.w3.org/2000/svg">
       ${svgInner}
     </svg>
   `;
@@ -3670,7 +3663,7 @@ function renderTomatoPruning(plant, clusters) {
         ●（赤）= 開花中の花房 / ●（薄）= 未開花<br>
         ✓ = トマトトーン散布回数<br>
         🍅 = 結実中 / 🧺 = 収穫中<br>
-        ✂️ 摘心 = 第8花房の上で先端カット
+        ✂️ 摘心 = 第5花房の上で先端カット
       </div>
     </div>
 
@@ -3789,88 +3782,6 @@ function eggplantStageLabel(stage) {
 function eggplantStageEmoji(stage) {
   return ({ blooming: '🌸', fruiting: '🍆', no_fruit: '🥀', harvesting: '🧺', cutback: '✂️' })[stage] || '';
 }
-function eggplantStageDateField(stage) {
-  return ({
-    blooming: 'bloomingAt',
-    fruiting: 'fruitingAt',
-    harvesting: 'harvestingAt',
-    no_fruit: 'noFruitAt',
-    cutback: 'cutbackAt'
-  })[stage] || null;
-}
-function setEggplantStageDate(unit, stage, iso = new Date().toISOString()) {
-  const field = eggplantStageDateField(stage);
-  if (!field || !unit) return;
-  unit.currentCycleDates = unit.currentCycleDates || {};
-  if (!unit.currentCycleDates[field]) unit.currentCycleDates[field] = iso;
-  unit.stageHistory = unit.stageHistory || [];
-  const cycle = unit.cycle || 1;
-  const already = unit.stageHistory.some(h => (h.cycle || 1) === cycle && h.status === stage);
-  if (!already) unit.stageHistory.push({ cycle, status: stage, date: iso });
-}
-function eggplantStageDate(unit, stage) {
-  const field = eggplantStageDateField(stage);
-  if (!field || !unit) return null;
-  if (unit.currentCycleDates?.[field]) return unit.currentCycleDates[field];
-  const cycle = unit.cycle || 1;
-  const hit = (unit.stageHistory || []).filter(h => (h.cycle || 1) === cycle && h.status === stage).sort((a,b) => new Date(b.date) - new Date(a.date))[0];
-  return hit?.date || null;
-}
-function eggplantToneDate(unit) {
-  const arr = unit?.tomatoToneHistory || [];
-  if (!arr.length) return null;
-  return [...arr].map(x => x.date).filter(Boolean).sort((a, b) => new Date(a) - new Date(b))[0] || null;
-}
-function eggplantStageReached(unit, stage) {
-  if (!unit) return false;
-  const status = unit.status || 'idle';
-  const order = ['idle', 'blooming', 'fruiting', 'harvesting', 'cutback'];
-  if (stage === 'no_fruit') return status === 'no_fruit' || unit.currentCycleResult === 'no_fruit';
-  const sIdx = order.indexOf(status);
-  const tIdx = order.indexOf(stage);
-  if (sIdx < 0 || tIdx < 0) return false;
-  return sIdx >= tIdx;
-}
-function eggplantDateBadge(ico, label, date, reached = false) {
-  if (!date && !reached) return '';
-  const text = date ? dateStr(date) : '未記録';
-  const bg = date ? '#ffffff' : '#f9fafb';
-  const color = date ? 'var(--text)' : '#9ca3af';
-  return `<span style="display:inline-block;background:${bg};border:1px solid #e5e7eb;border-radius:999px;padding:2px 7px;margin:2px 3px 2px 0;font-size:11px;color:${color};">${ico} ${label}: ${text}</span>`;
-}
-function eggplantUnitDateSummaryHtml(unit) {
-  if (!unit) return '';
-  const badges = [
-    eggplantDateBadge('🌸', '開花', eggplantStageDate(unit, 'blooming'), eggplantStageReached(unit, 'blooming')),
-    eggplantDateBadge('🍆', '着果', eggplantStageDate(unit, 'fruiting'), eggplantStageReached(unit, 'fruiting')),
-    eggplantDateBadge('🧺', '収穫', eggplantStageDate(unit, 'harvesting'), eggplantStageReached(unit, 'harvesting')),
-    eggplantDateBadge('🥀', '不着果', eggplantStageDate(unit, 'no_fruit'), eggplantStageReached(unit, 'no_fruit')),
-    eggplantDateBadge('✂️', '剪定', eggplantStageDate(unit, 'cutback'), eggplantStageReached(unit, 'cutback')),
-    eggplantDateBadge('🍆', 'トーン', eggplantToneDate(unit), !!eggplantToneDate(unit))
-  ].filter(Boolean);
-  if (!badges.length) return '<span style="color:#6b7280;font-size:12px;">日付記録なし</span>';
-  return badges.join('');
-}
-function eggplantUnitDateCompact(unit) {
-  if (!unit) return '';
-  const parts = [];
-  const bloom = eggplantStageDate(unit, 'blooming');
-  const fruit = eggplantStageDate(unit, 'fruiting');
-  const harvest = eggplantStageDate(unit, 'harvesting');
-  const noFruit = eggplantStageDate(unit, 'no_fruit');
-  const tone = eggplantToneDate(unit);
-  if (bloom) parts.push(`🌸${dateStr(bloom)}`);
-  else if (eggplantStageReached(unit, 'blooming')) parts.push('🌸未');
-  if (fruit) parts.push(`🍆${dateStr(fruit)}`);
-  else if (eggplantStageReached(unit, 'fruiting')) parts.push('🍆未');
-  if (harvest) parts.push(`🧺${dateStr(harvest)}`);
-  else if (eggplantStageReached(unit, 'harvesting')) parts.push('🧺未');
-  if (noFruit) parts.push(`🥀${dateStr(noFruit)}`);
-  else if (eggplantStageReached(unit, 'no_fruit')) parts.push('🥀未');
-  if (tone) parts.push(`T${dateStr(tone)}`);
-  return parts.join(' ');
-}
-
 function eggplantToneTargetLabel(unit) {
   if (!unit) return '';
   if (unit.mode === 'eggplant_sidebranch') {
@@ -3909,8 +3820,6 @@ async function ensureEggplantSidebranchUnits(plantId) {
       status: 'idle',
       tomatoToneHistory: [],
       cycleHistory: [],
-      currentCycleDates: {},
-      stageHistory: [],
       notes: '',
       createdAt: new Date().toISOString()
     });
@@ -3950,7 +3859,6 @@ async function eggplantUnitNoFruit(plantId) {
   if (!unit) return;
   if (unit.status !== 'blooming') return alert('花の段階で記録します');
   unit.status = 'no_fruit';
-  setEggplantStageDate(unit, 'no_fruit');
   unit.currentCycleResult = 'no_fruit';
   unit.noFruitHistory = unit.noFruitHistory || [];
   unit.noFruitHistory.push({ date: new Date().toISOString(), cycle: unit.cycle || 1 });
@@ -3972,7 +3880,6 @@ async function eggplantUnitNextStage(plantId) {
   if (!unit) return;
   if (unit.status === 'no_fruit') {
     unit.status = 'cutback';
-    setEggplantStageDate(unit, 'cutback');
     await dbPut('clusters', unit);
     await renderPlantDetail(plantId);
     return;
@@ -3981,7 +3888,6 @@ async function eggplantUnitNextStage(plantId) {
   const idx = order.indexOf(unit.status || 'idle');
   if (idx >= order.length - 1 || idx < 0) return alert('これ以上は進めません');
   unit.status = order[idx + 1];
-  setEggplantStageDate(unit, unit.status);
   await dbPut('clusters', unit);
   await renderPlantDetail(plantId);
 }
@@ -3994,11 +3900,9 @@ async function eggplantUnitNextCycle(plantId) {
   if (unit.kind !== 'S') return alert(unit.kind === 'F' ? '一番花はC管理しません' : '主枝果はC管理しません');
   if (unit.status !== 'cutback') return alert('まず剪定まで進めてください');
   unit.cycleHistory = unit.cycleHistory || [];
-  unit.cycleHistory.push({ cycle: unit.cycle || 1, finishedAt: new Date().toISOString(), toneDone: (unit.tomatoToneHistory || []).length > 0, result: unit.currentCycleResult || 'harvested', cycleDates: unit.currentCycleDates || {} });
+  unit.cycleHistory.push({ cycle: unit.cycle || 1, finishedAt: new Date().toISOString(), toneDone: (unit.tomatoToneHistory || []).length > 0, result: unit.currentCycleResult || 'harvested' });
   unit.cycle = (unit.cycle || 1) + 1;
   unit.status = 'blooming';
-  unit.currentCycleDates = {};
-  setEggplantStageDate(unit, 'blooming');
   unit.tomatoToneHistory = [];
   unit.currentCycleResult = null;
   await dbPut('clusters', unit);
@@ -4042,8 +3946,6 @@ async function eggplantUnitReset(plantId) {
   unit.tomatoToneHistory = [];
   unit.cycleHistory = [];
   unit.noFruitHistory = [];
-  unit.currentCycleDates = {};
-  unit.stageHistory = [];
   unit.currentCycleResult = null;
   await dbPut('clusters', unit);
   await renderPlantDetail(plantId);
@@ -4099,7 +4001,6 @@ function renderEggplantSidebranchManager(plant, clusters = []) {
     現在: <b>${stageText}</b><br>
     トマトトーン: <b>${(selected.tomatoToneHistory?.length || 0) > 0 ? '散布済み' : '未散布'}</b><br>
     ${selected.kind === 'S' ? `C${selected.cycle || 1} を管理中` : 'C管理なし'}<br>
-    <div style="margin-top:6px;line-height:1.8;">${eggplantUnitDateSummaryHtml(selected)}</div>
     <span style="color:#6b7280;font-size:12px;">次の段階へ → <b>${nextStageText}</b> / 一つ戻る → <b>${prevStageText}</b></span>
   `;
   const listHtml = ['A', 'B'].map(stem => {
@@ -4115,15 +4016,11 @@ function renderEggplantSidebranchManager(plant, clusters = []) {
             const needTone = u.status === 'blooming' && (u.tomatoToneHistory?.length || 0) < 1;
             const isSelected = selected && selected.unitKey === u.unitKey;
             const toneDone = (u.tomatoToneHistory?.length || 0) > 0;
-            const dateCompact = eggplantUnitDateCompact(u);
             return `
-              <button onclick="eggplantSelectUnit('${plant.id}','${u.unitKey}')" style="border:${isSelected ? '2px solid #111827' : '1px solid var(--border)'};background:${needTone ? '#fff7ed' : '#ffffff'};border-radius:14px;padding:6px 9px;font-size:12px;font-weight:700;display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px;cursor:pointer;max-width:140px;">
-                <span style="display:flex;align-items:center;gap:4px;white-space:nowrap;">
-                  <span>${eggplantUnitLabel(u)}</span>
-                  <span style="color:#6b7280;font-weight:600;">${u.kind === 'S' ? `C${u.cycle || 1} ` : ''}${eggplantStageLabel(u.status)}</span>
-                  ${toneDone ? '<span style="color:#16a34a;">✓</span>' : ''}
-                </span>
-                ${dateCompact ? `<span style="color:#6b7280;font-size:10px;font-weight:600;line-height:1.2;white-space:normal;">${dateCompact}</span>` : ''}
+              <button onclick="eggplantSelectUnit('${plant.id}','${u.unitKey}')" style="border:${isSelected ? '2px solid #111827' : '1px solid var(--border)'};background:${needTone ? '#fff7ed' : '#ffffff'};border-radius:999px;padding:6px 9px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;">
+                <span>${eggplantUnitLabel(u)}</span>
+                <span style="color:#6b7280;font-weight:600;">${u.kind === 'S' ? `C${u.cycle || 1} ` : ''}${eggplantStageLabel(u.status)}</span>
+                ${toneDone ? '<span style="color:#16a34a;">✓</span>' : ''}
               </button>`;
           }).join('')}
         </div>
@@ -4719,7 +4616,7 @@ function renderEggplantPepperPruning(plant, tasks, clusters = []) {
 }
 // vines レコードを取得するヘルパー
 //   vineType: 'main' | 'child'
-//   vineIndex: main=1固定、child=1〜6
+//   vineIndex: main=1固定、child=1〜4
 function getVine(vines, vineType, vineIndex) {
   return vines.find(v => v.vineType === vineType && v.vineIndex === vineIndex);
 }
@@ -4732,8 +4629,8 @@ function renderPassionPruning(plant, tasks, vines, fruits) {
   const mainPinchedLegacy = tasks.find(t => t.type === 'pinching' && t.details?.target === 'main');
   const mainPinched = mainVine?.pinchedAt || mainPinchedLegacy?.date || null;
 
-  // 子づる①〜⑥（摘心と孫づるカウントのみ）。花の3区分カウンタは廃止。
-  const children = Array.from({ length: PASSION_CHILD_VINE_SLOTS }, (_, i) => i + 1).map(idx => {
+  // 子づる①〜④（摘心と孫づるカウントのみ）。花の3区分カウンタは廃止。
+  const children = [1, 2, 3, 4].map(idx => {
     const v = getVine(vines, 'child', idx);
     return {
       idx,
@@ -4815,8 +4712,8 @@ function renderPassionPruning(plant, tasks, vines, fruits) {
   
   // 子づる行
   const childRows = children.map(c => {
-    const isReserve = c.idx > PASSION_TARGET_CHILD_VINES;
-    const label = `子づる${VINE_NUMS[c.idx - 1] || c.idx}${isReserve ? '（予備）' : ''}`;
+    const isReserve = c.idx === 4;
+    const label = isReserve ? `子づる④（予備）` : `子づる${['①','②','③'][c.idx-1]}`;
     return `
       <div style="padding:10px 12px;background:${c.pinchedAt ? '#dcfce7' : '#f9fafb'};border-radius:8px;margin-bottom:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -4917,7 +4814,7 @@ function renderPassionPruning(plant, tasks, vines, fruits) {
     <div class="card">
       <div class="card-title">🌳 つる管理（パッション）</div>
       ${mainRow}
-      <div style="font-size:12px;color:var(--text-light);margin:12px 0 8px;">─── 子づる（基本3本＋予備3本・最大6本）───</div>
+      <div style="font-size:12px;color:var(--text-light);margin:12px 0 8px;">─── 子づる（基本3本＋予備1本）───</div>
       ${childRows}
       ${totalGrandchildren > 0 ? `
         <div style="margin-top:8px;font-size:11px;color:var(--text-light);">孫づる合計: ${totalGrandchildren}本</div>
@@ -4925,7 +4822,7 @@ function renderPassionPruning(plant, tasks, vines, fruits) {
       <div style="font-size:12px;color:var(--text-light);margin-top:8px;line-height:1.6;">
         <b>📋 育成ステップ</b><br>
         ${mainPinched ? '✓' : '□'} 主枝摘心（草丈30cm/支柱頂点）<br>
-        ${childPinchedCount >= PASSION_TARGET_CHILD_VINES ? '✓' : `□（${childPinchedCount}/${PASSION_TARGET_CHILD_VINES}）`} 子づる摘心（リング1周＝約50cm）<br>
+        ${childPinchedCount >= 3 ? '✓' : `□（${childPinchedCount}/3）`} 子づる摘心（リング1周＝約50cm）<br>
         □ 孫づる育成（伸ばす、摘心しない）<br>
         □ 開花〜人工授粉
       </div>
@@ -5131,24 +5028,15 @@ async function renderTasks() {
       }
     });
 
-    const carryoverActionKeys = new Set(carryoverTasks.map(t => {
-      const extraKey = t.clusterId || t.details?.clusterId || '';
-      return `${t.plantId}:${t.action}${extraKey ? ':' + extraKey : ''}`;
-    }));
-
     for (const t of allRecommended) {
       const extraTaskKey = t.clusterId || t.details?.clusterId || '';
       const key = taskStateKey(todayKey, t.plantId, t.action, extraTaskKey);
       const doneKey = `${t.plantId}:${t.action}${extraTaskKey ? ':' + extraTaskKey : ''}`;
       const state = cachedTasksState[key];
-      if (carryoverActionKeys.has(doneKey)) {
-        // 前日以前からの「明日へ」タスクが今日表示されている場合は、通常推奨との二重表示を避ける。
-      } else if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) {
+      if (state && state.status === 'done' && doneRecordActionKeys.has(doneKey)) {
         // 実作業履歴がある完了は、後段の「今日の記録」から表示する。
       } else if (state && state.status === 'skip') {
-        // 今回は見送り済み。今日の未完了には残さない。
-      } else if (state && state.status === 'carryover') {
-        // 「明日へ」送ったタスク。今日の未完了には残さない。
+        // skip skip
       } else {
         const taskWithKey = { ...t, taskKey: key };
         if (t.type === 'must') mustTasks.push(taskWithKey);
@@ -5181,11 +5069,8 @@ async function renderTasks() {
         <button class="check" onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'done')" title="作業した・完了として記録">
           <span class="ico">✓</span><span>完了</span>
         </button>
-        <button class="carry-btn" onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'carryover')" title="明日のタスクへ送る">
-          <span class="ico">↪</span><span>明日へ</span>
-        </button>
-        <button class="skip-btn" onclick="requestSkipTask(this, '${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')})" title="今回は見送る（二度タップで確定）">
-          <span class="ico">🚫</span><span>見送り</span>
+        <button class="skip-btn" onclick="markTask('${t.taskKey}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, 'skip')" title="今日はやらない（明日また表示）">
+          <span class="ico">⏭</span><span>あとで</span>
         </button>
       </div>
     </div>
@@ -6968,30 +6853,11 @@ async function saveFertilizerMixerBatch() {
       },
       notes: notes ? `${autoNote}\n${notes}` : autoNote
     });
-
-    // 液肥調合ツールで与えた液量は、水やりも兼ねている前提で水やり履歴も残す。
-    // これにより、今日のタスクの「水やり」も同時に完了扱いになる。
-    await recordTask({
-      plantId: row.plantId,
-      type: 'watering',
-      date: isoDate,
-      details: {
-        source: 'mixer',
-        batchId,
-        volumeMl: row.volumeMl,
-        volumeLabel: _formatMl(row.volumeMl),
-        linkedFertilizerAction: row.actionValue,
-        linkedFertilizerActionLabel: actionLabel
-      },
-      notes: `液肥調合ツールで水やり兼用 / ${_formatMl(row.volumeMl)}`
-    });
-
     // 今日のタスクは「判断して記録した」時点で完了扱いにする。
     // ただしリキダスのみ/水だけは次回追肥間隔の判定からは除外される。
     const inputDate = new Date(isoDate);
     if (inputDate.toDateString() === new Date().toDateString()) {
       await syncTaskStateOnRecord(row.plantId, 'fertilize_liquid');
-      await syncTaskStateOnRecord(row.plantId, 'watering');
     }
   }
   closeModal();
@@ -7363,7 +7229,7 @@ async function savePinching() {
   });
   
   // パッションフルーツの場合、vinesテーブルにも反映
-  //   主枝→main#1、子づる→空きスロットの若い順（①→②→③→④→⑤→⑥）
+  //   主枝→main#1、子づる→空きスロットの若い順（①→②→③→④）
   const plant = await dbGet('plants', currentPlantId);
   if (plant?.species === 'passion' && (target === 'main' || target === 'child')) {
     const allVines = await dbGetAll('vines');
@@ -7387,7 +7253,7 @@ async function savePinching() {
       }
     } else if (target === 'child') {
       let assigned = false;
-      for (let idx = 1; idx <= PASSION_CHILD_VINE_SLOTS; idx++) {
+      for (let idx = 1; idx <= 4; idx++) {
         const existing = myVines.find(v => v.vineType === 'child' && v.vineIndex === idx);
         if (!existing) {
           await dbPut('vines', {
@@ -7484,7 +7350,7 @@ async function markVinePinch(plantId, vineType, vineIndex) {
     type: 'pinching',
     date: now,
     details: { target, vineIndex },
-    notes: `${vineType === 'main' ? '主枝' : `子づる${VINE_NUMS[vineIndex - 1] || vineIndex}`}摘心`
+    notes: `${vineType === 'main' ? '主枝' : `子づる${['①','②','③','④'][vineIndex-1]}`}摘心`
   });
   v.taskId = taskId;
   await dbPut('vines', v);
@@ -7493,7 +7359,7 @@ async function markVinePinch(plantId, vineType, vineIndex) {
 }
 
 async function undoVinePinch(plantId, vineType, vineIndex) {
-  const label = vineType === 'main' ? '主枝' : `子づる${VINE_NUMS[vineIndex - 1] || vineIndex}`;
+  const label = vineType === 'main' ? '主枝' : `子づる${['①','②','③','④'][vineIndex-1]}`;
   if (!confirm(`${label}の摘心記録を取り消しますか？\n（履歴からも削除されます）`)) return;
   const all = await dbGetAll('vines');
   const v = all.find(x => x.plantId === plantId && x.vineType === vineType && x.vineIndex === vineIndex);
@@ -7586,8 +7452,6 @@ async function openAddFruitModal(plantId) {
             <option value="child:2">🌱 子づる②</option>
             <option value="child:3">🌱 子づる③</option>
             <option value="child:4">🌱 子づる④（予備）</option>
-            <option value="child:5">🌱 子づる⑤（予備）</option>
-            <option value="child:6">🌱 子づる⑥（予備）</option>
           </select>
         </div>
 
@@ -7712,7 +7576,8 @@ ${cluster.notes}`;
 }
 function vineIndexLabel(vineType, vineIndex) {
   if (vineType === 'main') return '主枝';
-  return `子づる${VINE_NUMS[(vineIndex || 1) - 1] || vineIndex}`;
+  const nums = ['①', '②', '③', '④'];
+  return `子づる${nums[(vineIndex || 1) - 1] || vineIndex}`;
 }
 function vineFieldLabel(field) {
   return ({
@@ -8061,47 +7926,15 @@ async function deleteCluster(clusterId) {
   await renderPlantDetail(currentPlantId);
 }
 
-function requestSkipTask(buttonEl, taskKey, taskData) {
-  // 誤タッチ防止：見送りは2回タップで確定。1回目はボタン表示だけを変える。
-  if (pendingSkipTaskKey === taskKey) {
-    if (pendingSkipTimer) {
-      clearTimeout(pendingSkipTimer);
-      pendingSkipTimer = null;
-    }
-    pendingSkipTaskKey = null;
-    markTask(taskKey, taskData, 'skip');
-    return;
-  }
-  pendingSkipTaskKey = taskKey;
-  if (pendingSkipTimer) clearTimeout(pendingSkipTimer);
-  const originalHtml = buttonEl.innerHTML;
-  const originalBg = buttonEl.style.background;
-  const originalColor = buttonEl.style.color;
-  const originalBorder = buttonEl.style.borderColor;
-  buttonEl.innerHTML = '<span class="ico">⚠️</span><span>もう一度</span>';
-  buttonEl.style.background = '#fef3c7';
-  buttonEl.style.color = '#92400e';
-  buttonEl.style.borderColor = '#f59e0b';
-  pendingSkipTimer = setTimeout(() => {
-    if (pendingSkipTaskKey === taskKey) pendingSkipTaskKey = null;
-    if (buttonEl && buttonEl.isConnected) {
-      buttonEl.innerHTML = originalHtml;
-      buttonEl.style.background = originalBg;
-      buttonEl.style.color = originalColor;
-      buttonEl.style.borderColor = originalBorder;
-    }
-  }, 2500);
-}
-
 async function markTask(taskKey, taskData, status) {
   const taskState = await dbGet('settings', 'taskState') || { key: 'taskState', value: {} };
   taskState.value = taskState.value || {};
   
   if (status === 'carryover') {
-    // 「明日へ」：翌日に持ち越し
+    // 翌日に持ち越し
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowKey = localDateKey(tomorrow);
+    const tomorrowKey = tomorrow.toISOString().split('T')[0];
     taskState.value[taskKey] = {
       status: 'carryover',
       date: today(),
@@ -8201,7 +8034,7 @@ async function markTask(taskKey, taskData, status) {
       } else if (details.target === 'child') {
         // 空きスロット（pinchedAt が null）または存在しないスロットを若い順に探す
         let assigned = false;
-        for (let idx = 1; idx <= PASSION_CHILD_VINE_SLOTS; idx++) {
+        for (let idx = 1; idx <= 4; idx++) {
           const existing = myVines.find(v => v.vineType === 'child' && v.vineIndex === idx);
           if (!existing) {
             await dbPut('vines', {
@@ -8223,7 +8056,7 @@ async function markTask(taskKey, taskData, status) {
             break;
           }
         }
-        // 全スロット摘心済みなら何もしない（履歴だけ残す）
+        // 4本とも摘心済みなら何もしない（履歴だけ残す）
       }
     }
   }
@@ -8305,13 +8138,17 @@ async function exportSeasonReviewCSV(seasonOverride = null) {
   const tasks = await dbGetAll('tasks');
   const clusters = await dbGetAll('clusters');
   const photos = await dbGetAll('photos');
+  const fruits = await dbGetAll('fruits');
+  const effectiveHarvests = buildEffectiveHarvests(tasks, fruits);
   const seasons = Array.from(new Set([
     ...plants.map(p => p.season || (p.plantingDate ? String(new Date(p.plantingDate).getFullYear()) : null)),
-    ...tasks.map(t => _yearOf(t.date))
+    ...tasks.map(t => _yearOf(t.date)),
+    ...effectiveHarvests.map(h => _yearOf(h.date))
   ].filter(Boolean))).sort((a,b) => Number(b) - Number(a));
   const season = String(seasonOverride || seasons[0] || new Date().getFullYear());
   const seasonPlants = plants.filter(p => (p.season || String(new Date(p.plantingDate).getFullYear())) === season);
   const seasonTasks = tasks.filter(t => _yearOf(t.date) === season);
+  const seasonHarvests = effectiveHarvests.filter(t => _yearOf(t.date) === season);
   const header = [
     'シーズン','株名','種類','仕立て','植え付け日','終了日','栽培日数',
     '総収穫数','初収穫日','初収穫までの日数','最終収穫日','収穫期間日数',
@@ -8322,7 +8159,7 @@ async function exportSeasonReviewCSV(seasonOverride = null) {
   const rows = [header];
   for (const plant of seasonPlants) {
     const myTasks = seasonTasks.filter(t => t.plantId === plant.id);
-    const myHarvests = myTasks.filter(t => t.type === 'harvest').sort((a,b) => new Date(a.date) - new Date(b.date));
+    const myHarvests = seasonHarvests.filter(t => t.plantId === plant.id).sort((a,b) => new Date(a.date) - new Date(b.date));
     const harvestCount = _sumHarvest(myHarvests);
     const firstHarvest = myHarvests[0]?.date || '';
     const lastHarvest = myHarvests[myHarvests.length - 1]?.date || '';
@@ -8678,7 +8515,7 @@ function generateWeeklyHighlight(plant, clusters, tasks) {
     if (days < 14) {
       msg = '🌺 株づくり期。<b>主枝が草丈30cm or 支柱頂点に達したら摘心</b>を。春先の蕾は思い切って摘み、株を充実させて。';
     } else if (days < 30) {
-      msg = '🌺 つるを伸ばす時期。主枝摘心後は子づる3本を基本にし、予備枠も含めて管理する。<b>子づるはリング1周（約50cm）伸びたら先端カット</b>。';
+      msg = '🌺 つるを伸ばす時期。主枝摘心後は子づる3本に絞る。<b>子づるはリング1周（約50cm）伸びたら先端カット</b>。';
     } else if (days < 60) {
       msg = '🌸 開花期。受粉は午前中、雨の日は人工授粉を（綿棒で雄しべ→雌しべ）。孫づるには絶対ハサミを入れない。';
     } else if (days < 100) {
@@ -8746,7 +8583,8 @@ async function getHistoricalTemperature(startDate, endDate) {
 async function renderHarvestStats(period = 'week') {
   const plants = await dbGetAll('plants');
   const allTasks = await dbGetAll('tasks');
-  const harvests = allTasks.filter(t => t.type === 'harvest');
+  const allFruits = await dbGetAll('fruits');
+  const harvests = buildEffectiveHarvests(allTasks, allFruits);
   
   // 集計
   const totalCount = harvests.reduce((sum, t) => sum + (t.details?.count || 1), 0);
@@ -8847,6 +8685,40 @@ function _taskCount(tasks, type) {
 }
 function _sumHarvest(harvests) {
   return harvests.reduce((sum, t) => sum + (t.details?.count || 1), 0);
+}
+
+// 収穫集計用の正規化。
+// 通常は tasks の harvest 記録を使うが、パッションフルーツは「実ごとの記録」で
+// status=harvested になっている実も収穫1個として扱う。
+// details.fruitId が一致する harvest 記録が既にある場合は二重カウントしない。
+function buildEffectiveHarvests(tasks, fruits = []) {
+  const harvests = (tasks || []).filter(t => t.type === 'harvest').map(t => ({ ...t }));
+  const recordedFruitIds = new Set(
+    harvests
+      .map(t => t.details?.fruitId)
+      .filter(Boolean)
+  );
+
+  for (const f of (fruits || [])) {
+    if (f.status !== 'harvested') continue;
+    if (!f.id || recordedFruitIds.has(f.id)) continue;
+    harvests.push({
+      id: `virtual-harvest-fruit-${f.id}`,
+      plantId: f.plantId,
+      type: 'harvest',
+      date: f.harvestedAt || f.updatedAt || f.fruitingAt || f.createdAt || new Date().toISOString(),
+      details: {
+        count: 1,
+        fruitId: f.id,
+        weight: f.weight || null,
+        source: 'fruit_record',
+        virtual: true
+      },
+      notes: `${fruitDisplayLabel(f)}：収穫（実ごとの記録から集計）`
+    });
+  }
+
+  return harvests;
 }
 function _daysBetween(a, b) {
   const d1 = new Date(a); d1.setHours(0,0,0,0);
@@ -9352,7 +9224,8 @@ async function renderSeasonFeedback(selectedSeason = null) {
   const plants = await dbGetAll('plants');
   const allTasks = await dbGetAll('tasks');
   const clusters = await dbGetAll('clusters');
-  const harvestsAll = allTasks.filter(t => t.type === 'harvest');
+  const fruits = await dbGetAll('fruits');
+  const harvestsAll = buildEffectiveHarvests(allTasks, fruits);
   const seasons = Array.from(new Set([
     ...plants.map(p => p.season || (p.plantingDate ? String(new Date(p.plantingDate).getFullYear()) : null)),
     ...harvestsAll.map(h => _yearOf(h.date))
@@ -9360,7 +9233,7 @@ async function renderSeasonFeedback(selectedSeason = null) {
   const season = selectedSeason || seasons[0] || new Date().getFullYear().toString();
   const seasonPlants = plants.filter(p => (p.season || String(new Date(p.plantingDate).getFullYear())) === season);
   const seasonTasks = allTasks.filter(t => _yearOf(t.date) === season);
-  const harvests = seasonTasks.filter(t => t.type === 'harvest');
+  const harvests = harvestsAll.filter(t => _yearOf(t.date) === season);
   const total = _sumHarvest(harvests);
   const heatTasks = seasonTasks.filter(t => t.type === 'heat_protection');
   const liquidTasks = seasonTasks.filter(t => t.type === 'fertilize_liquid');
