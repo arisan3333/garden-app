@@ -3800,21 +3800,51 @@ function setEggplantStageDate(unit, stage, iso = new Date().toISOString()) {
   const field = eggplantStageDateField(stage);
   if (!field || !unit) return;
   unit.currentCycleDates = unit.currentCycleDates || {};
-  if (!unit.currentCycleDates[field]) unit.currentCycleDates[field] = iso;
-  unit.stageHistory = unit.stageHistory || [];
+  // 一度誤って進めてから戻し、再度進めた場合は「今回の操作日」で上書きする。
+  // 古い着果日などが残ると、状態と日付表示がズレるため。
+  unit.currentCycleDates[field] = iso;
+  unit[field] = iso; // 古い保存形式が残っている場合の互換用
+  unit.stageHistory = (unit.stageHistory || []);
   const cycle = unit.cycle || 1;
-  const already = unit.stageHistory.some(h => (h.cycle || 1) === cycle && h.status === stage);
-  if (!already) unit.stageHistory.push({ cycle, status: stage, date: iso });
+  unit.stageHistory = unit.stageHistory.filter(h => !((h.cycle || 1) === cycle && h.status === stage));
+  unit.stageHistory.push({ cycle, status: stage, date: iso });
 }
 function clearEggplantStageDate(unit, stage) {
   const field = eggplantStageDateField(stage);
   if (!field || !unit) return;
   const cycle = unit.cycle || 1;
   if (unit.currentCycleDates) delete unit.currentCycleDates[field];
+  // 念のため、過去バージョン/手動保存でトップレベルに残った日付も消す
+  if (field in unit) delete unit[field];
   unit.stageHistory = (unit.stageHistory || []).filter(h => !((h.cycle || 1) === cycle && h.status === stage));
 }
 function clearEggplantStages(unit, stages = []) {
   stages.forEach(stage => clearEggplantStageDate(unit, stage));
+}
+function normalizeEggplantStageDates(unit) {
+  if (!unit) return;
+  const status = unit.status || 'idle';
+  if (status === 'idle') {
+    clearEggplantStages(unit, ['blooming', 'fruiting', 'harvesting', 'no_fruit', 'cutback']);
+    unit.tomatoToneHistory = [];
+    unit.currentCycleResult = null;
+  } else if (status === 'blooming') {
+    clearEggplantStages(unit, ['fruiting', 'harvesting', 'no_fruit', 'cutback']);
+    unit.currentCycleResult = null;
+  } else if (status === 'fruiting') {
+    clearEggplantStages(unit, ['harvesting', 'no_fruit', 'cutback']);
+    unit.currentCycleResult = null;
+  } else if (status === 'harvesting') {
+    clearEggplantStages(unit, ['no_fruit', 'cutback']);
+    unit.currentCycleResult = 'harvested';
+  } else if (status === 'no_fruit') {
+    clearEggplantStages(unit, ['fruiting', 'harvesting', 'cutback']);
+    unit.currentCycleResult = 'no_fruit';
+  }
+  const cycle = unit.cycle || 1;
+  if (status !== 'no_fruit') {
+    unit.noFruitHistory = (unit.noFruitHistory || []).filter(h => Number(h.cycle || 1) !== Number(cycle));
+  }
 }
 async function deleteEggplantLinkedTasks(plantId, unit, types = []) {
   const allTasks = await dbGetAll('tasks');
@@ -3831,9 +3861,14 @@ function eggplantStageDate(unit, stage) {
   const field = eggplantStageDateField(stage);
   if (!field || !unit) return null;
   if (unit.currentCycleDates?.[field]) return unit.currentCycleDates[field];
+  // 旧データ互換：以前のバージョンでトップレベルに保存された日付も読む
+  if (unit[field]) return unit[field];
   const cycle = unit.cycle || 1;
   const hit = (unit.stageHistory || []).filter(h => (h.cycle || 1) === cycle && h.status === stage).sort((a,b) => new Date(b.date) - new Date(a.date))[0];
   return hit?.date || null;
+}
+function eggplantEffectiveStageDate(unit, stage) {
+  return eggplantStageReached(unit, stage) ? eggplantStageDate(unit, stage) : null;
 }
 function eggplantToneDate(unit) {
   const arr = unit?.tomatoToneHistory || [];
@@ -3860,11 +3895,11 @@ function eggplantDateBadge(ico, label, date, reached = false) {
 function eggplantUnitDateSummaryHtml(unit) {
   if (!unit) return '';
   const badges = [
-    eggplantDateBadge('🌸', '開花', eggplantStageDate(unit, 'blooming'), eggplantStageReached(unit, 'blooming')),
-    eggplantDateBadge('🍆', '着果', eggplantStageDate(unit, 'fruiting'), eggplantStageReached(unit, 'fruiting')),
-    eggplantDateBadge('🧺', '収穫', eggplantStageDate(unit, 'harvesting'), eggplantStageReached(unit, 'harvesting')),
-    eggplantDateBadge('🥀', '不着果', eggplantStageDate(unit, 'no_fruit'), eggplantStageReached(unit, 'no_fruit')),
-    eggplantDateBadge('✂️', '剪定', eggplantStageDate(unit, 'cutback'), eggplantStageReached(unit, 'cutback')),
+    eggplantDateBadge('🌸', '開花', eggplantEffectiveStageDate(unit, 'blooming'), eggplantStageReached(unit, 'blooming')),
+    eggplantDateBadge('🍆', '着果', eggplantEffectiveStageDate(unit, 'fruiting'), eggplantStageReached(unit, 'fruiting')),
+    eggplantDateBadge('🧺', '収穫', eggplantEffectiveStageDate(unit, 'harvesting'), eggplantStageReached(unit, 'harvesting')),
+    eggplantDateBadge('🥀', '不着果', eggplantEffectiveStageDate(unit, 'no_fruit'), eggplantStageReached(unit, 'no_fruit')),
+    eggplantDateBadge('✂️', '剪定', eggplantEffectiveStageDate(unit, 'cutback'), eggplantStageReached(unit, 'cutback')),
     eggplantDateBadge('🍆', 'トーン', eggplantToneDate(unit), !!eggplantToneDate(unit))
   ].filter(Boolean);
   if (!badges.length) return '<span style="color:#6b7280;font-size:12px;">日付記録なし</span>';
@@ -3873,10 +3908,10 @@ function eggplantUnitDateSummaryHtml(unit) {
 function eggplantUnitDateCompact(unit) {
   if (!unit) return '';
   const parts = [];
-  const bloom = eggplantStageDate(unit, 'blooming');
-  const fruit = eggplantStageDate(unit, 'fruiting');
-  const harvest = eggplantStageDate(unit, 'harvesting');
-  const noFruit = eggplantStageDate(unit, 'no_fruit');
+  const bloom = eggplantEffectiveStageDate(unit, 'blooming');
+  const fruit = eggplantEffectiveStageDate(unit, 'fruiting');
+  const harvest = eggplantEffectiveStageDate(unit, 'harvesting');
+  const noFruit = eggplantEffectiveStageDate(unit, 'no_fruit');
   const tone = eggplantToneDate(unit);
   if (bloom) parts.push(`🌸${dateStr(bloom)}`);
   else if (eggplantStageReached(unit, 'blooming')) parts.push('🌸未');
@@ -3973,6 +4008,7 @@ async function eggplantUnitNoFruit(plantId) {
   unit.currentCycleResult = 'no_fruit';
   unit.noFruitHistory = unit.noFruitHistory || [];
   unit.noFruitHistory.push({ date: new Date().toISOString(), cycle: unit.cycle || 1 });
+  normalizeEggplantStageDates(unit);
   await dbPut('clusters', unit);
   await recordTask({
     plantId,
@@ -4021,6 +4057,7 @@ async function eggplantUnitNextStage(plantId) {
       });
     }
   }
+  normalizeEggplantStageDates(unit);
   await dbPut('clusters', unit);
   await renderPlantDetail(plantId);
 }
@@ -4059,6 +4096,7 @@ async function eggplantUnitPrevStage(plantId) {
     clearEggplantStages(unit, ['no_fruit', 'fruiting', 'harvesting', 'cutback']);
     unit.noFruitHistory = (unit.noFruitHistory || []).filter(h => Number(h.cycle || 1) !== Number(unit.cycle || 1));
     await deleteEggplantLinkedTasks(plantId, unit, ['no_fruit']);
+    normalizeEggplantStageDates(unit);
     await dbPut('clusters', unit);
     await renderPlantDetail(plantId);
     return;
@@ -4101,6 +4139,7 @@ async function eggplantUnitPrevStage(plantId) {
     await deleteEggplantLinkedTasks(plantId, unit, ['no_fruit', 'harvest']);
   }
 
+  normalizeEggplantStageDates(unit);
   await dbPut('clusters', unit);
   await renderPlantDetail(plantId);
 }
