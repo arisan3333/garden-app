@@ -3806,6 +3806,27 @@ function setEggplantStageDate(unit, stage, iso = new Date().toISOString()) {
   const already = unit.stageHistory.some(h => (h.cycle || 1) === cycle && h.status === stage);
   if (!already) unit.stageHistory.push({ cycle, status: stage, date: iso });
 }
+function clearEggplantStageDate(unit, stage) {
+  const field = eggplantStageDateField(stage);
+  if (!field || !unit) return;
+  const cycle = unit.cycle || 1;
+  if (unit.currentCycleDates) delete unit.currentCycleDates[field];
+  unit.stageHistory = (unit.stageHistory || []).filter(h => !((h.cycle || 1) === cycle && h.status === stage));
+}
+function clearEggplantStages(unit, stages = []) {
+  stages.forEach(stage => clearEggplantStageDate(unit, stage));
+}
+async function deleteEggplantLinkedTasks(plantId, unit, types = []) {
+  const allTasks = await dbGetAll('tasks');
+  const linked = allTasks.filter(t => {
+    if (!types.includes(t.type) || t.plantId !== plantId) return false;
+    const sameUnit = t.details?.unitKey === unit.unitKey || t.details?.clusterId === unit.id;
+    const sameCycle = Number(t.details?.cycle || 1) === Number(unit.cycle || 1);
+    const sidebranchLike = t.details?.source === 'eggplant_sidebranch' || sameUnit;
+    return sidebranchLike && sameUnit && sameCycle;
+  });
+  for (const t of linked) await dbDelete('tasks', t.id);
+}
 function eggplantStageDate(unit, stage) {
   const field = eggplantStageDateField(stage);
   if (!field || !unit) return null;
@@ -3957,7 +3978,7 @@ async function eggplantUnitNoFruit(plantId) {
     plantId,
     type: 'no_fruit',
     date: new Date().toISOString(),
-    details: { cluster: unit.segmentNumber, clusterId: unit.id, unitKey: unit.unitKey, cycle: unit.cycle || 1 },
+    details: { source: 'eggplant_sidebranch', cluster: unit.segmentNumber, clusterId: unit.id, unitKey: unit.unitKey, cycle: unit.cycle || 1 },
     notes: `${eggplantToneTargetLabel(unit)}：花は咲いたが実にならず`
   });
   await renderPlantDetail(plantId);
@@ -4029,36 +4050,57 @@ async function eggplantUnitPrevStage(plantId) {
   const key = eggplantUnitSelections[plantId] || 'F-1';
   const unit = units.find(u => u.unitKey === key);
   if (!unit) return;
+
+  // 「一つ戻る」は状態だけでなく、戻した先より後段の記録日も消す。
+  // これをしないと、表示は「花」なのに日付欄だけ「着果: 6/xx」のように残る。
   if (unit.status === 'no_fruit') {
     unit.status = 'blooming';
     unit.currentCycleResult = null;
+    clearEggplantStages(unit, ['no_fruit', 'fruiting', 'harvesting', 'cutback']);
+    unit.noFruitHistory = (unit.noFruitHistory || []).filter(h => Number(h.cycle || 1) !== Number(unit.cycle || 1));
+    await deleteEggplantLinkedTasks(plantId, unit, ['no_fruit']);
     await dbPut('clusters', unit);
     await renderPlantDetail(plantId);
     return;
   }
+
   const order = ['idle', 'blooming', 'fruiting', 'harvesting', 'cutback'];
   const prevStatus = unit.status || 'idle';
   const idx = order.indexOf(prevStatus);
   if (idx <= 0) return alert('これ以上は戻せません');
-  unit.status = order[idx - 1];
-  if (prevStatus === 'harvesting' && unit.status === 'fruiting') {
-    if (unit.currentCycleDates) delete unit.currentCycleDates.harvestingAt;
-    unit.stageHistory = (unit.stageHistory || []).filter(h => !((h.cycle || 1) === (unit.cycle || 1) && h.status === 'harvesting'));
-    unit.currentCycleResult = null;
-    const allTasks = await dbGetAll('tasks');
-    const linked = allTasks.filter(t =>
-      t.type === 'harvest' &&
-      t.plantId === plantId &&
-      t.details?.source === 'eggplant_sidebranch' &&
-      t.details?.unitKey === unit.unitKey &&
-      Number(t.details?.cycle || 1) === Number(unit.cycle || 1)
-    );
-    for (const t of linked) await dbDelete('tasks', t.id);
+
+  // 不着果から剪定に進めたものは、剪定から戻すと「不着果」に戻す。
+  // 通常の収穫サイクルでは、剪定から戻すと「収穫」に戻す。
+  if (prevStatus === 'cutback' && unit.currentCycleResult === 'no_fruit') {
+    unit.status = 'no_fruit';
+    clearEggplantStageDate(unit, 'cutback');
+  } else {
+    unit.status = order[idx - 1];
   }
+
+  if (prevStatus === 'cutback' && unit.status === 'harvesting') {
+    clearEggplantStageDate(unit, 'cutback');
+  }
+
+  if (prevStatus === 'harvesting' && unit.status === 'fruiting') {
+    clearEggplantStages(unit, ['harvesting', 'cutback']);
+    unit.currentCycleResult = null;
+    await deleteEggplantLinkedTasks(plantId, unit, ['harvest']);
+  }
+
+  if (prevStatus === 'fruiting' && unit.status === 'blooming') {
+    clearEggplantStages(unit, ['fruiting', 'harvesting', 'cutback']);
+    unit.currentCycleResult = null;
+  }
+
   if (unit.status === 'idle') {
+    clearEggplantStages(unit, ['blooming', 'fruiting', 'harvesting', 'no_fruit', 'cutback']);
     unit.tomatoToneHistory = [];
     unit.currentCycleResult = null;
+    unit.noFruitHistory = (unit.noFruitHistory || []).filter(h => Number(h.cycle || 1) !== Number(unit.cycle || 1));
+    await deleteEggplantLinkedTasks(plantId, unit, ['no_fruit', 'harvest']);
   }
+
   await dbPut('clusters', unit);
   await renderPlantDetail(plantId);
 }
